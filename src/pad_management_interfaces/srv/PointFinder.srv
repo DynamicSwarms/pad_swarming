@@ -1,0 +1,4 @@
+geometry_msgs/Point point # The point to search for in point cloud
+float32 max_distance # The maximum distance to search for the point in meter
+---
+bool found # whether the point was found or not
