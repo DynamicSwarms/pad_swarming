@@ -16,7 +16,7 @@ class PointCloudFinder(Node):
 
     def __init__(self) -> None:
         super().__init__("pc_finder")
-        self.declare_parameter("point_cloud_topic_name", "point_cloud")
+        self.declare_parameter("point_cloud_topic_name", "pointCloud")
         pc_topic_name = (
             self.get_parameter("point_cloud_topic_name")
             .get_parameter_value()
@@ -27,7 +27,7 @@ class PointCloudFinder(Node):
 
         self.create_subscription(PointCloud2, pc_topic_name, self.pc_callback, 10)
 
-        self.create_service(PointFinder, "~/checkForPoint", self.check_point)
+        self.create_service(PointFinder, "checkForPoint", self.check_point)
 
     def check_point(self, request: PointFinder.Request, response: PointFinder.Response):
         response.found = self._check_for_point(request.point, request.max_distance)

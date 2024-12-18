@@ -1,5 +1,9 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.lifecycle import LifecycleNode
+from rclpy.lifecycle import State, TransitionCallbackReturn
+from lifecycle_msgs.msg import State as LifecycleState
+
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rcl_interfaces.msg import ParameterDescriptor
@@ -33,36 +37,68 @@ class PadFlieState(Enum):
 PAD_FLIE_TYPE = "tracked"
 
 
-class PadFlie(Crazyflie):
-    def __init__(self, node: Node, id: int, channel: int, pad_name: str):
-        self.node = node
-        self.pad_name = pad_name
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, node)
+class PadFlie(LifecycleNode, Crazyflie):
+    def __init__(self, executor: SingleThreadedExecutor):
+        LifecycleNode.__init__(self, node_name="padflie")
+        self.executor = executor
+        self.declare_parameter(
+            name="id", value=0xE7, descriptor=ParameterDescriptor(read_only=True)
+        )
+        self.declare_parameter(
+            name="channel", value=80, descriptor=ParameterDescriptor(read_only=True)
+        )
+        self.declare_parameter(
+            name="pad_id",
+            value=0,
+            descriptor=ParameterDescriptor(read_only=True),
+        )
 
-        node.get_logger().info(f"{id},{channel},{pad_name}")
+    def configure(self) -> bool:
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        """"
+        This is getting stupid. This buffer needs to be inside init but cannot. 
+        The crazyflie constructor also creates such buffer... 
+        Should we not use Crazyflie but the gateway... not nice... 
+        Executors suck. Ros1 was so nice in this regard
+        """
+        self.get_logger().info(f"{self.cf_id},{self.cf_channel},{self.pad_name}")
 
         timeout = 0
         pad_position = self._get_pad_position()
+        self.get_logger().info("hih")
         while pad_position is None and not timeout > 100:
+            self.get_logger().info("asd")
             rclpy.spin_once(
-                node, timeout_sec=0.05
+                self, timeout_sec=0.05, executor=self.executor
             )  ## Spin abit to get listener.. only for now
             pad_position = self._get_pad_position()
             timeout += 1
         if timeout > 100:
-            node.get_logger().info("nope")
+            self.get_logger().info("Could not find pad position.")
+            # return False
 
-        super().__init__(node, id, channel, pad_position, type=CrazyflieType.HARDWARE)
+        self.get_logger().info("constr")
+
+        Crazyflie.__init__(
+            self,
+            self,
+            self.cf_id,
+            self.cf_channel,
+            pad_position,
+            type=CrazyflieType.HARDWARE,
+        )
         self.state: PadFlie = PadFlieState.IDLE
 
-        prefix = "/padflie{}".format(id)
+        prefix = "/padflie{}".format(self.cf_id)
         qos_profile = 10
         callback_group = MutuallyExclusiveCallbackGroup()
 
         self.target: List[float] = None
 
-        node.create_subscription(
+        self.get_logger().info("Creating subs")
+
+        self.create_subscription(
             SendTarget,
             prefix + "/send_target",
             self._send_target_callback,
@@ -70,7 +106,7 @@ class PadFlie(Crazyflie):
             callback_group=callback_group,
         )
 
-        node.create_subscription(
+        self.create_subscription(
             msg_type=Empty,
             topic=prefix + "/pad_takeoff",
             callback=self._takeoff_callback,
@@ -78,7 +114,7 @@ class PadFlie(Crazyflie):
             callback_group=callback_group,
         )
 
-        node.create_subscription(
+        self.create_subscription(
             msg_type=Empty,
             topic=prefix + "/pad_land",
             callback=self._land_callback,
@@ -93,9 +129,12 @@ class PadFlie(Crazyflie):
             dt=dt, max_step_distance_xy=3, max_step_distance_z=1, clipping_box=None
         )
 
+        self.get_logger().info("timer")
+
         cmd_position_timer = self.node.create_timer(
             dt, self.__send_target, callback_group=MutuallyExclusiveCallbackGroup()
         )
+        return True
 
     def __send_target(self):
         if self.state is not PadFlieState.TARGET:
@@ -150,9 +189,11 @@ class PadFlie(Crazyflie):
 
     def _get_pad_position(self) -> List[float]:
         try:
+            self.get_logger().info("here")
             t = self.tf_buffer.lookup_transform(
                 "world", self.pad_name, rclpy.time.Time()
             )
+            self.get_logger().info("there")
             return [
                 t.transform.translation.x,
                 t.transform.translation.y,
@@ -162,27 +203,56 @@ class PadFlie(Crazyflie):
             self.node.get_logger().info(str(ex))
             return None
 
+    # Properties
+    @property
+    def cf_id(self) -> int:
+        return self.get_parameter("id").get_parameter_value().integer_value
+
+    @property
+    def cf_channel(self) -> int:
+        return self.get_parameter("channel").get_parameter_value().integer_value
+
+    @property
+    def pad_name(self) -> str:
+        id: int = self.get_parameter("pad_id").get_parameter_value().integer_value
+        return f"pad_{id}"
+
+    # Lifecycle Overrides
+    def on_configure(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info(f"PadFlie {self.cf_id} configuring.")
+        if self.configure():
+            self.get_logger("success")
+            return TransitionCallbackReturn.SUCCESS
+        else:
+            self.get_logger("failed")
+            return TransitionCallbackReturn.FAILURE
+
+    def on_activate(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info(f"PadFlie {self.cf_id} transitioned to active.")
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_deactivate(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info(f"PadFlie {self.cf_id} deactivating (not implemented)")
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_shutdown(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info(f"PadFlie {self.cf_id} shutting down.")
+        self.shutdown()
+        return TransitionCallbackReturn.SUCCESS
+
+    def shutdown(self):
+        if (
+            self._state_machine.current_state
+            is not LifecycleState.PRIMARY_STATE_UNCONFIGURED
+        ):
+            self.close_crazyflie()
+        self.executor.shutdown(timeout_sec=0.1)
+
 
 def main():
     rclpy.init()
-    node = Node("padflie")
-    node.declare_parameter(
-        name="id", value=0xE7, descriptor=ParameterDescriptor(read_only=True)
-    )
-    node.declare_parameter(
-        name="channel", value=80, descriptor=ParameterDescriptor(read_only=True)
-    )
-    node.declare_parameter(
-        name="pad_name",
-        value="pad_",
-        descriptor=ParameterDescriptor(read_only=True),
-    )
-
-    cf_id: int = node.get_parameter("id").get_parameter_value().integer_value
-    cf_channel: int = node.get_parameter("channel").get_parameter_value().integer_value
-    pad_name: int = node.get_parameter("pad_name").get_parameter_value().string_value
-
-    safeflie = PadFlie(node, cf_id, cf_channel, pad_name)
+    executor = SingleThreadedExecutor()
+    padflie = PadFlie(executor)
 
     @dataclass
     class FLAG:
@@ -194,11 +264,10 @@ def main():
     SHUTDOWN = FLAG()
     signal.signal(signal.SIGINT, lambda _, __: SHUTDOWN.kill())
 
-    while rclpy.ok() and not SHUTDOWN.stop:
-        rclpy.spin_once(node, timeout_sec=0.1)
+    while rclpy.ok() and not SHUTDOWN.stop and not executor._is_shutdown:
+        rclpy.spin_once(padflie, timeout_sec=0.1, executor=executor)
 
-    safeflie.close_crazyflie()
-    node.destroy_node()
+    padflie.destroy_node()
     rclpy.shutdown()
 
 

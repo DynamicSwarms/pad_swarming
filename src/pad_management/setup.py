@@ -9,7 +9,14 @@ data_files.append(
 
 data_files.append(("share/" + package_name + "/launch", ["launch/pad.launch.py"]))
 data_files.append(
-    ("share/" + package_name + "/launch", ["launch/pad_arrangement.yaml"])
+    ("share/" + package_name + "/launch", ["launch/pad_example.launch.py"])
+)
+
+data_files.append(
+    ("share/" + package_name + "/config", ["config/pad_arrangement.yaml"])
+)
+data_files.append(
+    ("share/" + package_name + "/config", ["config/padflie_arrangement.yaml"])
 )
 
 setup(
@@ -28,6 +35,7 @@ setup(
         "console_scripts": [
             "pad_broadcaster = pad_management.pad_broadcaster:main",
             "point_finder = pad_management.point_finder:main",
+            "pad_creator = pad_management.pad_creator:main",
         ],
     },
 )

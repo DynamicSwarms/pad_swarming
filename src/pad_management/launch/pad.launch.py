@@ -7,7 +7,7 @@ import os
 
 def generate_launch_description():
     pad_yaml = (
-        get_package_share_directory("pad_management") + "/launch/pad_arrangement.yaml"
+        get_package_share_directory("pad_management") + "/config/pad_arrangement.yaml"
     )
 
     pad_broadcaster = Node(

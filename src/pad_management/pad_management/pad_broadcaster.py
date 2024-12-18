@@ -4,11 +4,17 @@ from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 import yaml
 
+from ament_index_python.packages import get_package_share_directory
+
 
 class PadBroadcaster(Node):
     def __init__(self):
         super().__init__("pad_broadcaster")
-        self.declare_parameter("pad_yaml", "/launch/pad_arrangement.yaml")
+        self.declare_parameter(
+            "pad_yaml",
+            get_package_share_directory("pad_management")
+            + "/config/pad_arrangement.yaml",
+        )
         self.declare_parameter("pad_size", 0.2)
         self.declare_parameter("base", "ChargingBase20")
         self.declare_parameter("rate_hz", 10)
