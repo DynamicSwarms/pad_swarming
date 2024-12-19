@@ -70,8 +70,11 @@ def generate_launch_description():
         parameters=[config],
     )
 
+    creator = Node(package="pad_management", executable="pad_creator")
+
     return LaunchDescription(
         [
+            creator,
             pad_broadcaster,
             point_finder,
             motion_caputre,
