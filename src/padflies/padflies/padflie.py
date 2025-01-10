@@ -1,49 +1,29 @@
 import rclpy
-import rclpy.duration
 from rclpy.node import Node
+from rclpy.executors import SingleThreadedExecutor, Executor
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.lifecycle import LifecycleNodeMixin
 from rclpy.lifecycle import State, TransitionCallbackReturn
+
 from lifecycle_msgs.msg import State as LifecycleState
-
-from rclpy.executors import SingleThreadedExecutor, MultiThreadedExecutor, Executor
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rcl_interfaces.msg import ParameterDescriptor
-
-from crazyflies.crazyflie import CrazyflieType, Crazyflie
-from crazyflies.gateway_endpoint import GatewayEndpoint, CrazyflieGatewayError
-
-from std_msgs.msg import Empty
-
-from crazyflies_interfaces.msg import SendTarget
-from crazyflies.safe.safe_commander import SafeCommander
-
-from typing import List
-import signal
-from enum import Enum, auto
-from dataclasses import dataclass
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
+from crazyflies.crazyflie import CrazyflieType, Crazyflie
+from crazyflies.gateway_endpoint import CrazyflieGatewayError
 from .charge_controller import ChargeController
+from .commander import PadflieCommander
 
-
-from copy import deepcopy
 import traceback
+import signal
+from dataclasses import dataclass
 
 
-class PadFlieState(Enum):
-    IDLE = auto()
-    TAKEOFF = auto()
-    LAND = auto()
-    TARGET = auto()
-
+from typing import List, Optional
 
 PAD_FLIE_TYPE = "tracked"
-from crazyflie_hardware_gateway_interfaces.srv import Crazyflie as HardwareCrazyflie
-from crazyflie_webots_gateway_interfaces.srv import WebotsCrazyflie
-
-import numpy as np
 
 
 class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
@@ -64,165 +44,57 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             value=0,
             descriptor=ParameterDescriptor(read_only=True),
         )
+        self.declare_parameter(
+            name="type",
+            value="hardware",
+            descriptor=ParameterDescriptor(read_only=True),
+        )
 
     def configure(self) -> bool:
-        # tf_node = Node(f"padflie{self.cf_id}_tflistener", use_global_arguments=False)
-        # self.tf_buffer = Buffer()
-        # self.tf_listener = TransformListener(self.tf_buffer, tf_node, spin_thread=True)
+        self.get_logger().info(
+            f"PadFlie ID:{self.cf_id}, CH:{self.cf_channel}, PAD:{self.pad_name}, Type {self.cf_type} configuring."
+        )
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        """ "
-        This is getting stupid. This buffer needs to be inside init but cannot.
-        The crazyflie constructor also creates such buffer...
-        Should we not use Crazyflie but the gateway... not nice...
-        Executors suck. Ros1 was so nice in this regard
-        """
-        self.get_logger().info(f"{self.cf_id},{self.cf_channel},{self.pad_name}")
 
-        timeout = 1.0  # secs
-        pad_position = self._get_pad_position()
-        while pad_position is None and timeout > 0.0:
-            self._sleep(0.1)
-            timeout -= 0.1
-            pad_position = self._get_pad_position()
-        if pad_position is None:
-            self.get_logger().info("Crazyflie configuration failed, pad not found.")
-            return False
+        pad_position = self._get_pad_position_or_timeout(
+            timeout_sec=1.0
+        )  # might raise TimeoutError
 
-        try:
-            Crazyflie.__init__(
-                self,
-                self,
-                self.cf_id,
-                self.cf_channel,
-                pad_position,
-                CrazyflieType.HARDWARE,
-            )
-        except:
-            self.get_logger().info("Crazyflie initialization failed.")
-            self.get_logger().info(str(traceback.format_exc()))
-            return False
+        Crazyflie.__init__(
+            self,
+            self,
+            self.cf_id,
+            self.cf_channel,
+            pad_position,
+            self.cf_type,
+        )  # might raise Crazyflie Gateway error
 
-        self._sleep(4.0)
+        self._sleep(4.0)  # Make sure all crazyflie services are initialized properly
         self.charge_controller = ChargeController(self, self)
 
-        self.state: PadFlie = PadFlieState.IDLE
-
-        prefix = "/padflie{}".format(self.cf_id)
-        qos_profile = 10
-        callback_group = MutuallyExclusiveCallbackGroup()
-
-        self.target: List[float] = None
-
-        self.create_subscription(
-            SendTarget,
-            prefix + "/send_target",
-            self._send_target_callback,
-            qos_profile=qos_profile,
-            callback_group=callback_group,
+        self.commander = PadflieCommander(
+            node=self,
+            prefix="/padflie{}".format(self.cf_id),
+            hl_commander=self,
+            g_commander=self,
+            get_position_callback=self.get_position,
+            get_pad_position_callback=self._get_pad_position,
+            sleep_callback=self._sleep,
         )
 
-        self.create_subscription(
-            msg_type=Empty,
-            topic=prefix + "/pad_takeoff",
-            callback=self._takeoff_callback,
-            qos_profile=qos_profile,
-            callback_group=callback_group,
-        )
-
-        self.create_subscription(
-            msg_type=Empty,
-            topic=prefix + "/pad_land",
-            callback=self._land_callback,
-            qos_profile=qos_profile,
-            callback_group=callback_group,
-        )
-
-        update_rate = 10.0  # Hz
-        dt = 1 / update_rate
-
-        self.commander = SafeCommander(
-            dt=dt, max_step_distance_xy=3, max_step_distance_z=1, clipping_box=None
-        )
-        cmd_position_timer = self.create_timer(
-            dt, self.__send_target, callback_group=MutuallyExclusiveCallbackGroup()
-        )
         return True
 
-    def __send_target(self):
-        if self.state is not PadFlieState.TARGET:
-            return
-        position = self.get_position()
-        if position is not None and self.target is not None:
-            safe_target = self.commander.safe_cmd_position(position, self.target)
-            self.cmd_position(safe_target, 0.0)
-
-    def _send_target_callback(self, msg: SendTarget) -> None:
-        x, y, z = msg.target.x, msg.target.y, msg.target.z
-        self.target = [x, y, z]
-
-    def _takeoff_callback(self, msg: Empty) -> None:
-        position = self.get_position()
-        if position is not None:
-            self.target = position
-            self.target[2] += 1.0
-            self.state = PadFlieState.TAKEOFF
-            self.takeoff(target_height=self.target[2], duration_seconds=4.0)
-            self._sleep(4.0)
-            self.state = PadFlieState.TARGET
-        else:
-            raise Exception("Crazyflie doesnt have position. Cannot takeoff.")
-
-    def _land_callback(self, msg: Empty) -> None:
+    def _get_pad_position_or_timeout(self, timeout_sec: float) -> Optional[List[float]]:
         pad_position = self._get_pad_position()
-        if pad_position is None:
-            raise Exception(
-                "Could not find pad. Cannot land"
-            )  # TODO: Dont crash but failsafe
-        # Go above pad
-        self.target = deepcopy(pad_position)
-        self.target[2] += 0.5
-
-        pos = self.get_position()
-        timeout = 8.0
-        while timeout > 0.0:
-            if (
-                pos is not None
-                and np.linalg.norm(np.array(pos) - np.array(self.target)) < 0.1
-            ):  # closer than 5 cm
-                self.get_logger().info("Yes")
-                break
-
-            timeout -= 0.1
+        while pad_position is None and timeout_sec > 0.0:
             self._sleep(0.1)
-            pos = self.get_position()
-            if pos is None:
-                self.get_logger().info("Pos failed")
-
-        self.state = PadFlieState.LAND
-        self.notify_setpoints_stop(100)
-
-        self.go_to(
-            pad_position[0],
-            pad_position[1],
-            pad_position[2] + 0.2,
-            yaw=0.0,
-            duration_seconds=2.0,
-        )
-        # TODO: Make yaw available
-        self._sleep(2.0)  # momentum
-        self.go_to(
-            pad_position[0],
-            pad_position[1],
-            pad_position[2],
-            yaw=0.0,
-            duration_seconds=4.0,
-        )
-        self._sleep(3.0)
-
-        self.land(target_height=pad_position[2], duration_seconds=2.0)
-        self._sleep(duration=2.0)
-        self.state = PadFlieState.IDLE
+            timeout_sec -= 0.1
+            pad_position = self._get_pad_position()
+        if pad_position is None:
+            raise TimeoutError(f"Pad with name: {self.pad_name}, could not be found")
+        return pad_position
 
     def _get_pad_position(self) -> List[float]:
         try:
@@ -260,25 +132,34 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         id: int = self.get_parameter("pad_id").get_parameter_value().integer_value
         return f"pad_{id}"
 
+    @property
+    def cf_type(self) -> CrazyflieType:
+        tp = self.get_parameter("type").get_parameter_value().string_value
+        return CrazyflieType.HARDWARE if tp == "hardware" else CrazyflieType.WEBOTS
+
     # Lifecycle Overrides
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         LifecycleNodeMixin.on_configure(self, state)
-        self.get_logger().info(f"PadFlie {self.cf_id} configuring.")
+
         try:
             if self.configure():
-                self.get_logger().info("success")
+                self.get_logger().info("Configuring complete")
                 return TransitionCallbackReturn.SUCCESS
             else:
-                self.get_logger().info("failed")
+                self.get_logger().info("Configuring failed")
                 return TransitionCallbackReturn.FAILURE
+        except (TimeoutError, CrazyflieGatewayError) as ex:
+            self.get_logger().info(
+                "Crazyflie configuration failed, because: "
+                + str(ex)
+                + " Transitioning to unconfigured."
+            )
+            return TransitionCallbackReturn.FAILURE  # Going back to unconfigured
         except Exception as ex:
-            # The transition callback catches exceptions but ommit them
-            # We need to catch ourselfs, othewise no error is raised.
-
-            self.get_logger().info("Exception in Configure")
+            # The lifecycle implementation catches Errors but does not process them and doesnt warn user.
+            # We therefore catch them here and present user feedback
             self.get_logger().info(str(traceback.format_exc()))
-            self.get_logger().info("Exception trace Done, returning Failure!")
-            return TransitionCallbackReturn.FAILURE
+            return TransitionCallbackReturn.ERROR
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         LifecycleNodeMixin.on_activate(self, state)
@@ -296,6 +177,16 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.shutdown()
         return TransitionCallbackReturn.SUCCESS
 
+    def on_error(self, state: State) -> TransitionCallbackReturn:
+        LifecycleNodeMixin.on_error(self, state)
+        self.get_logger().info(f"PadFlie {self.cf_id} processing error.")
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_cleanup(self, state: State) -> TransitionCallbackReturn:
+        LifecycleNodeMixin.on_cleanup(self, state)
+        self.get_logger().info(f"Padflie {self.cf_id} cleaning up")
+        return TransitionCallbackReturn.SUCCESS
+
     def shutdown(self):
         if (
             self._state_machine.current_state[0]
@@ -303,7 +194,6 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         ):
             self.close_crazyflie()
             self._sleep(1.0)
-            self.get_logger().info("here")
 
         self.executor.shutdown(timeout_sec=0.1)
 

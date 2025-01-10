@@ -1,174 +1,174 @@
 flies:
 # ROW A
 #- id: 0xA0
-#  pad: 0
+#  pad: 0xA0
 #  channel: 100
 - id: 0xA1
-  pad: 1
+  pad: 0xA1
   channel: 100
 - id: 0xA2
-  pad: 2
+  pad: 0xA2
   channel: 100
 - id: 0xA3
-  pad: 3
+  pad: 0xA3
   channel: 100
 - id: 0xA4
-  pad: 4
+  pad: 0xA4
   channel: 100
 - id: 0xA5
-  pad: 5
+  pad: 0xA5
   channel: 100
 - id: 0xA6
-  pad: 6
+  pad: 0xA6
   channel: 100
 - id: 0xA7
-  pad: 7
+  pad: 0xA7
   channel: 100
 #- id: 0xA8
-#  pad: 8
+#  pad: 0xA8
 #  channel: 100
 
 # ROW B
 - id: 0xB0
-  pad: 9
+  pad: 0xB0
   channel: 100
 - id: 0xB1
-  pad: 10
+  pad: 0xB
   channel: 100
 - id: 0xB2
-  pad: 11
+  pad: 0xB2
   channel: 100
 - id: 0xB3
-  pad: 12
+  pad: 0xB3
   channel: 100
 - id: 0xB4
-  pad: 13
+  pad: 0xB4
   channel: 100
 - id: 0xB5
-  pad: 14
+  pad: 0xB5
   channel: 100
 - id: 0xB6
-  pad: 15
+  pad: 0xB6
   channel: 100
 - id: 0xB7
-  pad: 16
+  pad: 0xB7
   channel: 100
 - id: 0xB8
-  pad: 17
+  pad: 0xB8
   channel: 100
 
 # ROW C
 - id: 0xC0
-  pad: 18
+  pad: 0xC0
   channel: 100
 - id: 0xC1
-  pad: 19
+  pad: 0xC1
   channel: 100
 - id: 0xC2
-  pad: 20
+  pad: 0xC2
   channel: 100
 - id: 0xC3
-  pad: 21
+  pad: 0xC3
   channel: 100
 - id: 0xC4
-  pad: 22
+  pad: 0xC4
   channel: 100
 - id: 0xC5
-  pad: 23
+  pad: 0xC5
   channel: 100
 - id: 0xC6
-  pad: 24
+  pad: 0xC6
   channel: 100
 - id: 0xC7
-  pad: 25
+  pad: 0xC7
   channel: 100
 - id: 0xC8
-  pad: 26
+  pad: 0xC8
   channel: 100
 
 # ROW D
 - id: 0xD0
-  pad: 27
+  pad: 0xD0
   channel: 100
 - id: 0xD1
-  pad: 28
+  pad: 0xD1
   channel: 100
 - id: 0xD2
-  pad: 29
+  pad: 0xD2
   channel: 100
 - id: 0xD3
-  pad: 30
+  pad: 0xD3
   channel: 100
 - id: 0xD4
-  pad: 31
+  pad: 0xD4
   channel: 100
 - id: 0xD5
-  pad: 32
+  pad: 0xD5
   channel: 100
 - id: 0xD6
-  pad: 33
+  pad: 0xD6
   channel: 100
 - id: 0xD7
-  pad: 34
+  pad: 0xD7
   channel: 100
 - id: 0xD8
-  pad: 35
+  pad: 0xD8
   channel: 100
 
 # ROW E
 - id: 0xE0
-  pad: 36
+  pad: 0xE0
   channel: 100
 - id: 0xE1
-  pad: 37
+  pad: 0xE1
   channel: 100
 - id: 0xE2
-  pad: 38
+  pad: 0xE2
   channel: 100
 - id: 0xE3
-  pad: 39
+  pad: 0xE3
   channel: 100
 - id: 0xE4
-  pad: 40
+  pad: 0xE4
   channel: 100
 - id: 0xE5
-  pad: 41
+  pad: 0xE5
   channel: 100
 - id: 0xE6
-  pad: 42
+  pad: 0xE6
   channel: 100
 - id: 0xE7
-  pad: 43
+  pad: 0xE7
   channel: 100
 - id: 0xE8
-  pad: 44
+  pad: 0xE8
   channel: 100
 
 # ROW F
 #- id: 0xF0
-#  pad: 45
+#  pad: 0xF0
 #  channel: 100
 - id: 0xF1
-  pad: 46
+  pad: 0xF1
   channel: 100
 - id: 0xF2
-  pad: 47
+  pad: 0xF2
   channel: 100
 - id: 0xF3
-  pad: 48
+  pad: 0xF3
   channel: 100
 - id: 0xF4
-  pad: 49
+  pad: 0xF4
   channel: 100
 - id: 0xF5
-  pad: 50
+  pad: 0xF5
   channel: 100
 - id: 0xF6
-  pad: 51
+  pad: 0xF6
   channel: 100
 - id: 0xF7
-  pad: 52
+  pad: 0xF7
   channel: 100
 #- id: 0xF8
-#  pad: 53
+#  pad: 0xF8
 #  channel: 100

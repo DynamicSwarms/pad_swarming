@@ -19,6 +19,8 @@ class ChargeController:
         return self.voltage < 3.2
 
     def receive_data(self, variables):
+        if not len(variables):
+            return
         self.voltage = variables[0]
 
         if self.is_empty():

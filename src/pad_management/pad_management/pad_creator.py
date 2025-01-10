@@ -3,9 +3,10 @@ from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.client import Client
+from rclpy.subscription import Subscription
 
 from lifecycle_msgs.srv import ChangeState, GetState
-from lifecycle_msgs.msg import State as LifecycleState
+from lifecycle_msgs.msg import State as LifecycleState, TransitionEvent
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -19,7 +20,7 @@ import yaml
 import numpy as np
 from itertools import cycle
 
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Set
 from dataclasses import dataclass
 
 
@@ -27,6 +28,10 @@ from dataclasses import dataclass
 class Crazyflie:
     change_state: Client
     get_state: Client
+    transition_event: Subscription
+    cooldown: float = (
+        None  # If this is set the crazyflie is said dead but will be removed from our list only if this cooldown is passed
+    )
 
 
 class PadCreator(Node):
@@ -38,14 +43,16 @@ class PadCreator(Node):
     def __init__(self):
         super().__init__("pad_creator")
         self.declare_parameter(
-            "padflie_yaml",
-            get_package_share_directory("pad_management")
-            + "/config/padflie_arrangement.yaml",
+            "padflie_yamls",
+            [
+                get_package_share_directory("pad_management")
+                + "/config/flies_config_hardware.yaml"
+            ],
         )
         self.declare_parameter("max_deviation_distance", 0.05)
 
-        yaml_file = (
-            self.get_parameter("padflie_yaml").get_parameter_value().string_value
+        yaml_files = (
+            self.get_parameter("padflie_yamls").get_parameter_value().string_array_value
         )
         self.max_distance = (
             self.get_parameter("max_deviation_distance")
@@ -53,8 +60,11 @@ class PadCreator(Node):
             .double_value
         )
 
-        file = open(yaml_file, "r")
-        flies = yaml.safe_load(file)["flies"]
+        flies = []
+        for yaml_file in yaml_files:
+            file = open(yaml_file, "r")
+            flies += yaml.safe_load(file)["flies"]
+
         flies = np.random.permutation(flies)
         # Randomly permutate to add them in new order every time the system gets restarted.
         self.flies = cycle(flies)
@@ -72,9 +82,10 @@ class PadCreator(Node):
                 "Pad Creator waiting for checkForPoint service. Cannot launch until available."
             )
 
-        rate_hz = 20.0  # find a new crazyflie with this rate
+        rate_hz = 20.0  # find a new crazyflie with this rate. Also used for cooldown before retry.
+        self.dt = 1.0 / rate_hz
         self.create_timer(
-            timer_period_sec=1.0 / rate_hz,
+            timer_period_sec=self.dt,
             callback=self.update_crazyflies,
             callback_group=MutuallyExclusiveCallbackGroup(),
         )
@@ -82,48 +93,39 @@ class PadCreator(Node):
         self.crazyflies: Dict[int, Crazyflie] = {}
         self.crazyflies_callback_group = MutuallyExclusiveCallbackGroup()
 
+        self.retry_cooldown = 3.0  # Seconds before we try again if failed
+
     def update_crazyflies(self):
+        self._cooldown_and_remove()
         flie = next(self.flies)
+
+        cf_id = flie["id"]
+        if cf_id in self.crazyflies.keys():
+            # The crazyflie is already spawned.
+            return
+
         pad_position = self._get_pad_position(flie["pad"])
         if pad_position is None:
+            # Was not able to find associated pad
             return
 
         existence = self._check_point_existance(pad_position)
         if not existence:
+            # Was not able to detect a Marker at pad position
             return
 
-        cf_id = flie["id"]
-        if cf_id not in self.crazyflies.keys():
-            # The Crazyflie exists and we need to transition its padflie into configure
-            self._create_crazyflie(cf_id)
-            self._transition_crazyflie(
-                cf_id, LifecycleState.TRANSITION_STATE_CONFIGURING, "configure"
-            )
+        # Add the crazyflie and transition it to Configuring
+        self._create_crazyflie(cf_id)
+        self._transition_crazyflie(
+            cf_id, LifecycleState.TRANSITION_STATE_CONFIGURING, "configure"
+        )
 
-        else:
-            # If it is configured we switch to active
-            # if it is in failure we remvoe
-            state: LifecycleState = self._get_state(cf_id)
-            if state == LifecycleState.PRIMARY_STATE_INACTIVE:
-                # We dont now how we got into inactive but have to act differently
-                self._transition_crazyflie(
-                    cf_id, LifecycleState.TRANSITION_STATE_ACTIVATING, "activate"
-                )
-
-    def _transition_crazyflie(self, cf_id: int, state: LifecycleState, label: str):
-        request = ChangeState.Request()
-        request.transition.id = state
-        request.transition.label = label
-        if cf_id in self.crazyflies.keys():
-            self.get_logger().info(str(request))
-            self.crazyflies[cf_id].change_state.call_async(request)
-            self.get_logger().info(f"Sent to {label}")
-
-    def _get_state(self, cf_id: int) -> LifecycleState:
-        request = GetState.Request()
-        if cf_id in self.crazyflies.keys():
-            response: GetState.Response = self.crazyflies[cf_id].get_state.call(request)
-            return response.current_state
+    def _cooldown_and_remove(self):
+        for cf_id in list(self.crazyflies.keys()):
+            if self.crazyflies[cf_id].cooldown is not None:
+                self.crazyflies[cf_id].cooldown -= self.dt
+                if self.crazyflies[cf_id].cooldown < 0.0:
+                    del self.crazyflies[cf_id]
 
     def _create_crazyflie(self, cf_id: int):
         change_state_client = self.create_client(
@@ -136,8 +138,37 @@ class PadCreator(Node):
             srv_name=f"padflie{cf_id}/get_state",
             callback_group=self.crazyflies_callback_group,
         )
+        transition_event_subscription = self.create_subscription(
+            msg_type=TransitionEvent,
+            topic=f"padflie{cf_id}/transition_event",
+            callback=lambda event: self._transition_event_callback(cf_id, event),
+            qos_profile=10,
+        )
 
-        self.crazyflies[cf_id] = Crazyflie(change_state_client, get_state_client)
+        self.crazyflies[cf_id] = Crazyflie(
+            change_state_client, get_state_client, transition_event_subscription
+        )
+
+    def _transition_crazyflie(self, cf_id: int, state: LifecycleState, label: str):
+        request = ChangeState.Request()
+        request.transition.id = state
+        request.transition.label = label
+        if cf_id in self.crazyflies.keys():
+            self.crazyflies[cf_id].change_state.call_async(request)
+            self.get_logger().info(f"Triggering statechange to {label} for CF:{cf_id}")
+
+    def _get_state(self, cf_id: int) -> LifecycleState:
+        request = GetState.Request()
+        if cf_id in self.crazyflies.keys():
+            response: GetState.Response = self.crazyflies[cf_id].get_state.call(request)
+            return response.current_state
+
+    def _transition_event_callback(self, cf_id: int, event: TransitionEvent):
+        if cf_id in self.crazyflies.keys():
+            if event.goal_state.id == LifecycleState.PRIMARY_STATE_UNCONFIGURED:
+                self.crazyflies[cf_id].cooldown = self.retry_cooldown
+            if event.goal_state.id == LifecycleState.TRANSITION_STATE_SHUTTINGDOWN:
+                pass  # Crazyflie shall live
 
     def _check_point_existance(self, point: List[float]) -> bool:
         request = PointFinder.Request()
@@ -172,7 +203,7 @@ def main():
             rclpy.spin_once(node=pc, timeout_sec=0.1, executor=executor)
         rclpy.try_shutdown()
     except KeyboardInterrupt:
-        pass
+        quit()
 
 
 if __name__ == "__main__":

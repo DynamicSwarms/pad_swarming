@@ -13,11 +13,12 @@ data_files.append(
 )
 
 data_files.append(
-    ("share/" + package_name + "/config", ["config/pad_arrangement.yaml"])
+    ("share/" + package_name + "/config", ["config/flies_config_hardware.yaml"])
 )
 data_files.append(
-    ("share/" + package_name + "/config", ["config/padflie_arrangement.yaml"])
+    ("share/" + package_name + "/config", ["config/pads_config_hardware.yaml"])
 )
+data_files.append(("share/" + package_name + "/config", ["config/tracker_config.yaml"]))
 
 setup(
     name=package_name,
@@ -36,6 +37,7 @@ setup(
             "pad_broadcaster = pad_management.pad_broadcaster:main",
             "point_finder = pad_management.point_finder:main",
             "pad_creator = pad_management.pad_creator:main",
+            "pointcloud_combiner = pad_management.point_cloud_combiner:main",
         ],
     },
 )

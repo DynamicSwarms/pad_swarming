@@ -60,7 +60,7 @@ def main():
             rclpy.spin_once(pcf, timeout_sec=0.1)
         rclpy.try_shutdown()
     except KeyboardInterrupt:
-        pass
+        quit()
 
 
 if __name__ == "__main__":
