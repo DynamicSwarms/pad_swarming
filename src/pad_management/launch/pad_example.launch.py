@@ -93,7 +93,7 @@ def generate_launch_description():
     motion_caputre = Node(
         package="ros_motioncapture",
         executable="motioncapture_node",
-        name="node",
+        name="motion_capture",
         output="screen",
         parameters=[
             {
@@ -103,7 +103,7 @@ def generate_launch_description():
                 "topic_name": "pointCloud2",
             }
         ],
-        # condition=start_hardware,
+        condition=start_hardware,
     )
 
     object_tracker = Node(

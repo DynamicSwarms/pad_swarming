@@ -51,7 +51,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         )
 
     def configure(self) -> bool:
-        self.get_logger().info(
+        self.get_logger().debug(
             f"PadFlie ID:{self.cf_id}, CH:{self.cf_channel}, PAD:{self.pad_name}, Type {self.cf_type} configuring."
         )
 
@@ -192,9 +192,13 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             self._state_machine.current_state[0]
             is not LifecycleState.PRIMARY_STATE_UNCONFIGURED
         ):
-            self.close_crazyflie()
-            self._sleep(1.0)
-
+            try:
+                self.close_crazyflie()
+                self._sleep(1.0)
+            except CrazyflieGatewayError as ex:
+                # The Gateway might have shutdown already.
+                # This is fine.
+                self.get_logger().info(str(ex) + " (Expected on ctrl+c)")
         self.executor.shutdown(timeout_sec=0.1)
 
     def _sleep(self, duration: float) -> None:
@@ -229,7 +233,8 @@ def main():
 
     padflie.shutdown()
     padflie.destroy_node()
-    rclpy.shutdown()
+    rclpy.try_shutdown()
+    exit()
 
 
 if __name__ == "__main__":

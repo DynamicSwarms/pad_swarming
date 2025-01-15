@@ -115,6 +115,7 @@ class PadCreator(Node):
             return
 
         # Add the crazyflie and transition it to Configuring
+        self.get_logger().info(f"Adding Crazyflie with ID:{cf_id}")
         self._create_crazyflie(cf_id)
         self._transition_crazyflie(
             cf_id, LifecycleState.TRANSITION_STATE_CONFIGURING, "configure"
@@ -155,7 +156,6 @@ class PadCreator(Node):
         request.transition.label = label
         if cf_id in self.crazyflies.keys():
             self.crazyflies[cf_id].change_state.call_async(request)
-            self.get_logger().info(f"Triggering statechange to {label} for CF:{cf_id}")
 
     def _get_state(self, cf_id: int) -> LifecycleState:
         request = GetState.Request()
