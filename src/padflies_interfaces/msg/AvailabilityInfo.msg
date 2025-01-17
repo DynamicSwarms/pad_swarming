@@ -1,0 +1,4 @@
+geometry_msgs/PointStamped position
+float32 battery_voltage
+bool charge_state
+bool available

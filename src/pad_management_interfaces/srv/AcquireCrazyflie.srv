@@ -1,0 +1,5 @@
+bool allow_any_type
+string type
+---
+bool success
+uint8 id

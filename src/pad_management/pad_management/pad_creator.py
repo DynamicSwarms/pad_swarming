@@ -4,6 +4,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.client import Client
 from rclpy.subscription import Subscription
+from rcl_interfaces.msg import ParameterDescriptor
 
 from lifecycle_msgs.srv import ChangeState, GetState
 from lifecycle_msgs.msg import State as LifecycleState, TransitionEvent
@@ -42,15 +43,18 @@ class PadCreator(Node):
 
     def __init__(self):
         super().__init__("pad_creator")
+        # Declare parameters
         self.declare_parameter(
-            "padflie_yamls",
-            [
+            name="padflie_yamls",
+            value=[
                 get_package_share_directory("pad_management")
                 + "/config/flies_config_hardware.yaml"
             ],
+            descriptor=ParameterDescriptor(read_only=True),
         )
-        self.declare_parameter("max_deviation_distance", 0.05)
+        self.declare_parameter(name="max_deviation_distance", value=0.05)
 
+        # Read parameters
         yaml_files = (
             self.get_parameter("padflie_yamls").get_parameter_value().string_array_value
         )
@@ -60,7 +64,8 @@ class PadCreator(Node):
             .double_value
         )
 
-        flies = []
+        # There can be multiple yamls of flies which need to be combined.
+        flies: List = []
         for yaml_file in yaml_files:
             file = open(yaml_file, "r")
             flies += yaml.safe_load(file)["flies"]
@@ -118,7 +123,9 @@ class PadCreator(Node):
         self.get_logger().info(f"Adding Crazyflie with ID:{cf_id}")
         self._create_crazyflie(cf_id)
         self._transition_crazyflie(
-            cf_id, LifecycleState.TRANSITION_STATE_CONFIGURING, "configure"
+            cf_id=cf_id,
+            state=LifecycleState.TRANSITION_STATE_CONFIGURING,
+            label="configure",
         )
 
     def _cooldown_and_remove(self):
