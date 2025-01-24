@@ -1,12 +1,9 @@
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.publisher import Publisher
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
 from std_msgs.msg import Empty
 from crazyflies_interfaces.msg import SendTarget
-from padflies_interfaces.srv import Connect
-from padflies_interfaces.msg import AvailabilityInfo
 
 from crazyflie_interfaces_python.client import (
     HighLevelCommanderClient,
@@ -15,16 +12,16 @@ from crazyflie_interfaces_python.client import (
 )
 from crazyflies.safe.safe_commander import SafeCommander
 
-from .charge_controller import ChargeController
-
-
-from typing import Callable, List, Optional
-
 from ._padflie_states import PadFlieState
+from .charge_controller import ChargeController
+from .actor import PadflieActor
+
+from copy import deepcopy
+import numpy as np
+from typing import Callable, List, Optional, Tuple
 
 
 class PadflieCommander:
-    from ._padflie_routines import takeoff_routine, land_routine
 
     def __init__(
         self,
@@ -34,27 +31,18 @@ class PadflieCommander:
         g_commander: GenericCommanderClient,
         log_commander: LoggingClient,
         get_position_callback: Callable[[], Optional[List[float]]],
-        get_pad_position_callback: Callable[[], Optional[List[float]]],
+        get_pad_position_and_yaw_callback: Callable[[], Optional[List[float]]],
         sleep_callback: Callable[[float], None],
     ):
-        self.hl_commander = hl_commander
-        self.ll_commander = g_commander
-        self.logging_commander = log_commander
-        self.get_position: Callable[[], Optional[List[float]]] = get_position_callback
-        self.get_pad_position: Callable[[], Optional[List[float]]] = (
-            get_pad_position_callback
-        )
-        self.sleep: Callable[[float],] = sleep_callback
+        self.__node = node
+        self.__get_position: Callable[[], Optional[List[float]]] = get_position_callback
+        self.__get_pad_position_and_yaw: Callable[
+            [], Optional[Tuple[List[float], float]]
+        ] = get_pad_position_and_yaw_callback
 
-        self.state: PadFlieState = PadFlieState.IDLE
-        self.target: Optional[List[float]] = None
-        self.connected: bool = False
-
-        self.charge_controller = ChargeController(
-            node=node, logging_client=self.logging_commander
-        )
-
-        availability_rate: float = 1.0
+        self._sleep: Callable[[float], None] = sleep_callback
+        self._prefix = prefix
+        self._state: PadFlieState = PadFlieState.IDLE
 
         target_rate: float = 10.0  # Hz
         dt: float = 1 / target_rate
@@ -62,11 +50,16 @@ class PadflieCommander:
             dt=dt, max_step_distance_xy=3, max_step_distance_z=1, clipping_box=None
         )
 
-        node.create_timer(
-            timer_period_sec=dt,
-            callback=self._send_target,
-            callback_group=MutuallyExclusiveCallbackGroup(),
-        )  # This timer needs to be executed while we takeoff or land -> different callback group
+        self._actor = PadflieActor(
+            node=node,
+            hl_commander=hl_commander,
+            ll_commander=g_commander,
+            sleep=sleep_callback,
+            dt=dt,
+        )
+        self._charge_controller = ChargeController(
+            node=node, logging_client=log_commander
+        )
 
         callback_group = (
             MutuallyExclusiveCallbackGroup()
@@ -75,7 +68,7 @@ class PadflieCommander:
         node.create_subscription(
             SendTarget,
             prefix + "/send_target",
-            self._send_target_callback,
+            self.__send_target_callback,
             qos_profile=qos_profile,
             callback_group=callback_group,
         )
@@ -96,102 +89,121 @@ class PadflieCommander:
             callback_group=callback_group,
         )
 
-        node.create_service(
-            srv_type=Connect,
-            srv_name=prefix + "/connect",
-            callback=self.handle_connect_request,
-            callback_group=callback_group,
-        )
+    def set_target(self, target: List[float]) -> None:
+        """Calculates a safe target and sets it as our target.
 
-        # Create a QoS profile for maximum performance
-        qos_profile_performance = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,  # Minimal latency, no retries
-            durability=DurabilityPolicy.VOLATILE,  # Only delivers data to currently available subscribers
-            history=HistoryPolicy.KEEP_LAST,  # Keeps only the last N messages
-            depth=1,  # Keeps a short history to reduce memory use
-        )
-        self.availability_publisher: Publisher = node.create_publisher(
-            msg_type=AvailabilityInfo,
-            topic="availability",
-            qos_profile=qos_profile_performance,
-            callback_group=callback_group,
-        )
+        Args:
+            target (List[float]): The target to follow.
+        """
+        position = self.__get_position()
+        if position is not None:
+            safe_target = self.commander.safe_cmd_position(position, target)
+            self._actor.set_target(safe_target)
 
-        node.create_timer(
-            timer_period_sec=availability_rate,
-            callback=self.send_availability_info,
-            callback_group=callback_group,
-        )
+    def __send_target_callback(self, msg: SendTarget):
+        """Callback to the send_target topic.
 
-    def handle_connect_request(
-        self, request: Connect.Request, response: Connect.Response
-    ):
-        if self.state == PadFlieState.IDLE and not self.connected:
-            self.connected = True
-            response.success = True
-        else:
-            response.success = False
-        return response
+        TODO: Use the topics frame_id and conversions to handle this nicely.
 
-    def send_availability_info(self):
-        # Publish information about us.
-        # Including position , ready state etc. onto global topic.
-        msg = AvailabilityInfo()
-        msg.available = self.state == PadFlieState.IDLE and not self.connected
-        self.availability_publisher.publish(msg)
-
-    def _send_target(self):
-        if self.state not in (PadFlieState.TARGET, PadFlieState.TARGET_INTERNAL):
-            return
-        position = self.get_position()
-        if position is not None and self.target is not None:
-            safe_target = self.commander.safe_cmd_position(position, self.target)
-            self.ll_commander.cmd_position(safe_target, 0.0)
-
-    def _set_target(self, target: List[float]) -> None:
-        self.target = target
-
-    def _send_target_callback(self, msg: SendTarget) -> None:
-        if self.state is not PadFlieState.TARGET_INTERNAL:
-            self._set_target([msg.target.x, msg.target.y, msg.target.z])
-
-    def __takeoff_callback(self, msg: Empty) -> None:
-        if self.state is not PadFlieState.IDLE:
+        Args:
+            msg (SendTarget): An empty message used as trigger.
+        """
+        if self._state is not PadFlieState.TARGET:
             return
 
-        position = self.get_position()
+        self.set_target([msg.target.x, msg.target.y, msg.target.z])
+
+    def __takeoff_callback(self, msg: Empty):
+        """Callback to the takeoff subscription.
+
+        The crazyflie will only takeoff if it knows its position.
+
+        This routine takes exactly 2 seconds to complete
+        Args:
+            msg (Empty): An Empty message. Just used as trigger.
+        """
+        if self._state is not PadFlieState.IDLE:
+            return
+
+        position = self.__get_position()
         if position is None:
-            raise Exception("Crazyflie doesnt have position. Cannot takeoff.")
-
-        self.takeoff_routine(position)
-        # This routine takes exactly 2 seconds to complete
-
-    def __land_callback(self, msg: Empty) -> None:
-        if self.state not in (PadFlieState.TARGET, PadFlieState.TARGET_INTERNAL):
+            self.__node.get_logger().error(
+                "Crazyflie doesnt have position. Cannot takeoff."
+            )
             return
 
-        pad_position: Optional[List[float]] = self.get_pad_position()
-        position: Optional[List[float]] = self.get_position()
+        self._state = PadFlieState.TAKEOFF
+        self._actor.takeoff_routine(position)
+        self._state = PadFlieState.TARGET
 
-        # Failsafe if this is None??
-        if pad_position is None:
-            raise Exception("Could not find pad. Cannot land")
+    def __land_callback(self, msg: Empty):
+        """Callback to the land subscription.
+
+        The crazyflie will only land if it knows its own position and the position of its landing pad.
+
+        If the position and pad_position is valid is only checked once.
+        After that landing will try to get updated positions but receives old ones if there is an issue.
+
+        The routine transitions us through TARGET_INTERNAL, LAND and leaves with state IDLE
+        It takes 16.5 seconds
+
+        TODO: Maybe there are strategies to handle this better. But if there is no position available something is bad anyway.
+        Args:
+            msg (Empty): An empty message. Just used as trigger.
+        """
+        if self._state is not PadFlieState.TARGET:
+            return
+
+        pad_position_and_yaw: Optional[Tuple[List[float], float]] = (
+            self.__get_pad_position_and_yaw()
+        )
+        position: Optional[List[float]] = self.__get_position()
+
+        if pad_position_and_yaw is None:
+            self.__node.get_logger().error("Could not find pad. Cannot land")
+            return
         if position is None:
-            raise Exception("Was not able to find the position.")
+            self.__node.get_logger().error("Was not able to find the position.")
+            return
 
-        def get_pad_position():
-            new_pad_position = self.get_pad_position()
-            if new_pad_position is not None:
-                pad_position = new_pad_position
-                return pad_position
-            return pad_position
+        def get_pad_position_and_yaw():
+            new_pad_position_and_yaw = self.__get_pad_position_and_yaw()
+            if new_pad_position_and_yaw is not None:
+                pad_position_and_yaw = new_pad_position_and_yaw
+            return deepcopy(pad_position_and_yaw)
 
         def get_position():
-            new_position = self.get_position()
+            new_position = self.__get_position()
             if new_position is not None:
                 position = new_position
-            return position
+            return deepcopy(position)
 
-        self.land_routine(get_pad_position=get_pad_position, get_position=get_position)
-        # This routine transitions us through TARGET_INTERNAL, LAND and leaves with state IDLE
-        # It takes 16.5 seconds
+        self._state = PadFlieState.LAND
+        """
+        Phase 1:
+            For at most 8 seconds.
+            Fly with safe targets to a point 0.5 meters above the pad.
+            If position is reached continue with Phase2.
+
+            If is is not reached PROBLEM TODO
+
+            During this we need to update the pad position, maybe it moves.
+
+            Phases 2 and 3 are in the routine.
+        """
+        timeout = 8.0
+        while timeout > 0.0:
+            target, yaw = get_pad_position_and_yaw()
+            target[2] += 0.5
+            self.set_target(target)
+
+            if (
+                np.linalg.norm(np.array(get_position()) - np.array(target)) < 0.1
+            ):  # closer than 10 cm
+                break
+
+            timeout -= 0.1
+            self._sleep(0.1)
+
+        self._actor.land_routine(get_pad_position_and_yaw=get_pad_position_and_yaw)
+        self._state = PadFlieState.IDLE

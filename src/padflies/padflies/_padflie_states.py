@@ -6,4 +6,3 @@ class PadFlieState(Enum):
     TAKEOFF = auto()
     LAND = auto()
     TARGET = auto()
-    TARGET_INTERNAL = auto()  # Do not accept external targets. But flie with target

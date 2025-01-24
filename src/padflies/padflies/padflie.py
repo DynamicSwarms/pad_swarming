@@ -7,10 +7,14 @@ from rclpy.lifecycle import LifecycleNodeMixin
 from rclpy.lifecycle import State, TransitionCallbackReturn
 
 from lifecycle_msgs.msg import State as LifecycleState
-from rcl_interfaces.msg import ParameterDescriptor
+from rcl_interfaces.msg import Parameter, ParameterType, ParameterDescriptor
+from rcl_interfaces.srv import SetParameters
 
+
+import rclpy.parameter
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+import tf_transformations
 
 from crazyflies.crazyflie import CrazyflieType, Crazyflie
 from crazyflies.gateway_endpoint import CrazyflieGatewayError
@@ -19,9 +23,9 @@ from .commander import PadflieCommander
 import traceback
 import signal
 from dataclasses import dataclass
+import math
 
-
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 PAD_FLIE_TYPE = "tracked"
 
@@ -54,12 +58,12 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.get_logger().debug(
             f"PadFlie ID:{self.cf_id}, CH:{self.cf_channel}, PAD:{self.pad_name}, Type {self.cf_type} configuring."
         )
-        self.prefix = "/padflie{}".format(self.cf_id)
+        self.__prefix = "/padflie{}".format(self.cf_id)
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        pad_position = self.__get_pad_position_or_timeout(
+        pad_position, yaw = self.__get_pad_position_or_timeout(
             timeout_sec=1.0
         )  # might raise TimeoutError
 
@@ -74,24 +78,55 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
         self._sleep(4.0)  # Make sure all crazyflie services are initialized properly
 
+        self.set_initial_yaw()
+
         self.commander = PadflieCommander(
             node=self,
-            prefix=self.prefix,
+            prefix=self.__prefix,
             hl_commander=self,
             g_commander=self,
             log_commander=self,
             get_position_callback=self.get_position,
-            get_pad_position_callback=self._get_pad_position,
+            get_pad_position_and_yaw_callback=self.get_pad_position_and_yaw,
             sleep_callback=self._sleep,
         )  # This starts the main control loop of the padflie
 
         return True
 
-    def _get_pad_position(self) -> Optional[List[float]]:
+    def set_initial_yaw(self):
+        p_y = self.get_pad_position_and_yaw()
+        self.get_logger().info(str(p_y))
+        if p_y is None:
+            return
+
+        _, yaw = p_y
+        self.set_parameter("kalman.initialYaw", float(yaw))
+        self.set_parameter("kalman.resetEstimation", 1)
+
+    def set_parameter(self, name: str, value: Union[int, float]):
+        client = self.create_client(SetParameters, f"{self.prefix}/set_parameters")
+
+        if client.service_is_ready():
+            req = SetParameters.Request()
+            param = Parameter()
+            param.name = name
+
+            if isinstance(value, int):
+                param.value.type = ParameterType.PARAMETER_INTEGER
+                param.value.integer_value = value
+            elif isinstance(value, float):
+                param.value.type = ParameterType.PARAMETER_DOUBLE
+                param.value.double_value = value
+
+            req.parameters.append(param)
+            self.get_logger().info(str(param))
+            client.call_async(req)
+
+    def get_pad_position_and_yaw(self) -> Optional[Tuple[List[float], float]]:
         """Gets the position of our pad.
 
         Returns:
-            Optional[List[float]]: None if not possible. Otherwise position of pad in world coords.
+            Optional[Tuple[List[float], float]]: None if not possible. Otherwise position and yaw of pad in world coords.
         """
         try:
             # The core check needs to be done. Otherwise this the lookup transform timeout
@@ -106,16 +141,30 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
                 source_frame=self.pad_name,
                 time=rclpy.time.Time(),
             )
-            return [
+            position = [
                 t.transform.translation.x,
                 t.transform.translation.y,
                 t.transform.translation.z,
             ]
+            quaternion = (
+                t.transform.rotation.x,
+                t.transform.rotation.y,
+                t.transform.rotation.z,
+                t.transform.rotation.w,
+            )
+            roll, pitch, yaw = tf_transformations.euler_from_quaternion(quaternion)
+            if yaw < 0:
+                yaw += math.pi
+            else:
+                yaw -= math.pi
+            return (position, yaw)
         except Exception as ex:
             self.node.get_logger().info(str(ex))
             return None
 
-    def __get_pad_position_or_timeout(self, timeout_sec: float) -> List[float]:
+    def __get_pad_position_or_timeout(
+        self, timeout_sec: float
+    ) -> Tuple[List[float], float]:
         """Retrieves the pad position or timess out after given time.
 
         Args:
@@ -125,16 +174,16 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             TimeoutError: If timeout occurs
 
         Returns:
-            List[float]: The position of the pad in world coordinates.
+            Tuple[List[float], float]: The position and yaw of the pad in world coordinates.
         """
-        pad_position = self._get_pad_position()
-        while pad_position is None and timeout_sec > 0.0:
+        pad_position_and_yaw = self.get_pad_position_and_yaw()
+        while pad_position_and_yaw is None and timeout_sec > 0.0:
             self._sleep(0.1)
             timeout_sec -= 0.1
-            pad_position = self._get_pad_position()
-        if pad_position is None:
+            pad_position_and_yaw = self.get_pad_position_and_yaw()
+        if pad_position_and_yaw is None:
             raise TimeoutError(f"Pad with name: {self.pad_name}, could not be found")
-        return pad_position
+        return pad_position_and_yaw
 
     # Properties
     @property
