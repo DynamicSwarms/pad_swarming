@@ -1,3 +1,4 @@
+from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.publisher import Publisher
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
@@ -10,39 +11,35 @@ from padflies_interfaces.msg import AvailabilityInfo
 from crazyflie_interfaces_python.client import (
     HighLevelCommanderClient,
     GenericCommanderClient,
+    LoggingClient,
 )
 from crazyflies.safe.safe_commander import SafeCommander
 
 from .charge_controller import ChargeController
-from .padflie import PadFlie
-from .routines import takeoff_routine, land_routine
 
-from enum import Enum, auto
 
 from typing import Callable, List, Optional
 
-
-class PadFlieState(Enum):
-    IDLE = auto()
-    TAKEOFF = auto()
-    LAND = auto()
-    TARGET = auto()
-    TARGET_INTERNAL = auto()  # Do not accept external targets. But flie with target
+from ._padflie_states import PadFlieState
 
 
 class PadflieCommander:
+    from ._padflie_routines import takeoff_routine, land_routine
+
     def __init__(
         self,
-        padflie: PadFlie,
+        node: Node,
         prefix: str,
         hl_commander: HighLevelCommanderClient,
         g_commander: GenericCommanderClient,
+        log_commander: LoggingClient,
         get_position_callback: Callable[[], Optional[List[float]]],
         get_pad_position_callback: Callable[[], Optional[List[float]]],
         sleep_callback: Callable[[float], None],
     ):
         self.hl_commander = hl_commander
         self.ll_commander = g_commander
+        self.logging_commander = log_commander
         self.get_position: Callable[[], Optional[List[float]]] = get_position_callback
         self.get_pad_position: Callable[[], Optional[List[float]]] = (
             get_pad_position_callback
@@ -53,7 +50,9 @@ class PadflieCommander:
         self.target: Optional[List[float]] = None
         self.connected: bool = False
 
-        self.charge_controller = ChargeController(self, self)
+        self.charge_controller = ChargeController(
+            node=node, logging_client=self.logging_commander
+        )
 
         availability_rate: float = 1.0
 
@@ -63,7 +62,7 @@ class PadflieCommander:
             dt=dt, max_step_distance_xy=3, max_step_distance_z=1, clipping_box=None
         )
 
-        padflie.create_timer(
+        node.create_timer(
             timer_period_sec=dt,
             callback=self._send_target,
             callback_group=MutuallyExclusiveCallbackGroup(),
@@ -73,7 +72,7 @@ class PadflieCommander:
             MutuallyExclusiveCallbackGroup()
         )  # All subscriptions can be on the same callbackgroup
         qos_profile = 10
-        padflie.create_subscription(
+        node.create_subscription(
             SendTarget,
             prefix + "/send_target",
             self._send_target_callback,
@@ -81,7 +80,7 @@ class PadflieCommander:
             callback_group=callback_group,
         )
 
-        padflie.create_subscription(
+        node.create_subscription(
             msg_type=Empty,
             topic=prefix + "/pad_takeoff",
             callback=self.__takeoff_callback,
@@ -89,7 +88,7 @@ class PadflieCommander:
             callback_group=callback_group,
         )
 
-        padflie.create_subscription(
+        node.create_subscription(
             msg_type=Empty,
             topic=prefix + "/pad_land",
             callback=self.__land_callback,
@@ -97,7 +96,7 @@ class PadflieCommander:
             callback_group=callback_group,
         )
 
-        padflie.create_service(
+        node.create_service(
             srv_type=Connect,
             srv_name=prefix + "/connect",
             callback=self.handle_connect_request,
@@ -111,14 +110,14 @@ class PadflieCommander:
             history=HistoryPolicy.KEEP_LAST,  # Keeps only the last N messages
             depth=1,  # Keeps a short history to reduce memory use
         )
-        self.availability_publisher: Publisher = padflie.create_publisher(
+        self.availability_publisher: Publisher = node.create_publisher(
             msg_type=AvailabilityInfo,
             topic="availability",
             qos_profile=qos_profile_performance,
             callback_group=callback_group,
         )
 
-        padflie.create_timer(
+        node.create_timer(
             timer_period_sec=availability_rate,
             callback=self.send_availability_info,
             callback_group=callback_group,
@@ -164,7 +163,7 @@ class PadflieCommander:
         if position is None:
             raise Exception("Crazyflie doesnt have position. Cannot takeoff.")
 
-        takeoff_routine(position)
+        self.takeoff_routine(position)
         # This routine takes exactly 2 seconds to complete
 
     def __land_callback(self, msg: Empty) -> None:
@@ -193,8 +192,6 @@ class PadflieCommander:
                 position = new_position
             return position
 
-        land_routine(
-            commander=self, get_pad_position=get_pad_position, get_position=get_position
-        )
+        self.land_routine(get_pad_position=get_pad_position, get_position=get_position)
         # This routine transitions us through TARGET_INTERNAL, LAND and leaves with state IDLE
         # It takes 16.5 seconds

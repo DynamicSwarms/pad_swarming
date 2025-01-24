@@ -79,6 +79,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             prefix=self.prefix,
             hl_commander=self,
             g_commander=self,
+            log_commander=self,
             get_position_callback=self.get_position,
             get_pad_position_callback=self._get_pad_position,
             sleep_callback=self._sleep,
