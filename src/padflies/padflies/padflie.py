@@ -14,16 +14,16 @@ from rcl_interfaces.srv import SetParameters
 import rclpy.parameter
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-import tf_transformations
 
 from crazyflies.crazyflie import CrazyflieType, Crazyflie
 from crazyflies.gateway_endpoint import CrazyflieGatewayError
 from .commander import PadflieCommander
 
+from ._padflie_tf import PadflieTF
+
 import traceback
 import signal
 from dataclasses import dataclass
-import math
 
 from typing import List, Optional, Tuple, Union
 
@@ -63,7 +63,11 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        pad_position, yaw = self.__get_pad_position_or_timeout(
+        self._tf_manager = PadflieTF(
+            self.tf_buffer, self._sleep, self.pad_name, "world"
+        )
+
+        pad_position, yaw = self._tf_manager.get_pad_position_or_timeout(
             timeout_sec=1.0
         )  # might raise TimeoutError
 
@@ -80,21 +84,21 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
         self.set_initial_yaw()
 
-        self.commander = PadflieCommander(
+        self._commander = PadflieCommander(
             node=self,
             prefix=self.__prefix,
-            hl_commander=self,
-            g_commander=self,
-            log_commander=self,
-            get_position_callback=self.get_position,
-            get_pad_position_and_yaw_callback=self.get_pad_position_and_yaw,
-            sleep_callback=self._sleep,
+            hl_commander=self,  # A Crazyflie is this, therefore we are
+            ll_commander=self,  # A Crazyflie is this, therefore we are
+            log_commander=self,  # A Crazyflie is this, therefore we are
+            tf_manager=self._tf_manager,
+            get_position=self.get_position,
+            sleep=self._sleep,
         )  # This starts the main control loop of the padflie
 
         return True
 
     def set_initial_yaw(self):
-        p_y = self.get_pad_position_and_yaw()
+        p_y = self._tf_manager.get_pad_position_and_yaw()
         self.get_logger().info(str(p_y))
         if p_y is None:
             return
@@ -121,69 +125,6 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             req.parameters.append(param)
             self.get_logger().info(str(param))
             client.call_async(req)
-
-    def get_pad_position_and_yaw(self) -> Optional[Tuple[List[float], float]]:
-        """Gets the position of our pad.
-
-        Returns:
-            Optional[Tuple[List[float], float]]: None if not possible. Otherwise position and yaw of pad in world coords.
-        """
-        try:
-            # The core check needs to be done. Otherwise this the lookup transform timeout
-            # gets ignored
-            if not self.tf_buffer.can_transform_core(
-                "world", self.pad_name, rclpy.time.Time()
-            )[0]:
-                return None
-
-            t = self.tf_buffer.lookup_transform(
-                target_frame="world",
-                source_frame=self.pad_name,
-                time=rclpy.time.Time(),
-            )
-            position = [
-                t.transform.translation.x,
-                t.transform.translation.y,
-                t.transform.translation.z,
-            ]
-            quaternion = (
-                t.transform.rotation.x,
-                t.transform.rotation.y,
-                t.transform.rotation.z,
-                t.transform.rotation.w,
-            )
-            roll, pitch, yaw = tf_transformations.euler_from_quaternion(quaternion)
-            if yaw < 0:
-                yaw += math.pi
-            else:
-                yaw -= math.pi
-            return (position, yaw)
-        except Exception as ex:
-            self.node.get_logger().info(str(ex))
-            return None
-
-    def __get_pad_position_or_timeout(
-        self, timeout_sec: float
-    ) -> Tuple[List[float], float]:
-        """Retrieves the pad position or timess out after given time.
-
-        Args:
-            timeout_sec (float): The maximum time to wait for the pad position to become available.
-
-        Raises:
-            TimeoutError: If timeout occurs
-
-        Returns:
-            Tuple[List[float], float]: The position and yaw of the pad in world coordinates.
-        """
-        pad_position_and_yaw = self.get_pad_position_and_yaw()
-        while pad_position_and_yaw is None and timeout_sec > 0.0:
-            self._sleep(0.1)
-            timeout_sec -= 0.1
-            pad_position_and_yaw = self.get_pad_position_and_yaw()
-        if pad_position_and_yaw is None:
-            raise TimeoutError(f"Pad with name: {self.pad_name}, could not be found")
-        return pad_position_and_yaw
 
     # Properties
     @property

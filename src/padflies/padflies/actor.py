@@ -20,21 +20,23 @@ class ActorState(Enum):
 
 
 class PadflieActor:
+    __state: ActorState = ActorState.HIGH_LEVEL_COMMANDER
+    __target_setpoint: Optional[List[float]] = None
+    __yaw_setpoint: float = 0.0
+
     def __init__(
         self,
         node: Node,
+        ckeck_target: Callable[[List[float]], List[float]],
         hl_commander: HighLevelCommanderClient,
         ll_commander: GenericCommanderClient,
         sleep: Callable[[float], None],
         dt: float,
     ):
+        self.__check_target = ckeck_target
         self.__hl_commander = hl_commander
         self.__ll_commander = ll_commander
         self.__sleep = sleep
-
-        self.__state = ActorState.HIGH_LEVEL_COMMANDER
-        self.__target_setpoint: Optional[List[float]] = None
-        self.__yaw_setpoint: Optional[float] = None
 
         node.create_timer(
             timer_period_sec=dt,
@@ -50,19 +52,28 @@ class PadflieActor:
         if (
             self.__state is ActorState.LOW_LEVEL_COMMANDER
             and self.__target_setpoint is not None
-            and self.__yaw_setpoint is not None
         ):
-            self.__ll_commander.cmd_position(
-                self.__target_setpoint, self.__yaw_setpoint
-            )
+            target = self.__check_target(self.__target_setpoint)
+            self.__ll_commander.cmd_position(target, self.__yaw_setpoint)
 
-    def set_target(self, target: List[float], yaw: float = 0.0):
+    def set_target(self, target: List[float], yaw: Optional[float] = None):
         self.__target_setpoint = target
-        self.__yaw_setpoint = yaw
+        if yaw is not None:
+            self.__yaw_setpoint = yaw
 
     def takeoff_routine(
         self, position: List[float], takeoff_height: float = 1.0, yaw: float = 0.0
     ):
+        """Routine for takeoff.
+
+        Takes off and puts this actor in LowLevel commander mode.
+        This ensures that as soon as th crazyflie is in the air it is commanded with cmd_positions.
+
+        Args:
+            position (List[float]): The position we are currently at.
+            takeoff_height (float, optional): We will idle at this height above the position after taking off. Defaults to 1.0.
+            yaw (float, optional): The yaw we want to fly at. Defaults to 0.0 in order to always ensure "straight" flight if not otherwise wished for.
+        """
         self.__state = ActorState.HIGH_LEVEL_COMMANDER
         self.__target_setpoint = position
         self.__target_setpoint[2] += takeoff_height
@@ -73,7 +84,9 @@ class PadflieActor:
             duration_seconds=4.0,
             yaw=self.__yaw_setpoint,
         )
-        self.__sleep(2.0)
+        self.__sleep(
+            2.0
+        )  # Even though we specified 5 seconds for takeoff, this ensures a cleaner transition.
         self.__state = ActorState.LOW_LEVEL_COMMANDER
 
     def land_routine(
@@ -111,7 +124,7 @@ class PadflieActor:
             yaw=yaw,
             duration_seconds=4.0,
         )
-        self.__sleep(3.0)
+        self.__sleep(3.0)  # actual land
 
         """
         Phase3: 
@@ -121,5 +134,5 @@ class PadflieActor:
         pad_position, yaw = get_pad_position_and_yaw()
         self.__hl_commander.land(
             target_height=0.0, duration_seconds=3.0, yaw=yaw
-        )  # Try to get into the pad (landing at pad_height would be more correct)
-        self.__sleep(2.5)
+        )  # Landing at height 0 ensures motors get shut off completely
+        self.__sleep(2.5)  # It would be ok to launch after only 2.5 seconds

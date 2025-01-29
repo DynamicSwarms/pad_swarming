@@ -14,6 +14,7 @@ find_package(std_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Connect.srv"
   "msg/AvailabilityInfo.msg"
+  "msg/SendTarget.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

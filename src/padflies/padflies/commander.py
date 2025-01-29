@@ -3,7 +3,8 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.publisher import Publisher
 
 from std_msgs.msg import Empty
-from crazyflies_interfaces.msg import SendTarget
+from geometry_msgs.msg import PoseStamped
+from padflies_interfaces.msg import SendTarget
 
 from crazyflie_interfaces_python.client import (
     HighLevelCommanderClient,
@@ -13,63 +14,76 @@ from crazyflie_interfaces_python.client import (
 from crazyflies.safe.safe_commander import SafeCommander
 
 from ._padflie_states import PadFlieState
+from ._qos_profiles import qos_profile_simple
+from ._padflie_tf import PadflieTF
+from .connection_manager import ConnectionManager
 from .charge_controller import ChargeController
 from .actor import PadflieActor
 
+import tf_transformations
 from copy import deepcopy
 import numpy as np
 from typing import Callable, List, Optional, Tuple
 
 
-class PadflieCommander:
+class PadflieCommander(SafeCommander):
+    _state: PadFlieState = PadFlieState.IDLE
+    __control_rate: float = 10.0  # Hz
+    _dt: float = 1 / __control_rate
+
+    __world = "world"
 
     def __init__(
         self,
         node: Node,
         prefix: str,
         hl_commander: HighLevelCommanderClient,
-        g_commander: GenericCommanderClient,
+        ll_commander: GenericCommanderClient,
         log_commander: LoggingClient,
-        get_position_callback: Callable[[], Optional[List[float]]],
-        get_pad_position_and_yaw_callback: Callable[[], Optional[List[float]]],
-        sleep_callback: Callable[[float], None],
+        tf_manager: PadflieTF,
+        get_position: Callable[[], Optional[List[float]]],
+        sleep: Callable[[float], None],
     ):
-        self.__node = node
-        self.__get_position: Callable[[], Optional[List[float]]] = get_position_callback
-        self.__get_pad_position_and_yaw: Callable[
-            [], Optional[Tuple[List[float], float]]
-        ] = get_pad_position_and_yaw_callback
-
-        self._sleep: Callable[[float], None] = sleep_callback
-        self._prefix = prefix
-        self._state: PadFlieState = PadFlieState.IDLE
-
-        target_rate: float = 10.0  # Hz
-        dt: float = 1 / target_rate
-        self.commander = SafeCommander(
-            dt=dt, max_step_distance_xy=3, max_step_distance_z=1, clipping_box=None
+        super().__init__(
+            dt=self._dt,
+            max_step_distance_xy=3,
+            max_step_distance_z=1,
+            clipping_box=None,
         )
+        self.__node = node
+        self.__tf_manager = tf_manager
+        self.__get_position = get_position
+        self.__sleep = sleep
 
         self._actor = PadflieActor(
             node=node,
+            ckeck_target=self.check_target,
             hl_commander=hl_commander,
-            ll_commander=g_commander,
-            sleep=sleep_callback,
-            dt=dt,
-        )
+            ll_commander=ll_commander,
+            sleep=sleep,
+            dt=self._dt,
+        )  # This actor is allowed to send control commands to the crazyflie
+
         self._charge_controller = ChargeController(
             node=node, logging_client=log_commander
-        )
+        )  # Checks charge state
+
+        self._connection_manager = ConnectionManager(
+            node=node, prefix=prefix
+        )  # Creates a connection to some controller, this way we get controlled from only one instance
+
+        #########
+        # Initialization of our own Subscriptions to command position, takeoff and land
+        #########
 
         callback_group = (
             MutuallyExclusiveCallbackGroup()
         )  # All subscriptions can be on the same callbackgroup
-        qos_profile = 10
         node.create_subscription(
             SendTarget,
             prefix + "/send_target",
             self.__send_target_callback,
-            qos_profile=qos_profile,
+            qos_profile=qos_profile_simple,
             callback_group=callback_group,
         )
 
@@ -77,7 +91,7 @@ class PadflieCommander:
             msg_type=Empty,
             topic=prefix + "/pad_takeoff",
             callback=self.__takeoff_callback,
-            qos_profile=qos_profile,
+            qos_profile=qos_profile_simple,
             callback_group=callback_group,
         )
 
@@ -85,33 +99,60 @@ class PadflieCommander:
             msg_type=Empty,
             topic=prefix + "/pad_land",
             callback=self.__land_callback,
-            qos_profile=qos_profile,
+            qos_profile=qos_profile_simple,
             callback_group=callback_group,
         )
 
-    def set_target(self, target: List[float]) -> None:
+    def check_target(self, target: List[float]) -> List[float]:
+        position = self.__get_position()
+        # TODO: What to do here, fail safe
+        if position is not None:
+            return self.safe_cmd_position(position, target)
+
+    def _set_target(self, target: List[float], yaw: Optional[float] = None) -> None:
         """Calculates a safe target and sets it as our target.
 
         Args:
             target (List[float]): The target to follow.
         """
-        position = self.__get_position()
-        if position is not None:
-            safe_target = self.commander.safe_cmd_position(position, target)
-            self._actor.set_target(safe_target)
+
+        self._actor.set_target(target)
 
     def __send_target_callback(self, msg: SendTarget):
         """Callback to the send_target topic.
 
-        TODO: Use the topics frame_id and conversions to handle this nicely.
-
         Args:
             msg (SendTarget): An empty message used as trigger.
         """
-        if self._state is not PadFlieState.TARGET:
+        if (
+            self._state is not PadFlieState.TARGET
+            or msg.priority_id < self._connection_manager.current_priority_id
+        ):
             return
 
-        self.set_target([msg.target.x, msg.target.y, msg.target.z])
+        _world_target: PoseStamped = self.__tf_manager.transform_pose_stamped(
+            msg.target, self.__world, self.__node.get_logger()
+        )
+        self.__node.get_logger().info(str(_world_target) + str(msg.target))
+        if _world_target is not None:
+            world_target = [
+                _world_target.pose.position.x,
+                _world_target.pose.position.y,
+                _world_target.pose.position.z,
+            ]
+
+            yaw: Optional[float] = None
+            if msg.use_yaw:
+                _roll, _pitch, yaw = tf_transformations.euler_from_quaternion(
+                    tuple(
+                        _world_target.pose.orientation.x,
+                        _world_target.pose.orientation.y,
+                        _world_target.pose.orientation.z,
+                        _world_target.pose.orientation.w,
+                    )
+                )
+
+            self._set_target(world_target, yaw)
 
     def __takeoff_callback(self, msg: Empty):
         """Callback to the takeoff subscription.
@@ -155,7 +196,7 @@ class PadflieCommander:
             return
 
         pad_position_and_yaw: Optional[Tuple[List[float], float]] = (
-            self.__get_pad_position_and_yaw()
+            self.__tf_manager.get_pad_position_and_yaw()
         )
         position: Optional[List[float]] = self.__get_position()
 
@@ -167,7 +208,7 @@ class PadflieCommander:
             return
 
         def get_pad_position_and_yaw():
-            new_pad_position_and_yaw = self.__get_pad_position_and_yaw()
+            new_pad_position_and_yaw = self.__tf_manager.get_pad_position_and_yaw()
             if new_pad_position_and_yaw is not None:
                 pad_position_and_yaw = new_pad_position_and_yaw
             return deepcopy(pad_position_and_yaw)
@@ -195,7 +236,7 @@ class PadflieCommander:
         while timeout > 0.0:
             target, yaw = get_pad_position_and_yaw()
             target[2] += 0.5
-            self.set_target(target)
+            self._set_target(target, yaw)
 
             if (
                 np.linalg.norm(np.array(get_position()) - np.array(target)) < 0.1
@@ -203,7 +244,7 @@ class PadflieCommander:
                 break
 
             timeout -= 0.1
-            self._sleep(0.1)
+            self.__sleep(0.1)
 
         self._actor.land_routine(get_pad_position_and_yaw=get_pad_position_and_yaw)
         self._state = PadFlieState.IDLE
