@@ -26,10 +26,8 @@ import numpy as np
 from typing import Callable, List, Optional, Tuple
 
 
-class PadflieCommander(SafeCommander):
+class PadflieCommander:
     _state: PadFlieState = PadFlieState.IDLE
-    __control_rate: float = 10.0  # Hz
-    _dt: float = 1 / __control_rate
 
     __world = "world"
 
@@ -41,27 +39,18 @@ class PadflieCommander(SafeCommander):
         ll_commander: GenericCommanderClient,
         log_commander: LoggingClient,
         tf_manager: PadflieTF,
-        get_position: Callable[[], Optional[List[float]]],
         sleep: Callable[[float], None],
     ):
-        super().__init__(
-            dt=self._dt,
-            max_step_distance_xy=3,
-            max_step_distance_z=1,
-            clipping_box=None,
-        )
         self.__node = node
         self.__tf_manager = tf_manager
-        self.__get_position = get_position
         self.__sleep = sleep
 
         self._actor = PadflieActor(
             node=node,
-            ckeck_target=self.check_target,
+            tf_manager=tf_manager,
             hl_commander=hl_commander,
             ll_commander=ll_commander,
             sleep=sleep,
-            dt=self._dt,
         )  # This actor is allowed to send control commands to the crazyflie
 
         self._charge_controller = ChargeController(
@@ -103,20 +92,14 @@ class PadflieCommander(SafeCommander):
             callback_group=callback_group,
         )
 
-    def check_target(self, target: List[float]) -> List[float]:
-        position = self.__get_position()
-        # TODO: What to do here, fail safe
-        if position is not None:
-            return self.safe_cmd_position(position, target)
-
-    def _set_target(self, target: List[float], yaw: Optional[float] = None) -> None:
-        """Calculates a safe target and sets it as our target.
+    def _set_target(self, target: PoseStamped, use_yaw: bool = False):
+        """Set a PoseStamped as the actor target.
 
         Args:
-            target (List[float]): The target to follow.
+            target (PoseStamped): The target for the crazyflie.
+            use_yaw (bool): Wheter to use the yaw in the pose (True) or set it to 0 (False)
         """
-
-        self._actor.set_target(target)
+        self._actor.set_target(target, use_yaw)
 
     def __send_target_callback(self, msg: SendTarget):
         """Callback to the send_target topic.
@@ -130,29 +113,7 @@ class PadflieCommander(SafeCommander):
         ):
             return
 
-        _world_target: PoseStamped = self.__tf_manager.transform_pose_stamped(
-            msg.target, self.__world, self.__node.get_logger()
-        )
-        self.__node.get_logger().info(str(_world_target) + str(msg.target))
-        if _world_target is not None:
-            world_target = [
-                _world_target.pose.position.x,
-                _world_target.pose.position.y,
-                _world_target.pose.position.z,
-            ]
-
-            yaw: Optional[float] = None
-            if msg.use_yaw:
-                _roll, _pitch, yaw = tf_transformations.euler_from_quaternion(
-                    tuple(
-                        _world_target.pose.orientation.x,
-                        _world_target.pose.orientation.y,
-                        _world_target.pose.orientation.z,
-                        _world_target.pose.orientation.w,
-                    )
-                )
-
-            self._set_target(world_target, yaw)
+        self._set_target(msg.target, msg.use_yaw)
 
     def __takeoff_callback(self, msg: Empty):
         """Callback to the takeoff subscription.
@@ -166,7 +127,7 @@ class PadflieCommander(SafeCommander):
         if self._state is not PadFlieState.IDLE:
             return
 
-        position = self.__get_position()
+        position = self.__tf_manager.get_cf_position()
         if position is None:
             self.__node.get_logger().error(
                 "Crazyflie doesnt have position. Cannot takeoff."
@@ -174,7 +135,7 @@ class PadflieCommander(SafeCommander):
             return
 
         self._state = PadFlieState.TAKEOFF
-        self._actor.takeoff_routine(position)
+        self._actor.takeoff_routine()
         self._state = PadFlieState.TARGET
 
     def __land_callback(self, msg: Empty):
@@ -195,30 +156,6 @@ class PadflieCommander(SafeCommander):
         if self._state is not PadFlieState.TARGET:
             return
 
-        pad_position_and_yaw: Optional[Tuple[List[float], float]] = (
-            self.__tf_manager.get_pad_position_and_yaw()
-        )
-        position: Optional[List[float]] = self.__get_position()
-
-        if pad_position_and_yaw is None:
-            self.__node.get_logger().error("Could not find pad. Cannot land")
-            return
-        if position is None:
-            self.__node.get_logger().error("Was not able to find the position.")
-            return
-
-        def get_pad_position_and_yaw():
-            new_pad_position_and_yaw = self.__tf_manager.get_pad_position_and_yaw()
-            if new_pad_position_and_yaw is not None:
-                pad_position_and_yaw = new_pad_position_and_yaw
-            return deepcopy(pad_position_and_yaw)
-
-        def get_position():
-            new_position = self.__get_position()
-            if new_position is not None:
-                position = new_position
-            return deepcopy(position)
-
         self._state = PadFlieState.LAND
         """
         Phase 1:
@@ -234,17 +171,29 @@ class PadflieCommander(SafeCommander):
         """
         timeout = 8.0
         while timeout > 0.0:
-            target, yaw = get_pad_position_and_yaw()
-            target[2] += 0.5
-            self._set_target(target, yaw)
+            target_pose = self.__tf_manager.get_pad_pose()
+            target_pose.pose.position.z += 0.5
+            self._set_target(target=target_pose, use_yaw=True)
 
+            cf_position = self.__tf_manager.get_cf_position()
+            pad_target = self.__tf_manager.pose_stamped_to_world_position_and_yaw(
+                target_pose
+            )
+            if cf_position is None or pad_target is None:
+                self.__node.get_logger().info(
+                    "Big problem with transforms flying home."
+                )
+                self.__sleep(0.1)
+                continue
+
+            target, _yaw = pad_target
             if (
-                np.linalg.norm(np.array(get_position()) - np.array(target)) < 0.1
+                np.linalg.norm(np.array(cf_position) - np.array(target)) < 0.1
             ):  # closer than 10 cm
                 break
 
             timeout -= 0.1
             self.__sleep(0.1)
 
-        self._actor.land_routine(get_pad_position_and_yaw=get_pad_position_and_yaw)
+        self._actor.land_routine()
         self._state = PadFlieState.IDLE

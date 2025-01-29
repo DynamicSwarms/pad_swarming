@@ -4,7 +4,7 @@ import tf2_py
 from tf2_ros.buffer import Buffer
 from geometry_msgs.msg import TransformStamped, PointStamped, PoseStamped
 
-from tf2_geometry_msgs import do_transform_point, do_transform_pose_stamped
+import tf2_geometry_msgs as tf2_geom
 import tf_transformations
 import math
 
@@ -18,11 +18,13 @@ class PadflieTF:
         tf_buffer: Buffer,
         sleep: Callable[[float], None],
         pad_name: str,
+        cf_name: str,
         world: str = "world",
     ):
         self.__tf_buffer = tf_buffer
         self.__sleep = sleep
         self.__pad_name = pad_name
+        self.__cf_name = cf_name
         self.__world = world
 
     def get_pad_position_or_timeout(
@@ -74,11 +76,44 @@ class PadflieTF:
             t.transform.rotation.w,
         )
         roll, pitch, yaw = tf_transformations.euler_from_quaternion(quaternion)
-        if yaw < 0:
-            yaw += math.pi
-        else:
-            yaw -= math.pi
+        # if yaw < 0:
+        #    yaw += math.pi
+        # else:
+        #    yaw -= math.pi
         return (position, yaw)
+
+    def get_pad_pose(self) -> PoseStamped:
+        pose = PoseStamped()
+        pose.header.frame_id = self.__pad_name
+        return pose
+
+    def get_pad_pose_world(self) -> Optional[PoseStamped]:
+        transform = self.get_transform(
+            target_frame=self.__world,
+            source_frame=self.__pad_name,
+        )
+        if transform is None:
+            return None
+        zero_pose = PoseStamped()
+        zero_pose.header.frame_id = self.__world
+        return tf2_geom.do_transform_pose_stamped(zero_pose, transform)
+
+    def get_cf_position(self) -> Optional[List[float]]:
+        """Gets the position of the crazyflie in world coordinates.
+
+        Returns:
+            Optional[List[float]]: The Position of the cf in world coordinates.
+        """
+        transform = self.get_transform(
+            target_frame=self.__world, source_frame=self.__cf_name
+        )
+        if transform is None:
+            return None
+        return [
+            transform.transform.translation.x,
+            transform.transform.translation.y,
+            transform.transform.translation.z,
+        ]
 
     def transform_point_stamped(
         self,
@@ -101,10 +136,10 @@ class PadflieTF:
         if transform is None:
             return None
 
-        return do_transform_point(point=point, transform=transform)
+        return tf2_geom.do_transform_point(point=point, transform=transform)
 
     def transform_pose_stamped(
-        self, pose: PoseStamped, target_frame: str, logger
+        self, pose: PoseStamped, target_frame: str
     ) -> Optional[PoseStamped]:
         """Transforms a pose from the frame given in pose stamp to the target frame
 
@@ -120,11 +155,31 @@ class PadflieTF:
         transform = self.get_transform(
             target_frame=target_frame, source_frame=pose.header.frame_id
         )
-        logger.info(str(transform))
         if transform is None:
             return None
 
-        return do_transform_pose_stamped(pose=pose, transform=transform)
+        return tf2_geom.do_transform_pose_stamped(pose=pose, transform=transform)
+
+    def pose_stamped_to_world_position_and_yaw(
+        self, pose: PoseStamped
+    ) -> Optional[Tuple[List[float], float]]:
+        world_pose = self.transform_pose_stamped(pose, self.__world)
+        if world_pose is None:
+            return None
+        _roll, _pitch, yaw = tf_transformations.euler_from_quaternion(
+            (
+                world_pose.pose.orientation.x,
+                world_pose.pose.orientation.y,
+                world_pose.pose.orientation.z,
+                world_pose.pose.orientation.w,
+            )
+        )
+        position = [
+            world_pose.pose.position.x,
+            world_pose.pose.position.y,
+            world_pose.pose.position.z,
+        ]
+        return (position, yaw)
 
     def get_transform(
         self, target_frame: str, source_frame: str

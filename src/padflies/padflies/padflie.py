@@ -64,7 +64,11 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
         self._tf_manager = PadflieTF(
-            self.tf_buffer, self._sleep, self.pad_name, "world"
+            tf_buffer=self.tf_buffer,
+            sleep=self._sleep,
+            pad_name=self.pad_name,
+            cf_name=f"cf{self.cf_id}",
+            world="world",
         )
 
         pad_position, yaw = self._tf_manager.get_pad_position_or_timeout(
@@ -91,7 +95,6 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             ll_commander=self,  # A Crazyflie is this, therefore we are
             log_commander=self,  # A Crazyflie is this, therefore we are
             tf_manager=self._tf_manager,
-            get_position=self.get_position,
             sleep=self._sleep,
         )  # This starts the main control loop of the padflie
 
