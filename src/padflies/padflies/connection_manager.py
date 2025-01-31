@@ -11,13 +11,14 @@ from ._qos_profiles import qos_profile_performance
 
 
 class ConnectionManager:
-    __connected = False
-    __availability_rate: float = 1.0
-
-    current_priority_id: int = 0
 
     def __init__(self, node: Node, prefix: str):
         callback_group = MutuallyExclusiveCallbackGroup()
+
+        self.__connected = False
+        self.__availability_rate: float = 1.0
+
+        self.current_priority_id: int = 0
 
         self._connect_service = node.create_service(
             srv_type=Connect,

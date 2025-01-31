@@ -9,7 +9,7 @@ class YawCommander:
         The return value is the target you can safely send to the crazyflie.
 
         Args:
-            dt (float): The timedelta this function is called
+            dt (float): The timedelta the safe_cmd_yaw function is called
             max_rotational_speed (float): The maximum angle difference in radians/second.
         """
         self._dt = dt
@@ -59,12 +59,3 @@ class YawCommander:
             float: The angle difference, sign is direction to go to.
         """
         return np.arctan2(np.sin(target - source), np.cos(target - source))
-
-
-if __name__ == "__main__":
-    yc = YawCommander(0.1)
-
-    for _ in range(40):
-        yc.set_target_yaw(-2)
-
-        print(yc.yaw)

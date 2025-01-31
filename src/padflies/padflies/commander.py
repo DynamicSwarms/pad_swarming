@@ -27,9 +27,6 @@ from typing import Callable, List, Optional, Tuple
 
 
 class PadflieCommander:
-    _state: PadFlieState = PadFlieState.IDLE
-
-    __world = "world"
 
     def __init__(
         self,
@@ -44,6 +41,10 @@ class PadflieCommander:
         self.__node = node
         self.__tf_manager = tf_manager
         self.__sleep = sleep
+
+        # Fixed instance variables
+        self._state: PadFlieState = PadFlieState.IDLE
+        self.__world = "world"
 
         self._actor = PadflieActor(
             node=node,
