@@ -2,8 +2,7 @@ import rclpy
 import rclpy.time
 import tf2_py
 from tf2_ros.buffer import Buffer
-from geometry_msgs.msg import TransformStamped, PointStamped, PoseStamped
-
+from geometry_msgs.msg import TransformStamped, PointStamped, PoseStamped, Quaternion
 import tf2_geometry_msgs as tf2_geom
 import tf_transformations
 import math
@@ -92,6 +91,21 @@ class PadflieTF:
             return None
         zero_pose = PoseStamped()
         zero_pose.header.frame_id = self.__world
+        return tf2_geom.do_transform_pose_stamped(zero_pose, transform)
+
+    def get_cf_pose_stamped(
+        self,
+        frame_id: str,
+        world_quat: Quaternion = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
+    ) -> Optional[PoseStamped]:
+        transform = self.get_transform(
+            target_frame=frame_id, source_frame=self.__cf_name
+        )
+        if transform is None:
+            return None
+        zero_pose = PoseStamped()
+        zero_pose.header.frame_id = frame_id
+        zero_pose.pose.orientation = world_quat
         return tf2_geom.do_transform_pose_stamped(zero_pose, transform)
 
     def get_cf_position(self) -> Optional[List[float]]:
@@ -184,14 +198,14 @@ class PadflieTF:
             # The core check needs to be done.
             # Otherwise the lookup transform timeout gets ignored
             if not self.__tf_buffer.can_transform_core(
-                target_frame, source_frame, rclpy.time.Time()
+                target_frame, source_frame, rclpy.time.Time(seconds=0, nanoseconds=0)
             ):
                 return None
 
             return self.__tf_buffer.lookup_transform(
                 target_frame=target_frame,
                 source_frame=source_frame,
-                time=rclpy.time.Time(),
+                time=rclpy.time.Time(seconds=0, nanoseconds=0),
             )
 
         except tf2_py.LookupException as ex:

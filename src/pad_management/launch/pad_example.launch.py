@@ -51,6 +51,7 @@ def generate_launch_description():
     webots_gateway_dir = get_package_share_directory("crazyflie_webots_gateway")
     hardware_gateway_dir = get_package_share_directory("crazyflie_hardware_gateway")
     webots_connector_dir = get_package_share_directory("webots_connector")
+    pad_management_dir = get_package_share_directory("pad_management")
 
     pads_hardware_yaml = (
         get_package_share_directory("pad_management")
@@ -117,11 +118,16 @@ def generate_launch_description():
     ## Custom stuff
 
     # Webots connector
+    flies_webots_yaml = os.path.join(pad_management_dir, "config", "webots_config.yaml")
+
     connector = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             [webots_connector_dir, "/launch/webots_connector.launch.py"]
         ),
-        launch_arguments={"pointcloud_topic_name": "sim_cloud"}.items(),
+        launch_arguments={
+            "pointcloud_topic_name": "sim_cloud",
+            "webots_config_yaml": flies_webots_yaml,
+        }.items(),
         condition=start_webots,
     )
 
@@ -151,9 +157,7 @@ def generate_launch_description():
         executable="point_finder",
         parameters=[{"point_cloud_topic_name": "combined_cloud"}],
     )
-    flies_webots_yaml = os.path.join(
-        webots_connector_dir, "config", "padflies_config.yaml"
-    )
+
     creator = Node(
         package="pad_management",
         executable="pad_creator",

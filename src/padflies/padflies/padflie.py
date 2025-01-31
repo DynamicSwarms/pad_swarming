@@ -17,7 +17,7 @@ from tf2_ros.transform_listener import TransformListener
 
 from crazyflies.crazyflie import CrazyflieType, Crazyflie
 from crazyflies.gateway_endpoint import CrazyflieGatewayError
-from .commander import PadflieCommander
+from .controller import PadflieController
 
 from ._padflie_tf import PadflieTF
 
@@ -88,8 +88,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
         self.set_initial_yaw()
 
-        self._commander = PadflieCommander(
+        self._commander = PadflieController(
             node=self,
+            cf_type=self.cf_type,
             prefix=self.__prefix,
             hl_commander=self,  # A Crazyflie is this, therefore we are
             ll_commander=self,  # A Crazyflie is this, therefore we are
@@ -102,7 +103,6 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
     def set_initial_yaw(self):
         p_y = self._tf_manager.get_pad_position_and_yaw()
-        self.get_logger().info(str(p_y))
         if p_y is None:
             return
 
@@ -126,7 +126,6 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
                 param.value.double_value = value
 
             req.parameters.append(param)
-            self.get_logger().info(str(param))
             client.call_async(req)
 
     # Properties

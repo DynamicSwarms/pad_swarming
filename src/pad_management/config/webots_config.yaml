@@ -1,0 +1,49 @@
+flies:
+  - id: 0x01
+    pad: 0x01
+  - id: 0x02
+    pad: 0x02
+  #- id: 0x03
+  #  pad: 0x03
+  #- id: 0x04
+  #  pad: 0x04
+  #- id: 0x05
+  #  pad: 0x05
+  #- id: 0x06
+  #  pad: 0x06
+  #- id: 0x07
+  #  pad: 0x07
+  #- id: 0x08
+  #  pad: 0x08
+  #- id: 0x10
+  #  pad: 0x10
+  #- id: 0x11
+  #  pad: 0x11
+  
+
+
+pads: 
+  - id: 0x01
+    position: [0.0, 0.2, 0.0]
+  - id: 0x02
+    position: [0.0, 0.4, 0.0]
+  #- id: 0x03
+  #  position: [0.0, 0.6, 0.0]
+  #- id: 0x04
+  #  position: [0.0, 0.8, 0.0]
+  #- id: 0x05
+  #  position: [0.0, 1.0, 0.0]
+  #- id: 0x06
+  #  position: [0.0, 1.2, 0.0]
+  #- id: 0x07
+  #  position: [0.0, 1.4, 0.0]
+  #- id: 0x08
+  #  position: [0.0, 1.6, 0.0]
+  #- id: 0x10
+  #  position: [-0.2, 0.0, 0.0]
+  #- id: 0x11
+  #  position: [-0.2, 0.2, 0.0]
+
+wands: 
+  - id: 0x1
+    position: [-0.5, 0.0, 0.5]

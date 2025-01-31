@@ -20,6 +20,8 @@ data_files.append(
 )
 data_files.append(("share/" + package_name + "/config", ["config/tracker_config.yaml"]))
 
+data_files.append(("share/" + package_name + "/config", ["config/webots_config.yaml"]))
+
 setup(
     name=package_name,
     version="0.0.0",

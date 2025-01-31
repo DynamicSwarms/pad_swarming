@@ -39,6 +39,7 @@ class PadflieActor:
 
         ### Instance variables
         self.__state: ActorState = ActorState.HIGH_LEVEL_COMMANDER
+
         self.__target_pose: Optional[PoseStamped] = None
         self.__fixed_yaw: bool = False
 
@@ -46,7 +47,7 @@ class PadflieActor:
             Tuple[List[float], float]
         ] = None
 
-        self.__current_yaw: float = (
+        self._current_yaw: float = (
             0.0  # We dont get yaw from cf. Assume this gets correctly tracked across flight
         )
 
@@ -137,15 +138,18 @@ class PadflieActor:
             safe_target = self._safe_commander.safe_cmd_position(
                 cf_position, target_position
             )
-            safe_yaw = self._yaw_commander.safe_cmd_yaw(self.__current_yaw, target_yaw)
+            safe_yaw = self._yaw_commander.safe_cmd_yaw(self._current_yaw, target_yaw)
             self.__ll_commander.cmd_position(safe_target, safe_yaw)
 
-            self.__current_yaw = safe_yaw  # Finally set our current yaw to the yaw we commanded TODO: Is max_yawrate set low enough for this to be safe?
+            self._current_yaw = safe_yaw  # Finally set our current yaw to the yaw we commanded TODO: Is max_yawrate set low enough for this to be safe?
 
     def __fail_safe(self, msg: str):
         self.__state = ActorState.ERROR_STATE
         self.__hl_commander.land(0.0, 5.0)
         self.__node.get_logger().info(f"Transitioning to Error state. {msg}")
+
+    def get_target_pose(self) -> Optional[PoseStamped]:
+        return self.__target_pose
 
     def set_target(self, target: PoseStamped, use_yaw: bool):
         self.__target_pose = target

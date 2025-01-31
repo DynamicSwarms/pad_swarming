@@ -1,7 +1,9 @@
 string connect_service_name
 string disconnect_service_name
-geometry_msgs/PointStamped position
+bool available
+
+geometry_msgs/PoseStamped pose
+geometry_msgs/Pose pose_world
 float32 battery_voltage
 bool charge_state
-bool available
 string type
