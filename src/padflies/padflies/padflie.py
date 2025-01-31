@@ -239,7 +239,7 @@ def main():
     signal.signal(signal.SIGINT, lambda _, __: SHUTDOWN.kill())
 
     while rclpy.ok() and not SHUTDOWN.stop and not executor._is_shutdown:
-        rclpy.spin_once(padflie, timeout_sec=0.1, executor=executor)
+        rclpy.spin_once(padflie, executor=executor, timeout_sec=1.0)
 
     padflie.shutdown()
     padflie.destroy_node()

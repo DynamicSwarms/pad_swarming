@@ -1,10 +1,11 @@
 import rclpy
 from rclpy.node import Node
-from tf2_ros import TransformBroadcaster
+from tf2_ros import StaticTransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 import yaml
 
 from ament_index_python.packages import get_package_share_directory
+from typing import List
 
 
 class PadBroadcaster(Node):
@@ -17,7 +18,7 @@ class PadBroadcaster(Node):
         )
         self.declare_parameter("pad_size", 0.2)
         self.declare_parameter("base", "ChargingBase20")
-        self.declare_parameter("rate_hz", 20)
+        self.declare_parameter("rate_hz", 1)
 
         yaml_file = self.get_parameter("pad_yaml").get_parameter_value().string_value
         self.pad_size = (
@@ -26,7 +27,7 @@ class PadBroadcaster(Node):
         self.base = self.get_parameter("base").get_parameter_value().string_value
         self.rate_hz = self.get_parameter("rate_hz").get_parameter_value().integer_value
 
-        self.tf_broadcaster = TransformBroadcaster(self)
+        self.tf_broadcaster = StaticTransformBroadcaster(self)
 
         # Open and read the YAML file
         file = open(yaml_file, "r")
@@ -35,8 +36,11 @@ class PadBroadcaster(Node):
         self.create_timer(1.0 / self.rate_hz, self.publish_pads)
 
     def publish_pads(self):
+        transforms: List[TransformStamped] = []
         for pad in self.pads:
-            self.tf_broadcaster.sendTransform(self._transform_stamped_from_pad(pad))
+            transforms.append(self._transform_stamped_from_pad(pad))
+
+        self.tf_broadcaster.sendTransform(transforms)
 
     def _transform_stamped_from_pad(self, pad) -> TransformStamped:
         v = (self.pad_size * pad["pos"][0], self.pad_size * pad["pos"][1], 0.0)

@@ -36,6 +36,9 @@ class Crazyflie:
     )
 
 
+# TODO: Searching for already exiting one?
+
+
 class PadCreator(Node):
     """Manages the creation of crazyflies.
 

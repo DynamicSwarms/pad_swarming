@@ -208,7 +208,7 @@ class PadflieTF:
                 time=rclpy.time.Time(seconds=0, nanoseconds=0),
             )
 
-        except tf2_py.LookupException as ex:
+        except (tf2_py.LookupException, tf2_py.ConnectivityException) as ex:
             # This is most likely a Transform execption, which is expected and therefore None is ok.
             # It is very likely
             return None
