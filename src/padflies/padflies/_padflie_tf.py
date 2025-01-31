@@ -75,11 +75,7 @@ class PadflieTF:
             t.transform.rotation.z,
             t.transform.rotation.w,
         )
-        roll, pitch, yaw = tf_transformations.euler_from_quaternion(quaternion)
-        # if yaw < 0:
-        #    yaw += math.pi
-        # else:
-        #    yaw -= math.pi
+        _roll, _pitch, yaw = tf_transformations.euler_from_quaternion(quaternion)
         return (position, yaw)
 
     def get_pad_pose(self) -> PoseStamped:

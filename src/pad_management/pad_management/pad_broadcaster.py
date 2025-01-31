@@ -17,7 +17,7 @@ class PadBroadcaster(Node):
         )
         self.declare_parameter("pad_size", 0.2)
         self.declare_parameter("base", "ChargingBase20")
-        self.declare_parameter("rate_hz", 10)
+        self.declare_parameter("rate_hz", 20)
 
         yaml_file = self.get_parameter("pad_yaml").get_parameter_value().string_value
         self.pad_size = (
@@ -40,7 +40,8 @@ class PadBroadcaster(Node):
 
     def _transform_stamped_from_pad(self, pad) -> TransformStamped:
         v = (self.pad_size * pad["pos"][0], self.pad_size * pad["pos"][1], 0.0)
-        q = (0.0, 0.0, 0.0, 1.0)
+        q = (0.0, 0.0, 1.0, 0.0)
+        # TODO: Charging base is rotated 180 degrees. Ideally this i [0, 0, 0, 1]
 
         t = TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
