@@ -91,6 +91,8 @@ class WandAgent(Node):
     def shutdown(self):
         if self.__connector.is_connected():
             self.__connector.disconnect()
+            # Because this triggers on_disconnect callback the CF will land.
+            # I do not know if this is expected bahaviour
         else:
             self.get_logger().info(f"Not connected {self.__connector.is_connected()}")
         self.executor.shutdown(timeout_sec=0.1)

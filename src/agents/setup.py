@@ -7,6 +7,9 @@ data_files.append(
     ("share/ament_index/resource_index/packages", ["resource/" + package_name])
 )
 data_files.append(("share/" + package_name + "/launch", ["launch/agent.launch.py"]))
+data_files.append(
+    ("share/" + package_name + "/launch", ["launch/random_agent.launch.py"])
+)
 data_files.append(("share/" + package_name + "/launch", ["launch/swarm.launch.py"]))
 
 setup(

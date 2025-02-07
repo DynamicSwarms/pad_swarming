@@ -18,8 +18,8 @@ def create_agent(context):
     id = int(agent_id.perform(context))
     agent = Node(
         package="agents",
-        executable="wand_agent",
-        name="wand_agent{}".format(id),
+        executable="random_walk_agent",
+        name="random_agent{}".format(id),
         namespace="",
         parameters=[{"id": id}],
     )

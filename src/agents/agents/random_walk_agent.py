@@ -4,6 +4,8 @@ from rclpy.executors import SingleThreadedExecutor, Executor
 from rclpy.parameter import Parameter
 from rcl_interfaces.msg import ParameterDescriptor, SetParametersResult
 
+from geometry_msgs.msg import PoseStamped
+
 from agents.connector import AgentConnector
 from agents.commander import AgentCommander
 import signal
@@ -11,6 +13,8 @@ import signal
 
 from typing import List
 from dataclasses import dataclass
+
+import numpy as np
 
 
 class RandomWalkAgent(Node):
@@ -27,9 +31,36 @@ class RandomWalkAgent(Node):
         self.__connector = AgentConnector(
             node=self,
             executor=executor,
-            on_connect_callback=self.__commander.on_connect,
-            on_disconnect_callback=self.__commander.on_disconnect,
+            on_connect_callback=self.on_connect,
+            on_disconnect_callback=self.on_disconnect,
         )
+
+        self.declare_parameter("frame", value="Wand1")
+
+        self.create_timer(1.0, self.on_timer)
+
+    def on_connect(self, prefix: str, p_id: int):
+        self.__commander.on_connect(prefix=prefix, priority_id=p_id)
+        self.__commander.takeoff()
+
+    def on_disconnect(self):
+        self.__commander.land()
+        self.__commander.on_disconnect()
+
+    def on_timer(self):
+        random_position = np.random.random(3)
+        target = PoseStamped()
+        target.header.frame_id = self.frame
+        target.pose.position.x, target.pose.position.y, target.pose.position.z = (
+            random_position
+        )
+        self.__commander.send_target(target)
+
+        self.get_logger().info(f"{self.__commander.get_local_position()}")
+
+    @property
+    def frame(self) -> str:
+        return self.get_parameter("frame").get_parameter_value().string_value
 
     def trigger_activate(self, activate: bool):
         self.__connector.set_active(activate)
