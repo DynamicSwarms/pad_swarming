@@ -26,6 +26,7 @@ class AgentConnector:
         self.__on_disconnect_callback = on_disconnect_callback
 
         self.__node.declare_parameter(name="hardware_only", value=False)
+        self.__node.declare_parameter(name="webots_only", value=False)
 
         self.__active: bool = False
         self.__connected: bool = False
@@ -52,6 +53,8 @@ class AgentConnector:
         if self.__connected or not self.__active:
             return
         if self.hardware_only and info.type != "hardware":
+            return
+        if self.webots_only and info.type != "webots":
             return
 
         success, p_id = self._connect(srv_name=info.connect_service_name)
@@ -129,3 +132,7 @@ class AgentConnector:
         return (
             self.__node.get_parameter("hardware_only").get_parameter_value().bool_value
         )
+
+    @property
+    def webots_only(self) -> bool:
+        return self.__node.get_parameter("webots_only").get_parameter_value().bool_value

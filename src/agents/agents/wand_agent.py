@@ -2,7 +2,11 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor, Executor
 from rclpy.parameter import Parameter
-from rcl_interfaces.msg import ParameterDescriptor, SetParametersResult
+from rcl_interfaces.msg import (
+    ParameterDescriptor,
+    SetParametersResult,
+    FloatingPointRange,
+)
 
 from geometry_msgs.msg import PoseStamped
 
@@ -35,6 +39,15 @@ class WandAgent(Node):
 
         ## Wand Agent Code
         self.declare_parameter("wand", value="Wand1")
+        self.declare_parameter(
+            "distance",
+            value=0.5,
+            descriptor=ParameterDescriptor(
+                floating_point_range=[
+                    FloatingPointRange(from_value=0.3, to_value=1.0),
+                ]
+            ),
+        )
 
         self.create_timer(1.0, self.on_timer)
 
@@ -49,12 +62,18 @@ class WandAgent(Node):
     def on_timer(self):
         target = PoseStamped()
         target.header.frame_id = self.wand
-        target.pose.position.x = 0.5
+        target.pose.position.x = self.distance
         self.__commander.send_target(target)
+
+        self.get_logger().info(f"{self.__commander.get_local_position()}")
 
     @property
     def wand(self) -> str:
         return self.get_parameter("wand").get_parameter_value().string_value
+
+    @property
+    def distance(self) -> str:
+        return self.get_parameter("distance").get_parameter_value().double_value
 
     def trigger_activate(self, activate: bool):
         self.__connector.set_active(activate)
