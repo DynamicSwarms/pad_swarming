@@ -44,7 +44,7 @@ class WandAgent(Node):
             value=0.5,
             descriptor=ParameterDescriptor(
                 floating_point_range=[
-                    FloatingPointRange(from_value=0.3, to_value=1.0),
+                    FloatingPointRange(from_value=0.3, to_value=2.0),
                 ]
             ),
         )

@@ -1,6 +1,7 @@
 /tracker: # name of node
   ros__parameters:
     pointCloud2TopicName: "pointCloud2"
+    tfBroadcastRate: 20 # Hz
     numMarkerConfigurations: 5
     markerConfigurations:
       "0":  # for standard Crazyflie

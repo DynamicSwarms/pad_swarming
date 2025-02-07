@@ -195,17 +195,18 @@ class PadflieTF:
         self, target_frame: str, source_frame: str
     ) -> Optional[TransformStamped]:
         try:
+            time = rclpy.time.Time(seconds=0, nanoseconds=0)
             # The core check needs to be done.
             # Otherwise the lookup transform timeout gets ignored
             if not self.__tf_buffer.can_transform_core(
-                target_frame, source_frame, rclpy.time.Time(seconds=0, nanoseconds=0)
+                target_frame, source_frame, time
             ):
                 return None
 
-            return self.__tf_buffer.lookup_transform(
+            return self.__tf_buffer.lookup_transform_core(
                 target_frame=target_frame,
                 source_frame=source_frame,
-                time=rclpy.time.Time(seconds=0, nanoseconds=0),
+                time=time,
             )
 
         except (tf2_py.LookupException, tf2_py.ConnectivityException) as ex:

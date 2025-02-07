@@ -27,6 +27,16 @@ from dataclasses import dataclass
 
 from typing import List, Optional, Tuple, Union
 
+
+from crazyflie_interfaces_python.client import (
+    ConsoleClient,
+    GenericCommanderClient,
+    HighLevelCommanderClient,
+    LoggingClient,
+)
+from crazyflies.gateway_endpoint import GatewayEndpoint
+
+
 PAD_FLIE_TYPE = "tracked"
 
 
@@ -58,7 +68,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.get_logger().debug(
             f"PadFlie ID:{self.cf_id}, CH:{self.cf_channel}, PAD:{self.pad_name}, Type {self.cf_type} configuring."
         )
-        self.__prefix = "/padflie{}".format(self.cf_id)
+        self._prefix = "/padflie{}".format(self.cf_id)
+        cf_prefix = "/cf{}".format(self.cf_id)
+        self._cf_prefix = cf_prefix
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -75,14 +87,16 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             timeout_sec=1.0
         )  # might raise TimeoutError
 
-        Crazyflie.__init__(
-            self,
-            self,
-            self.cf_id,
-            self.cf_channel,
-            pad_position,
-            self.cf_type,
-        )  # might raise Crazyflie Gateway error
+        self.gateway_endpoint = GatewayEndpoint(
+            node=self,
+            cf_id=self.cf_id,
+            cf_channel=self.cf_channel,
+            initial_position=pad_position,
+            crazyflie_type=self.cf_type,
+        )
+        loginfo = lambda msg: self.get_logger().info(str(msg))
+        self.console = ConsoleClient(node=self, prefix=cf_prefix, callback=loginfo)
+        self.gateway_endpoint.open()  # might raise Crazyflie Gateway error
 
         self._sleep(4.0)  # Make sure all crazyflie services are initialized properly
 
@@ -91,10 +105,10 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self._commander = PadflieController(
             node=self,
             cf_type=self.cf_type,
-            prefix=self.__prefix,
-            hl_commander=self,  # A Crazyflie is this, therefore we are
-            ll_commander=self,  # A Crazyflie is this, therefore we are
-            log_commander=self,  # A Crazyflie is this, therefore we are
+            prefix=self._prefix,
+            hl_commander=HighLevelCommanderClient(node=self, prefix=cf_prefix),
+            ll_commander=GenericCommanderClient(node=self, prefix=cf_prefix),
+            log_commander=LoggingClient(node=self, prefix=cf_prefix),
             tf_manager=self._tf_manager,
             sleep=self._sleep,
         )  # This starts the main control loop of the padflie
@@ -111,7 +125,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.set_parameter("kalman.resetEstimation", 1)
 
     def set_parameter(self, name: str, value: Union[int, float]):
-        client = self.create_client(SetParameters, f"{self.prefix}/set_parameters")
+        client = self.create_client(SetParameters, f"{self._cf_prefix}/set_parameters")
 
         if client.service_is_ready():
             req = SetParameters.Request()
@@ -203,7 +217,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             is not LifecycleState.PRIMARY_STATE_UNCONFIGURED
         ):
             try:
-                self.close_crazyflie()
+                self.gateway_endpoint.close()
                 self._sleep(1.0)
             except CrazyflieGatewayError as ex:
                 # The Gateway might have shutdown already.

@@ -25,13 +25,7 @@ def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str):
                 id = flie["id"]
                 channel = flie["channel"] if cf_type == "hardware" else 0
                 pad_id = flie["pad"]
-                if (
-                    cf_type == "webots"
-                    or id == 161
-                    or id == 162
-                    or id == 166
-                    or id == 167
-                ):
+                if cf_type == "webots" or id < 0xC0:
                     yield Node(
                         package="padflies",
                         executable="padflie",
