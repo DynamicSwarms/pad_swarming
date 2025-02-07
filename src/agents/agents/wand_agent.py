@@ -4,6 +4,8 @@ from rclpy.executors import SingleThreadedExecutor, Executor
 from rclpy.parameter import Parameter
 from rcl_interfaces.msg import ParameterDescriptor, SetParametersResult
 
+from geometry_msgs.msg import PoseStamped
+
 from agents.connector import AgentConnector
 from agents.commander import AgentCommander
 import signal
@@ -13,7 +15,7 @@ from typing import List
 from dataclasses import dataclass
 
 
-class RandomWalkAgent(Node):
+class WandAgent(Node):
 
     def __init__(self, executor: Executor):
         super().__init__("agent")
@@ -27,9 +29,32 @@ class RandomWalkAgent(Node):
         self.__connector = AgentConnector(
             node=self,
             executor=executor,
-            on_connect_callback=self.__commander.on_connect,
-            on_disconnect_callback=self.__commander.on_disconnect,
+            on_connect_callback=self.on_connect,
+            on_disconnect_callback=self.on_disconnect,
         )
+
+        ## Wand Agent Code
+        self.declare_parameter("wand", value="Wand1")
+
+        self.create_timer(1.0, self.on_timer)
+
+    def on_connect(self, prefix: str, p_id: int):
+        self.__commander.on_connect(prefix=prefix, priority_id=p_id)
+        self.__commander.takeoff()
+
+    def on_disconnect(self):
+        self.__commander.land()
+        self.__commander.on_disconnect()
+
+    def on_timer(self):
+        target = PoseStamped()
+        target.header.frame_id = self.wand
+        target.pose.position.x = 0.5
+        self.__commander.send_target(target)
+
+    @property
+    def wand(self) -> str:
+        return self.get_parameter("wand").get_parameter_value().string_value
 
     def trigger_activate(self, activate: bool):
         self.__connector.set_active(activate)
@@ -55,7 +80,7 @@ class RandomWalkAgent(Node):
 def main():
     rclpy.init()
     executor = SingleThreadedExecutor()
-    ag = RandomWalkAgent(executor)
+    ag = WandAgent(executor)
 
     @dataclass
     class FLAG:

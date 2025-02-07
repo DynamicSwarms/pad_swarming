@@ -25,7 +25,9 @@ class ConnectionManager:
         charge_controller: ChargeController,
         commander: PadflieCommander,
     ):
+        self.__node = node
         self.__cf_type = cf_type
+        self.__prefix = prefix
         self.__charge_controller = charge_controller
         self.__padflie_commander = commander
 
@@ -65,9 +67,11 @@ class ConnectionManager:
     def _handle_connect_request(
         self, request: Connect.Request, response: Connect.Response
     ):
-        if self.__connected:  # Check padflie state IDLE ??
+        self.__node.get_logger().info(f"Request. {self.__connected}")
+        if not self.__connected:  # Check padflie state IDLE ??
             self.__connected = True
             self.__padflie_commander.set_current_priority_id(self.current_priority_id)
+            response.priority_id = self.current_priority_id
             response.success = True
         else:
             response.success = False
@@ -77,17 +81,18 @@ class ConnectionManager:
         self, req: EmptySrv.Request, response: EmptySrv.Response
     ):
         self.current_priority_id += 1
-        self.connected = False
+        self.__connected = False
         return response
 
     def _send_availability_info(self):
         # Publish information about us.
-        # Including position , ready state etc. onto global topic.
+        # Including position, ready state etc. onto global topic.
         msg = AvailabilityInfo()
         msg.connect_service_name = self._connect_service.srv_name
         msg.disconnect_service_name = self._disconnect_service.srv_name
+        msg.padflie_prefix = self.__prefix
         msg.available = (
-            self.__connected and self.__charge_controller.is_charged()
+            not self.__connected and self.__charge_controller.is_charged()
         )  # some state?
 
         pose_world = self.__padflie_commander.get_cf_pose_world()

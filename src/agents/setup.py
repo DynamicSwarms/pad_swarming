@@ -24,6 +24,7 @@ setup(
     entry_points={
         "console_scripts": [
             "random_walk_agent = agents.random_walk_agent:main",
+            "wand_agent = agents.wand_agent:main",
         ],
     },
 )
