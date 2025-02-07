@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Connect.srv"
   "msg/AvailabilityInfo.msg"
   "msg/SendTarget.msg"
+  "msg/PadflieInfo.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 
