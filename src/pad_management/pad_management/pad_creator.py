@@ -92,7 +92,11 @@ class PadCreator(Node):
             )
 
         rate_hz = 20.0  # find a new crazyflie with this rate. Also used for cooldown before retry.
-        self.dt = 1.0 / rate_hz
+        
+        
+        
+        #self.dt = 1.0 / rate_hz
+        self.dt = 1.0
         self.create_timer(
             timer_period_sec=self.dt,
             callback=self.update_crazyflies,
@@ -106,6 +110,7 @@ class PadCreator(Node):
 
     def update_crazyflies(self):
         self._cooldown_and_remove()
+
         flie = next(self.flies)
 
         cf_id = flie["id"]

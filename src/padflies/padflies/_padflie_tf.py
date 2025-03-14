@@ -1,10 +1,16 @@
 import rclpy
+import rclpy.duration
 import rclpy.time
+from rclpy.node import Node
 import tf2_py
 from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 from geometry_msgs.msg import TransformStamped, PointStamped, PoseStamped, Quaternion
 import tf2_geometry_msgs as tf2_geom
 import tf_transformations
+
+from crazyflie_interfaces_python.positions import CfPositionBuffer, CfPositionListener
+
 import math
 
 from typing import Optional, Tuple, List, Callable
@@ -14,17 +20,22 @@ class PadflieTF:
 
     def __init__(
         self,
-        tf_buffer: Buffer,
+        node: Node,
         sleep: Callable[[float], None],
         pad_name: str,
         cf_name: str,
         world: str = "world",
     ):
-        self.__tf_buffer = tf_buffer
         self.__sleep = sleep
         self.__pad_name = pad_name
         self.__cf_name = cf_name
         self.__world = world
+
+        self.__tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=1))
+        self.__tf_listener = TransformListener(self.__tf_buffer, node)
+
+        self.__cf_buffer = CfPositionBuffer(node=node)
+        self.__cf__listener = CfPositionListener(self.__cf_buffer, node=node)
 
     def get_pad_position_or_timeout(
         self, timeout_sec: float
@@ -98,15 +109,12 @@ class PadflieTF:
         frame_id: str,
         world_quat: Quaternion = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
     ) -> Optional[PoseStamped]:
-        transform = self.get_transform(
-            target_frame=frame_id, source_frame=self.__cf_name
-        )
-        if transform is None:
+        transform = self.get_transform(target_frame=frame_id, source_frame=self.__world)
+        world_pose = self.__cf_buffer.get_position(self.__cf_name)
+
+        if transform is None or world_pose is None:
             return None
-        zero_pose = PoseStamped()
-        zero_pose.header.frame_id = frame_id
-        zero_pose.pose.orientation = world_quat
-        return tf2_geom.do_transform_pose_stamped(zero_pose, transform)
+        return tf2_geom.do_transform_pose_stamped(world_pose, transform)
 
     def get_cf_position(self) -> Optional[List[float]]:
         """Gets the position of the crazyflie in world coordinates.
@@ -114,15 +122,13 @@ class PadflieTF:
         Returns:
             Optional[List[float]]: The Position of the cf in world coordinates.
         """
-        transform = self.get_transform(
-            target_frame=self.__world, source_frame=self.__cf_name
-        )
-        if transform is None:
+        world_pose = self.__cf_buffer.get_position(self.__cf_name)
+        if world_pose is None:
             return None
         return [
-            transform.transform.translation.x,
-            transform.transform.translation.y,
-            transform.transform.translation.z,
+            world_pose.pose.position.x,
+            world_pose.pose.position.y,
+            world_pose.pose.position.z,
         ]
 
     def transform_point_stamped(

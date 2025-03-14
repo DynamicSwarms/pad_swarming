@@ -1,5 +1,6 @@
 /tracker: # name of node
   ros__parameters:
+    use_tf: false
     pointCloud2TopicName: "pointCloud2"
     tfBroadcastRate: 20 # Hz
     numMarkerConfigurations: 5

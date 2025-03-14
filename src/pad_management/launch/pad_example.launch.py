@@ -25,7 +25,7 @@ def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str):
                 id = flie["id"]
                 channel = flie["channel"] if cf_type == "hardware" else 0
                 pad_id = flie["pad"]
-                if cf_type == "webots" or id < 0xC0:
+                if cf_type == "webots" or id < 0xE0:
                     yield Node(
                         package="padflies",
                         executable="padflie",
@@ -109,6 +109,12 @@ def generate_launch_description():
         condition=start_hardware,
     )
 
+    position_visualization = Node(
+        package="crazyflies",
+        executable="position_visualization",
+        name="position_visualization",
+    )
+
     ## Custom stuff
 
     # Webots connector
@@ -165,6 +171,7 @@ def generate_launch_description():
             hardware_gateway,
             motion_caputre,
             object_tracker,
+            position_visualization,
             connector,
             pointcloud_combiner,
             pad_broadcaster,

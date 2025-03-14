@@ -40,6 +40,7 @@ setup(
             "point_finder = pad_management.point_finder:main",
             "pad_creator = pad_management.pad_creator:main",
             "pointcloud_combiner = pad_management.point_cloud_combiner:main",
+            "pad_destruction = pad_management.pad_destruction:main",
         ],
     },
 )

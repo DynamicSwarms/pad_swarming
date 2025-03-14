@@ -12,8 +12,7 @@ from rcl_interfaces.srv import SetParameters
 
 
 import rclpy.parameter
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
+
 
 from crazyflies.crazyflie import CrazyflieType, Crazyflie
 from crazyflies.gateway_endpoint import CrazyflieGatewayError
@@ -68,15 +67,14 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.get_logger().debug(
             f"PadFlie ID:{self.cf_id}, CH:{self.cf_channel}, PAD:{self.pad_name}, Type {self.cf_type} configuring."
         )
+        
+        
         self._prefix = "/padflie{}".format(self.cf_id)
         cf_prefix = "/cf{}".format(self.cf_id)
         self._cf_prefix = cf_prefix
 
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
-
         self._tf_manager = PadflieTF(
-            tf_buffer=self.tf_buffer,
+            node=self,
             sleep=self._sleep,
             pad_name=self.pad_name,
             cf_name=f"cf{self.cf_id}",
@@ -97,6 +95,8 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         loginfo = lambda msg: self.get_logger().info(str(msg))
         self.console = ConsoleClient(node=self, prefix=cf_prefix, callback=loginfo)
         self.gateway_endpoint.open()  # might raise Crazyflie Gateway error
+        self.get_logger().info("Padflie configure deactivated for performance")
+        return True
 
         self._sleep(4.0)  # Make sure all crazyflie services are initialized properly
 
