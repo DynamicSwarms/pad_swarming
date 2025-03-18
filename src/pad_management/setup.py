@@ -11,6 +11,10 @@ data_files.append(("share/" + package_name + "/launch", ["launch/pad.launch.py"]
 data_files.append(
     ("share/" + package_name + "/launch", ["launch/pad_example.launch.py"])
 )
+data_files.append(
+    ("share/" + package_name + "/launch", ["launch/lighthouse.launch.py"])
+)
+
 
 data_files.append(
     ("share/" + package_name + "/config", ["config/flies_config_hardware.yaml"])
@@ -19,8 +23,11 @@ data_files.append(
     ("share/" + package_name + "/config", ["config/pads_config_hardware.yaml"])
 )
 data_files.append(("share/" + package_name + "/config", ["config/tracker_config.yaml"]))
-
 data_files.append(("share/" + package_name + "/config", ["config/webots_config.yaml"]))
+
+data_files.append(
+    ("share/" + package_name + "/config", ["config/lighthouse_config.yaml"])
+)
 
 setup(
     name=package_name,
@@ -41,6 +48,7 @@ setup(
             "pad_creator = pad_management.pad_creator:main",
             "pointcloud_combiner = pad_management.point_cloud_combiner:main",
             "pad_destruction = pad_management.pad_destruction:main",
+            "creator = pad_management.creator:main",
         ],
     },
 )
