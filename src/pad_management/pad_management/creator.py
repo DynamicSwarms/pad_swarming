@@ -97,7 +97,6 @@ class Creator:
     def create(self):
         flie: Optional[CreationFlie] = None
         with self.add_queue_lock:
-            self._node.get_logger().info(f"{self.add_queue}")
             if len(self.add_queue):
                 flie = self.add_queue.pop()
         if flie is None:

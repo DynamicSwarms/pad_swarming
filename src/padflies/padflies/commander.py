@@ -5,10 +5,8 @@ from std_msgs.msg import Empty
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion
 from padflies_interfaces.msg import SendTarget
 
-from crazyflie_interfaces_python.client import (
-    HighLevelCommanderClient,
-    GenericCommanderClient,
-)
+from ._hl_commander_minimal import HighLevelCommander
+from ._ll_commander_minimal import LowLevelCommander
 
 from ._padflie_states import PadFlieState
 from ._qos_profiles import qos_profile_simple
@@ -25,83 +23,91 @@ class PadflieCommander:
         self,
         node: Node,
         prefix: str,
-        hl_commander: HighLevelCommanderClient,
-        ll_commander: GenericCommanderClient,
+        cf_prefix: str,
         tf_manager: PadflieTF,
         sleep: Callable[[float], None],
     ):
-        self.__node = node
-        self.__sleep = sleep
-        self.__tf_manager = tf_manager
+        self._node = node
+        self._prefix = prefix
+        self._cf_prefix = cf_prefix
+        self._sleep = sleep
+        self._tf_manager = tf_manager
 
-        self._state: PadFlieState = PadFlieState.IDLE
-        self._current_priority_id = 0
+        self._state = PadFlieState.DEACTIVATED
+        # self._current_priority_id = 0 # Gets increased in every activation.
 
         self._actor = PadflieActor(
             node=node,
             tf_manager=tf_manager,
-            hl_commander=hl_commander,
-            ll_commander=ll_commander,
+            hl_commander=HighLevelCommander(node=self._node, prefix=self._cf_prefix),
+            ll_commander=LowLevelCommander(node=self._node, prefix=self._cf_prefix),
             sleep=sleep,
         )  # This actor is allowed to send control commands to the crazyflie
 
-        #########
-        # Initialization of our own Subscriptions to command position, takeoff and land
-        #########
 
-        callback_group = (
+        self._callback_group = (
             MutuallyExclusiveCallbackGroup()
         )  # All subscriptions can be on the same callbackgroup
-        node.create_subscription(
+        
+    def activate(self):
+        self._actor.activate()
+
+        self._state = PadFlieState.IDLE
+        # self._current_priority_id += 1
+
+        self.send_target_sub = self._node.create_subscription(
             SendTarget,
-            prefix + "/send_target",
+            self._prefix + "/send_target",
             self.__send_target_callback,
             qos_profile=qos_profile_simple,
-            callback_group=callback_group,
+            callback_group=self._callback_group,
         )
 
-        node.create_subscription(
+        self.takeoff_sub = self._node.create_subscription(
             msg_type=Empty,
-            topic=prefix + "/pad_takeoff",
+            topic=self._prefix + "/pad_takeoff",
             callback=self.__takeoff_callback,
             qos_profile=qos_profile_simple,
-            callback_group=callback_group,
+            callback_group=self._callback_group,
         )
 
-        node.create_subscription(
+        self.land_sub = self._node.create_subscription(
             msg_type=Empty,
-            topic=prefix + "/pad_land",
+            topic=self._prefix + "/pad_land",
             callback=self.__land_callback,
             qos_profile=qos_profile_simple,
-            callback_group=callback_group,
+            callback_group=self._callback_group,
         )
 
-    def set_current_priority_id(self, priority_id: int):
-        self._current_priority_id = priority_id
-
+    def deactivate(self):
+        self._state = PadFlieState.DEACTIVATED
+        self._node.destroy_subscription(self.send_target_sub)
+        self._node.destroy_subscription(self.takeoff_sub)
+        self._node.destroy_subscription(self.land_sub)
+        self._actor.deactivate()
+    
     def get_state(self) -> PadFlieState:
         return self._state
 
     def get_cf_pose_world(self) -> Optional[Pose]:
+        position = self._tf_manager.get_cf_position()
+        if position is None:
+            return None
         pose = Pose()
-        position = self.__tf_manager.get_cf_position()
-        if position is not None:
-            pose.position.x, pose.position.y, pose.position.z = position
+        pose.position.x, pose.position.y, pose.position.z = position
         (
             pose.orientation.x,
             pose.orientation.y,
             pose.orientation.z,
             pose.orientation.w,
         ) = Rotation.from_euler("z", self._actor._current_yaw).as_quat()
-
         return pose
-
+    
     def get_cf_pose_stamped(self) -> Optional[PoseStamped]:
         """Returns pose stamped of frame which send_target was last called with"""
         target_pose = self._actor.get_target_pose()
         if target_pose is None:
             return None
-
         frame_id = target_pose.header.frame_id
         quat = Quaternion()
         (
@@ -110,13 +116,21 @@ class PadflieCommander:
             quat.z,
             quat.w,
         ) = Rotation.from_euler("z", self._actor._current_yaw).as_quat()
-        return self.__tf_manager.get_cf_pose_stamped(frame_id, world_quat=quat)
+        return self._tf_manager.get_cf_pose_stamped(frame_id=frame_id,world_quat=quat)
+    
+    def _set_target_internal(self, target: PoseStamped, use_yaw: bool = False):
+        """Set a PoseStamped as the actor target.
+
+        Args:
+            target (PoseStamped): The target for the crazyflie.
+            use_yaw (bool): Wheter to use the yaw in the pose (True) or set it to 0 (False)
+        """
+        self._actor.set_target(target, use_yaw)
 
     def send_target(self, target: PoseStamped, use_yaw: bool = False):
         """Sends a target to crazyflie if we are in target mode."""
         if self._state is not PadFlieState.TARGET:
             return
-
         self._set_target_internal(target, use_yaw)
 
     def takeoff(self):
@@ -130,17 +144,17 @@ class PadflieCommander:
         if self._state is not PadFlieState.IDLE:
             return
 
-        position = self.__tf_manager.get_cf_position()
+        position = self._tf_manager.get_cf_position()
         if position is None:
-            self.__node.get_logger().error(
+            self._node.get_logger().error(
                 "Crazyflie doesnt have position. Cannot takeoff."
             )
             return
 
         self._state = PadFlieState.TAKEOFF
-        self._actor.takeoff_routine()
+        success = self._actor.takeoff_routine()
         self._state = PadFlieState.TARGET
-
+        
     def land(self):
         """Execute crazyflie landing. If in target mode.
 
@@ -170,21 +184,24 @@ class PadflieCommander:
 
             Phases 2 and 3 are in the routine.
         """
+        self._node.get_logger().info("Land P1")
+        
         timeout = 8.0
         while timeout > 0.0:
-            target_pose = self.__tf_manager.get_pad_pose()
+            target_pose = self._tf_manager.get_pad_pose()
             target_pose.pose.position.z += 0.5
+            self._node.get_logger().info(f"Setting internal target {target_pose}")     
             self._set_target_internal(target=target_pose, use_yaw=True)
 
-            cf_position = self.__tf_manager.get_cf_position()
-            pad_target = self.__tf_manager.pose_stamped_to_world_position_and_yaw(
+            cf_position = self._tf_manager.get_cf_position()
+            pad_target = self._tf_manager.pose_stamped_to_world_position_and_yaw(
                 target_pose
             )
             if cf_position is None or pad_target is None:
-                self.__node.get_logger().info(
-                    "Big problem with transforms flying home."
+                self._node.get_logger().info(
+                    "Big problem with transforms flying home, because Position of cf or Pad was lost."
                 )
-                self.__sleep(0.1)
+                self._sleep(0.1)
                 continue
 
             target, _yaw = pad_target
@@ -194,19 +211,11 @@ class PadflieCommander:
                 break
 
             timeout -= 0.1
-            self.__sleep(0.1)
+            self._sleep(0.1)
 
+        self._node.get_logger().info("Land Routine")     
         self._actor.land_routine()
         self._state = PadFlieState.IDLE
-
-    def _set_target_internal(self, target: PoseStamped, use_yaw: bool = False):
-        """Set a PoseStamped as the actor target.
-
-        Args:
-            target (PoseStamped): The target for the crazyflie.
-            use_yaw (bool): Wheter to use the yaw in the pose (True) or set it to 0 (False)
-        """
-        self._actor.set_target(target, use_yaw)
 
     def __send_target_callback(self, msg: SendTarget):
         """Callback to the send_target topic.
@@ -214,8 +223,8 @@ class PadflieCommander:
         Args:
             msg (SendTarget): A Send target message with priority and posestamped as target.
         """
-        if msg.priority_id >= self._current_priority_id:
-            self.send_target(msg.target, msg.use_yaw)
+        #if msg.priority_id >= self._current_priority_id:
+        self.send_target(msg.target, msg.use_yaw)
 
     def __takeoff_callback(self, msg: Empty):
         """Callback to the takeoff subscription.
@@ -223,13 +232,14 @@ class PadflieCommander:
         Args:
             msg (Empty): An Empty message. Just used as trigger.
         """
+        self._node.get_logger().info("Pad-Takeoff")
         self.takeoff()
 
     def __land_callback(self, msg: Empty):
         """Callback to the land subscription.
 
-
         Args:
             msg (Empty): An empty message. Just used as trigger.
         """
+        self._node.get_logger().info("Pad-Land")
         self.land()

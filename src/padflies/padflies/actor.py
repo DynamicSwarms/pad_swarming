@@ -2,10 +2,8 @@ from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from geometry_msgs.msg import PoseStamped
 
-from crazyflie_interfaces_python.client import (
-    HighLevelCommanderClient,
-    GenericCommanderClient,
-)
+from ._hl_commander_minimal import HighLevelCommander
+from ._ll_commander_minimal import LowLevelCommander
 
 from crazyflies.safe.safe_commander import SafeCommander
 from .yaw_commander import YawCommander
@@ -15,8 +13,12 @@ from ._padflie_tf import PadflieTF
 from enum import Enum, auto
 from typing import List, Callable, Optional, Tuple
 
+from collision_avoidance_interfaces.srv import CollisionAvoidance
+import re
+import numpy as np
 
 class ActorState(Enum):
+    DEACTIVATED = auto()
     LOW_LEVEL_COMMANDER = auto()
     HIGH_LEVEL_COMMANDER = auto()
     ERROR_STATE = auto()
@@ -27,40 +29,33 @@ class PadflieActor:
         self,
         node: Node,
         tf_manager: PadflieTF,
-        hl_commander: HighLevelCommanderClient,
-        ll_commander: GenericCommanderClient,
+        hl_commander: HighLevelCommander,
+        ll_commander: LowLevelCommander,
         sleep: Callable[[float], None],
     ):
-        self.__node = node
-        self.__tf_manager = tf_manager
-        self.__hl_commander = hl_commander
-        self.__ll_commander = ll_commander
-        self.__sleep = sleep
+        self._node = node
+        self._tf_manager = tf_manager
+        self._hl_commander = hl_commander
+        self._ll_commander = ll_commander
+        self._sleep = sleep
 
         ### Instance variables
-        self.__state: ActorState = ActorState.HIGH_LEVEL_COMMANDER
+        self._state: ActorState = ActorState.DEACTIVATED
+        self._fixed_yaw: bool = False     
+        
+        self._control_rate: float = 10.0  # Hz
+        self._dt: float = 1 / self._control_rate # Loop period for LL Commander       
 
-        self.__target_pose: Optional[PoseStamped] = None
-        self.__fixed_yaw: bool = False
-
-        self.__last_valid_target_position_and_yaw: Optional[
-            Tuple[List[float], float]
-        ] = None
-
-        self._current_yaw: float = (
-            0.0  # We dont get yaw from cf. Assume this gets correctly tracked across flight
-        )
-
-        self.__control_rate: float = 10.0  # Hz
-        self._dt: float = 1 / self.__control_rate
-
+        ### Commanders (non ROS)
         self.max_rotational_speed: float = 0.5  # Dependent on update rate??
         self.max_step_distance_xy: float = 3  # in meters/second
         self.max_step_distance_z: float = 1  # in meters/second
         self.clipping_box: Optional[List[float]] = None
         self.fixed_yaw_target: float = 0.0
 
-        ### Commanders and ROS-functionality
+        # TODO: This is from old isse_core for a stable flight
+        self.target_history_size: int = 13 
+        self.__target_history: "list[list[float]]" = []
 
         self._yaw_commander = YawCommander(
             dt=self._dt,
@@ -73,11 +68,53 @@ class PadflieActor:
             clipping_box=self.clipping_box,
         )
 
-        node.create_timer(
+        # Control Variables, These should not be changed from outside.
+        self.__target_pose: Optional[PoseStamped] = None
+        self.__last_valid_target_position_and_yaw: Optional[
+            Tuple[List[float], float]
+        ] = None
+        self.__current_yaw: float = (
+            0.0  
+        ) # We dont get yaw from cf. Assume this gets correctly tracked across flight
+       
+       
+    def activate(self):
+        self._node.get_logger().info("Creating Publishers")
+        self._hl_commander.create_publishers()
+        self._ll_commander.create_publishers()
+
+        self.__cmd_timer = self._node.create_timer(
             timer_period_sec=self._dt,
             callback=self.__send_target,
             callback_group=MutuallyExclusiveCallbackGroup(),
         )  # This timer needs to be executed while we takeoff or land -> different callback group
+
+        self._collision_avoidance_client = self._node.create_client(CollisionAvoidance, "collision_avoidance", callback_group=MutuallyExclusiveCallbackGroup())
+
+        self._state = ActorState.HIGH_LEVEL_COMMANDER
+
+    def deactivate(self):
+        self._node.destroy_timer(self.__cmd_timer)
+        if self._state == ActorState.LOW_LEVEL_COMMANDER:
+            self._hl_commander.land(0.0, 5.0) # Failing semi safe
+        self._hl_commander.destroy_publishers()
+        self._ll_commander.destroy_publishers()
+        self._node.destroy_client(self._collision_avoidance_client)
+
+    def __calculate_collision_avoidance_target(self, position: "list[float]", target: "list[float]") -> Optional["list[float]"]:
+        req = CollisionAvoidance.Request()
+        req.id = int(re.search(r'\d+', self._hl_commander._prefix).group())
+        req.position.x, req.position.y, req.position.z = position
+        req.target.x, req.target.y, req.target.z = target
+        fut = self._collision_avoidance_client.call_async(req)
+
+        for i in range(10):
+            if fut.done(): break
+            self._sleep(0.01)
+        if fut.result() is None: 
+            return None
+        res = fut.result()
+        return [res.target.x, res.target.y, res.target.z]
 
     def __send_target(self):
         """Callback to the LOW level commander timer.
@@ -95,16 +132,16 @@ class PadflieActor:
         This is because the commanded positions are not checked before sent to kalman onboard crazyflie.
         """
         if (
-            self.__state is ActorState.LOW_LEVEL_COMMANDER
+            self._state is ActorState.LOW_LEVEL_COMMANDER
             and self.__target_pose is not None
         ):
-            cf_position = self.__tf_manager.get_cf_position()
+            cf_position = self._tf_manager.get_cf_position()
             if cf_position is None:
                 self.__fail_safe("No Crazyflie position.")
                 return
 
             target_position_and_yaw = (
-                self.__tf_manager.pose_stamped_to_world_position_and_yaw(
+                self._tf_manager.pose_stamped_to_world_position_and_yaw(
                     self.__target_pose
                 )
             )
@@ -115,10 +152,11 @@ class PadflieActor:
             #                                           the last valid target
             #                                           or the cf position
             if target_position_and_yaw is not None:
+                # Target is ok.
                 target_position, target_yaw = target_position_and_yaw
-
                 self.__last_valid_target_position_and_yaw = target_position_and_yaw
             else:
+                # Target not ok.
                 # TODO: Should we hover or should we follow last valid target??
                 if self.__last_valid_target_position_and_yaw is not None:
                     target_position, target_yaw = (
@@ -131,31 +169,46 @@ class PadflieActor:
                         self.fixed_yaw_target
                     )  # This also might indicate to user that something is not right
 
-            if self.__fixed_yaw:
+            if self._fixed_yaw:
                 target_yaw = self.fixed_yaw_target
 
-            # Pass through safe commander.
+            # Collision avoidance.
+            col_av_target_position = self.__calculate_collision_avoidance_target(cf_position, target_position)
+            if col_av_target_position is not None: 
+                target_position = col_av_target_position
+
+            # Average out targets (from old ISSE_CORE)
+            self.__target_history.insert(0, target_position)
+            self.__target_history = self.__target_history[:self.target_history_size]
+
+            ln = len(self.__target_history)
+            target_position = list(np.average(self.__target_history, axis=0, weights=[((ln - i) / float(ln)) ** 2.6 for i in range(ln)]))
+                      
+            # Pass through safe commanders.
             safe_target = self._safe_commander.safe_cmd_position(
                 cf_position, target_position
             )
-            safe_yaw = self._yaw_commander.safe_cmd_yaw(self._current_yaw, target_yaw)
-            self.__ll_commander.cmd_position(safe_target, safe_yaw)
+            safe_yaw = self._yaw_commander.safe_cmd_yaw(self.__current_yaw, target_yaw)
+            
+            self._ll_commander.cmd_position(safe_target, safe_yaw)
 
-            self._current_yaw = safe_yaw  # Finally set our current yaw to the yaw we commanded TODO: Is max_yawrate set low enough for this to be safe?
+            # Finally set our current yaw to the yaw we commanded 
+            # TODO: Is max_yawrate set low enough for this to be safe?
+            self.__current_yaw = safe_yaw  
 
     def __fail_safe(self, msg: str):
-        self.__state = ActorState.ERROR_STATE
-        self.__hl_commander.land(0.0, 5.0)
-        self.__node.get_logger().info(f"Transitioning to Error state. {msg}")
+        self._state = ActorState.ERROR_STATE
+        self._hl_commander.land(0.0, 5.0)
+        self._node.get_logger().info(f"Transitioning to Error state. {msg}")
 
     def get_target_pose(self) -> Optional[PoseStamped]:
         return self.__target_pose
 
     def set_target(self, target: PoseStamped, use_yaw: bool):
         self.__target_pose = target
-        self.__fixed_yaw = not use_yaw
+        self._fixed_yaw = not use_yaw
 
-    def takeoff_routine(self, takeoff_height: float = 1.0):
+    def takeoff_routine(self, takeoff_height: float = 1.0) -> bool:
         """Routine for TAKEOFF.
 
         Takes off and puts this actor in LowLevel commander mode.
@@ -168,30 +221,31 @@ class PadflieActor:
             position (List[float]): The position we are currently at.
             takeoff_height (float, optional): We will idle at this height above the position after taking off. Defaults to 1.0.
         """
-        if self.__state is ActorState.ERROR_STATE:
-            return
+        if self._state is ActorState.ERROR_STATE:
+            return False
 
-        self.__state = ActorState.HIGH_LEVEL_COMMANDER
-        target_pose: Optional[PoseStamped] = self.__tf_manager.get_pad_pose_world()
+        self._state = ActorState.HIGH_LEVEL_COMMANDER
+        target_pose: Optional[PoseStamped] = self._tf_manager.get_pad_pose_world()
         if target_pose is None:
-            return
+            return False
         target_pose.pose.position.z += takeoff_height
 
         self.set_target(
             target_pose, use_yaw=False
         )  # Set target so crazyflie hovers after takeoff
 
-        self.__hl_commander.takeoff(
+        self._hl_commander.takeoff(
             target_height=target_pose.pose.position.z,
             duration_seconds=4.0,
             yaw=0.0,
         )
-        self.__sleep(
+        self._sleep(
             2.0
         )  # Even though we specified 5 seconds for takeoff, this ensures a cleaner transition.
-        self.__state = ActorState.LOW_LEVEL_COMMANDER
+        self._state = ActorState.LOW_LEVEL_COMMANDER
+        return True
 
-    def land_routine(self):
+    def land_routine(self) -> bool:
         """Routine for LAND.
 
         Lands the crazyflie safely into the pad.
@@ -199,11 +253,11 @@ class PadflieActor:
         Precondition: Crazyflie is in the air, not too far from the Pad (max. 0.75 Meters)
         After: Crazyflie is seated in the pad. Motors are off. State is HIGH Level Commander
         """
-        if self.__state is ActorState.ERROR_STATE:
+        if self._state is ActorState.ERROR_STATE:
             return
 
-        self.__state = ActorState.HIGH_LEVEL_COMMANDER
-        self.__ll_commander.notify_setpoints_stop(100)
+        self._ll_commander.notify_setpoints_stop(100)
+        self._state = ActorState.HIGH_LEVEL_COMMANDER
         """
         Phase2: 
             We are now only using HighLevelCommander
@@ -216,48 +270,49 @@ class PadflieActor:
 
             Between each command the pad position gets querried again.
         """
-        p_p_and_yaw = self.__tf_manager.get_pad_position_and_yaw()
+        p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
             self.__fail_safe("No pad position found for landing (Phase2a).")
-            return
+            return False
 
         pad_position, yaw = p_p_and_yaw
-        self.__hl_commander.go_to(
+        self._hl_commander.go_to(
             pad_position[0],
             pad_position[1],
             pad_position[2] + 0.2,
             yaw=yaw,
             duration_seconds=2.0,
         )
-        self.__sleep(3.0)  # Bleed of momentum we still have from target flight.
+        self._sleep(3.0)  # Bleed of momentum we still have from target flight.
 
-        p_p_and_yaw = self.__tf_manager.get_pad_position_and_yaw()
+        p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
             self.__fail_safe("No pad position found for landing (Phase2b).")
-            return
+            return False
 
         pad_position, yaw = p_p_and_yaw
-        self.__hl_commander.go_to(
+        self._hl_commander.go_to(
             pad_position[0],
             pad_position[1],
             pad_position[2] - 0.1,
             yaw=yaw,
             duration_seconds=4.0,
         )
-        self.__sleep(3.0)  # The actual landing.
+        self._sleep(3.0)  # The actual landing.
 
         """
         Phase3: 
             We are already in the Pad. 
             We land to stop motors and this Wiggles us to properly seat into the pad.
         """
-        p_p_and_yaw = self.__tf_manager.get_pad_position_and_yaw()
+        p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
             self.__fail_safe("No pad position found for landing (Phase3).")
-            return
+            return False
 
         pad_position, yaw = p_p_and_yaw
-        self.__hl_commander.land(
+        self._hl_commander.land(
             target_height=0.0, duration_seconds=3.0, yaw=yaw
         )  # Landing at height 0 ensures motors get shut off completely
-        self.__sleep(2.5)  # It would be ok to launch after only 2.5 seconds
+        self._sleep(2.5)  # It would be ok to launch after only 2.5 seconds
+        return True

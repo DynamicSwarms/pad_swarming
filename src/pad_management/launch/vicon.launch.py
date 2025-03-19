@@ -164,6 +164,11 @@ def generate_launch_description():
         parameters=[{"padflie_yamls": [flies_hardware_yaml, flies_webots_yaml]}],
     )
 
+    collision_avoidance = Node(
+        package="collision_avoidance",
+        executable="collision_avoidance_node"
+    )
+
     return LaunchDescription(
         [
             backend_arg,
@@ -177,6 +182,7 @@ def generate_launch_description():
             pad_broadcaster,
             creator,
             point_finder,
+            collision_avoidance, 
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
                     flies_hardware_yaml, flies_webots_yaml
