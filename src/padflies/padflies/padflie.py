@@ -85,16 +85,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             timeout_sec=1.0
         )  # might raise TimeoutError
 
-        self.gateway_endpoint = GatewayEndpoint(
-            node=self,
-            cf_id=self.cf_id,
-            cf_channel=self.cf_channel,
-            initial_position=pad_position,
-            crazyflie_type=self.cf_type,
-        )
         loginfo = lambda msg: self.get_logger().info(str(msg))
         self.console = ConsoleClient(node=self, prefix=cf_prefix, callback=loginfo)
-        self.gateway_endpoint.open()  # might raise Crazyflie Gateway error
+        
         self.get_logger().info("Padflie configure deactivated for performance")
         return True
 

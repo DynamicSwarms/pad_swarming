@@ -9,7 +9,7 @@ data_files.append(
 
 data_files.append(("share/" + package_name + "/launch", ["launch/pad.launch.py"]))
 data_files.append(
-    ("share/" + package_name + "/launch", ["launch/pad_example.launch.py"])
+    ("share/" + package_name + "/launch", ["launch/vicon.launch.py"])
 )
 data_files.append(
     ("share/" + package_name + "/launch", ["launch/lighthouse.launch.py"])
@@ -45,10 +45,11 @@ setup(
         "console_scripts": [
             "pad_broadcaster = pad_management.pad_broadcaster:main",
             "point_finder = pad_management.point_finder:main",
-            "pad_creator = pad_management.pad_creator:main",
             "pointcloud_combiner = pad_management.point_cloud_combiner:main",
             "pad_destruction = pad_management.pad_destruction:main",
             "creator = pad_management.creator:main",
+            "default_creator = pad_management.default_creator:main",
+            "pad_creator = pad_management.pad_creator:main",
         ],
     },
 )

@@ -22,31 +22,19 @@ import yaml
 import numpy as np
 from itertools import cycle
 
-from typing import List, Tuple, Dict, Set
-from dataclasses import dataclass
+from typing import Optional, Dict
 
-
-@dataclass
-class Crazyflie:
-    change_state: Client
-    get_state: Client
-    transition_event: Subscription
-    cooldown: float = (
-        None  # If this is set the crazyflie is said dead but will be removed from our list only if this cooldown is passed
-    )
-
-
-# TODO: Searching for already exiting one?
-
+from .creator import Creator, BackendType 
 
 class PadCreator(Node):
-    """Manages the creation of crazyflies.
-
-    What about removal???
-    """
+    """Manages the creation of crazyflies."""
 
     def __init__(self):
         super().__init__("pad_creator")
+        self.crazyflies_callback_group = (
+            MutuallyExclusiveCallbackGroup()
+        )  # Listening to transition Events
+
         # Declare parameters
         self.declare_parameter(
             name="padflie_yamls",
@@ -69,7 +57,7 @@ class PadCreator(Node):
         )
 
         # There can be multiple yamls of flies which need to be combined.
-        flies: List = []
+        flies: list[Dict] = []
         for yaml_file in yaml_files:
             file = open(yaml_file, "r")
             flies += yaml.safe_load(file)["flies"]
@@ -91,109 +79,81 @@ class PadCreator(Node):
                 "Pad Creator waiting for checkForPoint service. Cannot launch until available."
             )
 
-        rate_hz = 20.0  # find a new crazyflie with this rate. Also used for cooldown before retry.
+        self.hardware_creator = Creator(self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback)
+        self.webots_creator = Creator(self, BackendType.WEBOTS, self.on_add_callback, self.on_failure_callback)
         
-        
-        
-        #self.dt = 1.0 / rate_hz
-        self.dt = 1.0
+        self.added: list[int] = []
+
         self.create_timer(
-            timer_period_sec=self.dt,
+            timer_period_sec=0.1,
             callback=self.update_crazyflies,
             callback_group=MutuallyExclusiveCallbackGroup(),
         )
 
-        self.crazyflies: Dict[int, Crazyflie] = {}
-        self.crazyflies_callback_group = MutuallyExclusiveCallbackGroup()
-
-        self.retry_cooldown = 3.0  # Seconds before we try again if failed
-
     def update_crazyflies(self):
-        self._cooldown_and_remove()
-
         flie = next(self.flies)
 
         cf_id = flie["id"]
-        if cf_id in self.crazyflies.keys():
-            # The crazyflie is already spawned.
-            return
+        if cf_id in self.added:
+            return  # We already try to create.
 
         pad_position = self._get_pad_position(flie["pad"])
         if pad_position is None:
-            # Was not able to find associated pad
-            return
+            return  # Was not able to find associated pad
 
         existence = self._check_point_existance(pad_position)
         if not existence:
-            # Was not able to detect a Marker at pad position
-            return
+            return  # Was not able to detect a Marker at pad position
 
         # Add the crazyflie and transition it to Configuring
-        self.get_logger().info(f"Adding Crazyflie with ID:{cf_id}")
-        self._create_crazyflie(cf_id)
-        self._transition_crazyflie(
-            cf_id=cf_id,
-            state=LifecycleState.TRANSITION_STATE_CONFIGURING,
-            label="configure",
-        )
+        if "channel" in flie.keys():
+            self.hardware_creator.enqueue_creation(cf_id=cf_id,cf_channel=flie["channel"], initial_position=pad_position,type="tracked")
+        else:
+            self.webots_creator.enqueue_creation(cf_id=cf_id)
 
-    def _cooldown_and_remove(self):
-        for cf_id in list(self.crazyflies.keys()):
-            if self.crazyflies[cf_id].cooldown is not None:
-                self.crazyflies[cf_id].cooldown -= self.dt
-                if self.crazyflies[cf_id].cooldown < 0.0:
-                    del self.crazyflies[cf_id]
+        self.added.append(cf_id)
+    
+    def on_add_callback(self, cf_id: int, success: bool):
+        self.get_logger().info(f"AddCallback:{cf_id}, {success}")
+        if success:
+            self._transition_padflie(
+                cf_id=cf_id,
+                state=LifecycleState.TRANSITION_STATE_CONFIGURING,
+                label="configure",
+            )
+        else:
+            self.added.remove(cf_id) # Retrry creation
+    
+    def on_failure_callback(self, cf_id: int):
+        self.get_logger().info(f"FailureCallback: {cf_id}")
+        if cf_id in self.added:
+            self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_DEACTIVATING, label="deactivate") # Trie this
+            self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_CLEANINGUP, label="cleanup") # But especially return to unconfigured
+            self.added.remove(cf_id)
 
-    def _create_crazyflie(self, cf_id: int):
+    def _transition_padflie(self, cf_id: int, state: LifecycleState, label: str):
         change_state_client = self.create_client(
             srv_type=ChangeState,
             srv_name=f"padflie{cf_id}/change_state",
             callback_group=self.crazyflies_callback_group,
         )
-        get_state_client = self.create_client(
-            srv_type=GetState,
-            srv_name=f"padflie{cf_id}/get_state",
-            callback_group=self.crazyflies_callback_group,
-        )
-        transition_event_subscription = self.create_subscription(
-            msg_type=TransitionEvent,
-            topic=f"padflie{cf_id}/transition_event",
-            callback=lambda event: self._transition_event_callback(cf_id, event),
-            qos_profile=10,
-        )
+        if not change_state_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f"The Padflie with ID {cf_id} is not available.")
+            return  ## This permanently disables this crazyflie.
 
-        self.crazyflies[cf_id] = Crazyflie(
-            change_state_client, get_state_client, transition_event_subscription
-        )
-
-    def _transition_crazyflie(self, cf_id: int, state: LifecycleState, label: str):
         request = ChangeState.Request()
         request.transition.id = state
         request.transition.label = label
-        if cf_id in self.crazyflies.keys():
-            self.crazyflies[cf_id].change_state.call_async(request)
+        change_state_client.call_async(request)
 
-    def _get_state(self, cf_id: int) -> LifecycleState:
-        request = GetState.Request()
-        if cf_id in self.crazyflies.keys():
-            response: GetState.Response = self.crazyflies[cf_id].get_state.call(request)
-            return response.current_state
-
-    def _transition_event_callback(self, cf_id: int, event: TransitionEvent):
-        if cf_id in self.crazyflies.keys():
-            if event.goal_state.id == LifecycleState.PRIMARY_STATE_UNCONFIGURED:
-                self.crazyflies[cf_id].cooldown = self.retry_cooldown
-            if event.goal_state.id == LifecycleState.TRANSITION_STATE_SHUTTINGDOWN:
-                pass  # Crazyflie shall live
-
-    def _check_point_existance(self, point: List[float]) -> bool:
+    def _check_point_existance(self, point: "list[float]") -> bool:
         request = PointFinder.Request()
         request.point = Point(x=point[0], y=point[1], z=point[2])
         request.max_distance = self.max_distance
         response: PointFinder.Response = self.check_for_point_client.call(request)
         return response.found
 
-    def _get_pad_position(self, pad_id: int) -> List[float]:
+    def _get_pad_position(self, pad_id: int) -> Optional["list[float]"]:
         pad_name = f"pad_{pad_id}"
         try:
             t = self.tf_buffer.lookup_transform("world", pad_name, rclpy.time.Time())
@@ -210,13 +170,13 @@ class PadCreator(Node):
 def main():
     rclpy.init()
 
-    pc = PadCreator()
+    creator = PadCreator()
     executor = (
         MultiThreadedExecutor()
     )  # Because we are calling a service inside a timer
     try:
         while rclpy.ok():
-            rclpy.spin_once(node=pc, timeout_sec=0.1, executor=executor)
+            rclpy.spin_once(node=creator, timeout_sec=0.1, executor=executor)
         rclpy.try_shutdown()
     except KeyboardInterrupt:
         quit()

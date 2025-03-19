@@ -26,7 +26,7 @@ class PadDestruction(Node):
     
     def destruct_test(self):
         node_names = self.get_node_names()  # Get all active node names
-        cf_nodes = [name for name in node_names if name.startswith("cf")]
+        cf_nodes = [name for name in node_names if (name.startswith("cf") and not name.endswith("ctrl"))] # webots starts two nodes
 
         for cf_node in cf_nodes:
             if cf_node in self.killed_cfs: continue
