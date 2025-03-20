@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.executors import SingleThreadedExecutor, Executor
+from rclpy.executors import SingleThreadedExecutor, Executor, MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from rclpy.lifecycle import LifecycleNodeMixin
@@ -244,6 +244,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self.executor.shutdown(timeout_sec=0.1)
 
     def _sleep(self, duration: float) -> None:
+        import time
+        time.sleep(duration)
+        return
         """Sleeps for the provided duration in seconds."""
         start = self.__time()
         end = start + duration
@@ -257,7 +260,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
 def main():
     rclpy.init()
-    executor = SingleThreadedExecutor()
+    executor = MultiThreadedExecutor()
     padflie = PadFlie(executor)
 
     @dataclass

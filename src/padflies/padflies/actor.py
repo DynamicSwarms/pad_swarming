@@ -204,6 +204,9 @@ class PadflieActor:
     def get_target_pose(self) -> Optional[PoseStamped]:
         return self.__target_pose
 
+    def get_yaw(self):
+        return self.__current_yaw
+
     def set_target(self, target: PoseStamped, use_yaw: bool):
         self.__target_pose = target
         self._fixed_yaw = not use_yaw
@@ -234,14 +237,12 @@ class PadflieActor:
             target_pose, use_yaw=False
         )  # Set target so crazyflie hovers after takeoff
 
-        self._hl_commander.takeoff(
-            target_height=target_pose.pose.position.z,
-            duration_seconds=4.0,
-            yaw=0.0,
-        )
-        self._sleep(
-            2.0
-        )  # Even though we specified 5 seconds for takeoff, this ensures a cleaner transition.
+        self._hl_commander.go_to(x=0.0,y=0.0,z=0.1, yaw=0.0,duration_seconds=1.0, relative=True)
+        self._sleep(0.5)
+        self._hl_commander.go_to(x=0.0,y=0.0,z=0.6, yaw=0.0,duration_seconds=4, relative=True)
+        
+        # Even though we specified more time for takeoff, this ensures a cleaner transition.
+        self._sleep(3)
         self._state = ActorState.LOW_LEVEL_COMMANDER
         return True
 

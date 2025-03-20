@@ -1,4 +1,6 @@
+string cf_prefix
 geometry_msgs/PoseStamped pose
 bool pose_valid false
 geometry_msgs/Pose pose_world
 bool pose_world_valid false
+bool is_home

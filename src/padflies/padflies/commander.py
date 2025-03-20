@@ -3,7 +3,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from std_msgs.msg import Empty
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion
-from padflies_interfaces.msg import SendTarget
+from padflies_interfaces.msg import SendTarget, PadflieInfo
 
 from ._hl_commander_minimal import HighLevelCommander
 from ._ll_commander_minimal import LowLevelCommander
@@ -49,13 +49,15 @@ class PadflieCommander:
             MutuallyExclusiveCallbackGroup()
         )  # All subscriptions can be on the same callbackgroup
         
+        self.has_subscriptions = False
+
     def activate(self):
         self._actor.activate()
 
         self._state = PadFlieState.IDLE
         # self._current_priority_id += 1
 
-        self.send_target_sub = self._node.create_subscription(
+        self.__send_target_sub = self._node.create_subscription(
             SendTarget,
             self._prefix + "/send_target",
             self.__send_target_callback,
@@ -63,7 +65,7 @@ class PadflieCommander:
             callback_group=self._callback_group,
         )
 
-        self.takeoff_sub = self._node.create_subscription(
+        self.__takeoff_sub = self._node.create_subscription(
             msg_type=Empty,
             topic=self._prefix + "/pad_takeoff",
             callback=self.__takeoff_callback,
@@ -71,7 +73,7 @@ class PadflieCommander:
             callback_group=self._callback_group,
         )
 
-        self.land_sub = self._node.create_subscription(
+        self.__land_sub = self._node.create_subscription(
             msg_type=Empty,
             topic=self._prefix + "/pad_land",
             callback=self.__land_callback,
@@ -79,15 +81,43 @@ class PadflieCommander:
             callback_group=self._callback_group,
         )
 
+        self.__info_pub = self._node.create_publisher(
+            msg_type=PadflieInfo,
+            topic=self._prefix + "/info",
+            qos_profile=qos_profile_simple,
+            callback_group=self._callback_group,
+        )
+
+        self.__info_timer = self._node.create_timer(0.1, self._info_timer_callback)
+
+        self.has_subscriptions = True
+
     def deactivate(self):
         self._state = PadFlieState.DEACTIVATED
-        self._node.destroy_subscription(self.send_target_sub)
-        self._node.destroy_subscription(self.takeoff_sub)
-        self._node.destroy_subscription(self.land_sub)
+        if self.has_subscriptions:
+            self._node.destroy_subscription(self.__send_target_sub)
+            self._node.destroy_subscription(self.__takeoff_sub)
+            self._node.destroy_subscription(self.__land_sub)
+            self._node.destroy_timer(self.__info_timer)
+            self._node.destroy_publisher(self.__info_pub)
         self._actor.deactivate()
     
     def get_state(self) -> PadFlieState:
         return self._state
+    
+    def _info_timer_callback(self):
+        msg = PadflieInfo()
+        msg.cf_prefix = self._cf_prefix
+        pose_world = self.get_cf_pose_world()
+        pose = self.get_cf_pose_stamped()
+        if pose_world is not None: 
+            msg.pose_world = pose_world
+            msg.pose_world_valid = True
+        if pose is not None: 
+            msg.pose = pose
+            msg.pose_valid = True
+        msg.is_home = self._state == PadFlieState.IDLE
+        self.__info_pub.publish(msg)
 
     def get_cf_pose_world(self) -> Optional[Pose]:
         position = self._tf_manager.get_cf_position()
@@ -100,7 +130,7 @@ class PadflieCommander:
             pose.orientation.y,
             pose.orientation.z,
             pose.orientation.w,
-        ) = Rotation.from_euler("z", self._actor._current_yaw).as_quat()
+        ) = Rotation.from_euler("z", self._actor.get_yaw()).as_quat()
         return pose
     
     def get_cf_pose_stamped(self) -> Optional[PoseStamped]:
@@ -115,7 +145,7 @@ class PadflieCommander:
             quat.y,
             quat.z,
             quat.w,
-        ) = Rotation.from_euler("z", self._actor._current_yaw).as_quat()
+        ) = Rotation.from_euler("z", self._actor.get_yaw()).as_quat()
         return self._tf_manager.get_cf_pose_stamped(frame_id=frame_id,world_quat=quat)
     
     def _set_target_internal(self, target: PoseStamped, use_yaw: bool = False):
