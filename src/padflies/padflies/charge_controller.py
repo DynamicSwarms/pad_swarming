@@ -15,7 +15,7 @@ class ChargeController:
         self._on_charged_callback = on_charged_callback
 
         if cf_type == CrazyflieType.HARDWARE:
-            self._battery_subscription = self._node.create_subscription(msg_type=GenericLogData, topic=cf_prefix + "/pm", callback=self.receive_data, qos_profile=10 )
+            self._battery_subscription = self._node.create_subscription(msg_type=GenericLogData, topic=cf_prefix + "/state", callback=self.receive_data, qos_profile=10 )
             self.voltage = 0.0
         else:
             self._fully_charged_timer = self._node.create_timer(1.0, self._webots_pub_charged_callback)
@@ -40,6 +40,8 @@ class ChargeController:
         variables = msg.values
         if not len(variables):
             return
+        
+        # Variables: "pm.vbat", "pm.chargeCurrent", "pm.state", "sys.canfly", "sys.isFlying", "sys.isTumbled", "sys.armed"
         self.voltage = variables[0]
 
         if self.is_empty():

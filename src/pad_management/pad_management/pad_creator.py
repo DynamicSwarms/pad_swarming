@@ -125,7 +125,7 @@ class PadCreator(Node):
             self.added.remove(cf_id) # Retrry creation
     
     def on_failure_callback(self, cf_id: int):
-        self.get_logger().info(f"FailureCallback: {cf_id}")
+        self.get_logger().info(f"Failure detected: {cf_id}. Trying to reconnect.")
         if cf_id in self.added:
             self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_DEACTIVATING, label="deactivate") # Trie this
             self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_CLEANINGUP, label="cleanup") # But especially return to unconfigured

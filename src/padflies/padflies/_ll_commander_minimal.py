@@ -42,6 +42,7 @@ class LowLevelCommander:
     def notify_setpoints_stop(
         self, remain_valid_milliseconds: int = 100, group_mask: int = 0
     ) -> None:
+        if not self.has_publishers: return
         """Send a notify setpoints command
         Informs that streaming low-level setpoint packets are about to stop.
         A common use case is to send this after the last low-level setpoint is sent but before the first high-level setpoint is sent.
@@ -62,6 +63,7 @@ class LowLevelCommander:
             position (List[float]): Position [x, y, z] in m
             yaw (float): Orientation in degrees
         """
+        if not self.has_publishers: return
         msg = Position()
         msg.x, msg.y, msg.z = position
         msg.yaw = yaw

@@ -137,7 +137,7 @@ class PadflieActor:
         ):
             cf_position = self._tf_manager.get_cf_position()
             if cf_position is None:
-                self.__fail_safe("No Crazyflie position.")
+                self._fail_safe("No Crazyflie position.")
                 return
 
             target_position_and_yaw = (
@@ -196,7 +196,7 @@ class PadflieActor:
             # TODO: Is max_yawrate set low enough for this to be safe?
             self.__current_yaw = safe_yaw  
 
-    def __fail_safe(self, msg: str):
+    def _fail_safe(self, msg: str):
         self._state = ActorState.ERROR_STATE
         self._hl_commander.land(0.0, 5.0)
         self._node.get_logger().info(f"Transitioning to Error state. {msg}")
@@ -256,7 +256,7 @@ class PadflieActor:
         if self._state is ActorState.ERROR_STATE:
             return
 
-        self._ll_commander.notify_setpoints_stop(100)
+        self._ll_commander.notify_setpoints_stop(0)
         self._state = ActorState.HIGH_LEVEL_COMMANDER
         """
         Phase2: 
@@ -272,14 +272,14 @@ class PadflieActor:
         """
         p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
-            self.__fail_safe("No pad position found for landing (Phase2a).")
+            self._fail_safe("No pad position found for landing (Phase2a).")
             return False
 
         pad_position, yaw = p_p_and_yaw
         self._hl_commander.go_to(
             pad_position[0],
             pad_position[1],
-            pad_position[2] + 0.2,
+            pad_position[2] + 0.5,
             yaw=yaw,
             duration_seconds=2.0,
         )
@@ -287,7 +287,7 @@ class PadflieActor:
 
         p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
-            self.__fail_safe("No pad position found for landing (Phase2b).")
+            self._fail_safe("No pad position found for landing (Phase2b).")
             return False
 
         pad_position, yaw = p_p_and_yaw
@@ -307,7 +307,7 @@ class PadflieActor:
         """
         p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
-            self.__fail_safe("No pad position found for landing (Phase3).")
+            self._fail_safe("No pad position found for landing (Phase3).")
             return False
 
         pad_position, yaw = p_p_and_yaw

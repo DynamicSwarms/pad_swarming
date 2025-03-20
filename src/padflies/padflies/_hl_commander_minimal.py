@@ -44,11 +44,12 @@ class HighLevelCommander:
 
 
     def destroy_publishers(self):
-        self._node.destroy_publisher(self._takeoff_publisher)
-        self._node.destroy_publisher(self._land_publisher)
-        self._node.destroy_publisher(self._goto_publisher)
+        if self.has_publishers:
+            self._node.destroy_publisher(self._takeoff_publisher)
+            self._node.destroy_publisher(self._land_publisher)
+            self._node.destroy_publisher(self._goto_publisher)
 
-        self.has_publishers = False
+            self.has_publishers = False
 
     def takeoff(
         self,
@@ -58,6 +59,7 @@ class HighLevelCommander:
         use_current_yaw: bool = False,
         group_mask: int = 0,
     ) -> None:
+        if not self.has_publishers: return
         """Vertical takeoff from current x-y position to given height (high-level)
 
         The Crazyflie will hover indefinetely after target_height is reached.
@@ -85,6 +87,7 @@ class HighLevelCommander:
         yaw: float = None,
         group_mask: int = 0,
     ) -> None:
+        if not self.has_publishers: return
         """Vertical landing from current x-y position to given height (high-level)
 
         The Crazyflie will hover indefinetely after target_height is reached.
@@ -116,6 +119,7 @@ class HighLevelCommander:
         linear: bool = False,
         group_mask: int = 0,
     ) -> None:
+        if not self.has_publishers: return
         """Move to x, y, z, yaw in duration_seconds amount of time (high-level)
 
         The Crazyflie will hover indefinetely afterwards.

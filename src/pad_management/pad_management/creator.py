@@ -1,5 +1,6 @@
 from rclpy.node import Node
 import rclpy.time
+from rclpy.subscription import Subscription
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.client import Client
 
@@ -15,7 +16,7 @@ from crazyflie_hardware_gateway_interfaces.srv import (
 from lifecycle_msgs.msg import State as LifecycleState, TransitionEvent
 
 
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Dict
 
 from enum import Enum, auto
 
@@ -70,6 +71,8 @@ class Creator:
         if not self.remove_client.wait_for_service(timeout_sec=3.0):
             self._node.get_logger().info("Gateway not reachable! (REMOVE)")
 
+        self._transition_event_subscriptions: Dict[int, Subscription] = {}
+
         self.add_queue: "list[CreationFlie]" = []
         self.add_queue_lock: Lock = Lock()
         self._node.create_timer(
@@ -106,7 +109,7 @@ class Creator:
         resp = self.add_client.call(self._create_add_request(flie))
         success = self._interpret_add_response(resp)
 
-        self._node.create_subscription(
+        self._transition_event_subscriptions[flie.cf_id] = self._node.create_subscription(
             msg_type=TransitionEvent,
             topic=f"cf{flie.cf_id}/transition_event",
             callback=lambda event: self._transition_event_callback(flie.cf_id, event),
@@ -117,6 +120,9 @@ class Creator:
     def _transition_event_callback(self, cf_id: int, event: TransitionEvent):
         if event.goal_state.id == LifecycleState.TRANSITION_STATE_SHUTTINGDOWN:
             self._node.get_logger().info(f"Caught {cf_id} failure. Trying to reconnect.")
+            if cf_id in self._transition_event_subscriptions.keys():
+                self._node.destroy_subscription(self._transition_event_subscriptions[cf_id])
+
             self.on_failure_callback(cf_id)
 
 

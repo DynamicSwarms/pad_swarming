@@ -190,7 +190,7 @@ class PadflieCommander:
         while timeout > 0.0:
             target_pose = self._tf_manager.get_pad_pose()
             target_pose.pose.position.z += 0.5
-            self._node.get_logger().info(f"Setting internal target {target_pose}")     
+            #self._node.get_logger().info(f"Setting internal target {target_pose}")     
             self._set_target_internal(target=target_pose, use_yaw=True)
 
             cf_position = self._tf_manager.get_cf_position()
@@ -198,11 +198,9 @@ class PadflieCommander:
                 target_pose
             )
             if cf_position is None or pad_target is None:
-                self._node.get_logger().info(
-                    "Big problem with transforms flying home, because Position of cf or Pad was lost."
-                )
-                self._sleep(0.1)
-                continue
+                self._actor._fail_safe("Landing failed. CF Position or Pad position lost.")
+                self._state = PadFlieState.DEACTIVATED
+                return
 
             target, _yaw = pad_target
             if (
