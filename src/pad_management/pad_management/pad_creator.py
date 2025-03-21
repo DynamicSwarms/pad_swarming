@@ -26,6 +26,8 @@ from typing import Optional, Dict
 
 from .creator import Creator, BackendType 
 
+from threading import Lock
+
 class PadCreator(Node):
     """Manages the creation of crazyflies."""
 
@@ -83,6 +85,7 @@ class PadCreator(Node):
         self.webots_creator = Creator(self, BackendType.WEBOTS, self.on_add_callback, self.on_failure_callback)
         
         self.added: list[int] = []
+        self.added_lock: Lock = Lock()
 
         self.create_timer(
             timer_period_sec=0.1,
@@ -91,46 +94,56 @@ class PadCreator(Node):
         )
 
     def update_crazyflies(self):
-        flie = next(self.flies)
+        with self.added_lock:
+            flie = next(self.flies)
 
-        cf_id = flie["id"]
-        if cf_id in self.added:
-            return  # We already try to create.
+            cf_id = flie["id"]
+            if cf_id in self.added:
+                return  # We already try to create.
 
-        pad_position = self._get_pad_position(flie["pad"])
-        if pad_position is None:
-            return  # Was not able to find associated pad
+            pad_position = self._get_pad_position(flie["pad"])
+            if pad_position is None:
+                return  # Was not able to find associated pad
 
-        existence = self._check_point_existance(pad_position)
-        if not existence:
-            return  # Was not able to detect a Marker at pad position
+            existence = self._check_point_existance(pad_position)
+            if not existence:
+                return  # Was not able to detect a Marker at pad position
 
-        # Add the crazyflie and transition it to Configuring
-        if "channel" in flie.keys():
-            self.hardware_creator.enqueue_creation(cf_id=cf_id,cf_channel=flie["channel"], initial_position=pad_position,type="tracked")
-        else:
-            self.webots_creator.enqueue_creation(cf_id=cf_id)
+            # Add the crazyflie and transition it to Configuring
+            if "channel" in flie.keys():
+                self.hardware_creator.enqueue_creation(cf_id=cf_id,cf_channel=flie["channel"], initial_position=pad_position,type="tracked")
+            else:
+                self.webots_creator.enqueue_creation(cf_id=cf_id)
 
-        self.added.append(cf_id)
+            self.added.append(cf_id)
     
     def on_add_callback(self, cf_id: int, success: bool):
-        self.get_logger().info(f"AddCallback:{cf_id}, {success}")
-        if success:
+        do_transition = False
+        with self.added_lock:
+            self.get_logger().info(f"AddCallback:{cf_id}, {success}")
+            if success:
+                do_transition = True
+            else:
+                if cf_id in self.added:
+                    self.added.remove(cf_id) # Retrry creation
+        if do_transition: 
             self._transition_padflie(
-                cf_id=cf_id,
-                state=LifecycleState.TRANSITION_STATE_CONFIGURING,
-                label="configure",
-            )
-        else:
-            self.added.remove(cf_id) # Retrry creation
-    
+                    cf_id=cf_id,
+                    state=LifecycleState.TRANSITION_STATE_CONFIGURING,
+                    label="configure",
+                )
+
     def on_failure_callback(self, cf_id: int):
-        self.get_logger().info(f"Failure detected: {cf_id}. Trying to reconnect.")
-        if cf_id in self.added:
+        do_transition = False
+        with self.added_lock:
+            self.get_logger().info(f"Failure detected: {cf_id}. Trying to reconnect.")
+            if cf_id in self.added:
+                self.added.remove(cf_id)
+                do_transition = True
+        if do_transition: 
             self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_DEACTIVATING, label="deactivate") # Trie this
             self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_CLEANINGUP, label="cleanup") # But especially return to unconfigured
-            self.added.remove(cf_id)
-
+            
     def _transition_padflie(self, cf_id: int, state: LifecycleState, label: str):
         change_state_client = self.create_client(
             srv_type=ChangeState,
@@ -174,9 +187,9 @@ def main():
     executor = (
         MultiThreadedExecutor()
     )  # Because we are calling a service inside a timer
+    executor.add_node(creator)
     try:
-        while rclpy.ok():
-            rclpy.spin_once(node=creator, timeout_sec=0.1, executor=executor)
+        executor.spin()
         rclpy.try_shutdown()
     except KeyboardInterrupt:
         quit()

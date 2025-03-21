@@ -1,7 +1,7 @@
 from rclpy.node import Node
 import rclpy.time
 from rclpy.subscription import Subscription
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.client import Client
 
 from dataclasses import dataclass
@@ -72,11 +72,12 @@ class Creator:
             self._node.get_logger().info("Gateway not reachable! (REMOVE)")
 
         self._transition_event_subscriptions: Dict[int, Subscription] = {}
+        self._transition_event_callback_group = MutuallyExclusiveCallbackGroup()
 
         self.add_queue: "list[CreationFlie]" = []
         self.add_queue_lock: Lock = Lock()
         self._node.create_timer(
-            1.0, self.create, callback_group=MutuallyExclusiveCallbackGroup()
+            1.0, self.create, callback_group=self._transition_event_callback_group
         )
 
     def enqueue_creation(
@@ -106,20 +107,21 @@ class Creator:
             return
 
         self._node.get_logger().info(f"Adding Crazyflie with ID:{flie.cf_id}")
-        resp = self.add_client.call(self._create_add_request(flie))
-        success = self._interpret_add_response(resp)
-
         self._transition_event_subscriptions[flie.cf_id] = self._node.create_subscription(
             msg_type=TransitionEvent,
             topic=f"cf{flie.cf_id}/transition_event",
             callback=lambda event: self._transition_event_callback(flie.cf_id, event),
             qos_profile=10,
-        )
+            callback_group=self._transition_event_callback_group
+        )        
+        resp = self.add_client.call(self._create_add_request(flie))
+        success = self._interpret_add_response(resp)
+        
         self.on_add_callback(flie.cf_id, success)
    
     def _transition_event_callback(self, cf_id: int, event: TransitionEvent):
         if event.goal_state.id == LifecycleState.TRANSITION_STATE_SHUTTINGDOWN:
-            self._node.get_logger().info(f"Caught {cf_id} failure. Trying to reconnect.")
+            # self._node.get_logger().info(f"Caught {cf_id} failure. Trying to reconnect.")
             if cf_id in self._transition_event_subscriptions.keys():
                 self._node.destroy_subscription(self._transition_event_subscriptions[cf_id])
 
