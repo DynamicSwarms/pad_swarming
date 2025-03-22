@@ -5,7 +5,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
 )
-from launch.conditions import LaunchConfigurationNotEquals
+from launch.conditions import LaunchConfigurationNotEquals, LaunchConfigurationEquals
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from ament_index_python.packages import get_package_share_directory
@@ -179,6 +179,18 @@ def generate_launch_description():
         executable="pad_land_circle"
     )
 
+    # For webots we need ChargingBase in tf
+    pad_circle_tf_webots = Node(package = "tf2_ros", 
+                executable = "static_transform_publisher",
+                arguments = "0 0 1.2 0 0 0 world pad_circle".split(' '), 
+                condition=LaunchConfigurationNotEquals("backend", "hardware"))
+
+
+    pad_circle_tf = Node(package = "tf2_ros", 
+                executable = "static_transform_publisher",
+                arguments = "0.6 0.6 1.2 0 0 0 ChargingBase20 pad_circle".split(' '),
+                condition=LaunchConfigurationEquals("backend", "hardware"))
+
     return LaunchDescription(
         [
             backend_arg,
@@ -195,6 +207,8 @@ def generate_launch_description():
             collision_avoidance, 
             traffic_controller,
             pad_circle,
+            pad_circle_tf_webots, 
+            pad_circle_tf, 
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
                     flies_hardware_yaml, flies_webots_yaml

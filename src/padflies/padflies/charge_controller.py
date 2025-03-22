@@ -5,6 +5,8 @@ from crazyflie_interfaces.msg import GenericLogData
 
 from typing import Callable
 
+from padflies_interfaces.msg import PadflieInfo
+
 class ChargeController:
 
     def __init__(
@@ -51,6 +53,11 @@ class ChargeController:
 
     def _webots_pub_charged_callback(self):
         self._on_charged_callback()
+
+    def get_padflie_info_charge_state(self) -> int:
+        if self.is_empty():
+           return PadflieInfo.BATTERY_STATE_LOW
+        return PadflieInfo.BATTERY_STATE_OK
 
     @property
     def battery_voltage_empty(self):

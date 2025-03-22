@@ -34,13 +34,35 @@ class PadLandCircle(Node):
         super().__init__("pad_circle")
         self.declare_parameter(
             "radius",
-            value=0.75,
+            value=1.0,
             descriptor=ParameterDescriptor(
                 floating_point_range=[
                     FloatingPointRange(from_value=0.5, to_value=3.0),
                 ]
             ),
         )
+
+        self.declare_parameter(
+            "seperation_factor",
+            value=0.5,
+            descriptor=ParameterDescriptor(
+                floating_point_range=[
+                    FloatingPointRange(from_value=0.0, to_value=1.0),
+                ]
+            ),
+        )
+
+        self.declare_parameter(
+            "circular_speed",
+            value=0.0,
+            descriptor=ParameterDescriptor(
+                floating_point_range=[
+                    FloatingPointRange(from_value=0.0, to_value=1.0),
+                ]
+            ),
+        )
+
+
 
         self.agents : Dict[str, Agent] = {}
 
@@ -49,16 +71,10 @@ class PadLandCircle(Node):
         self.create_service(srv_type=PadCircleBehaviour, srv_name="pad_circle", callback=self.calculate_behaviour, callback_group=self.callback_group)
         self.create_timer(0.2, self.clear_dict)
 
-        self.seperation_factor = 0.25
-        self.circular_speed = 0.0
         self.clockwise = True
 
-
-        self.update_rate = 0.1
-        self.target = [0, 0, 0]
-
     def clear_dict(self):
-        decay_duration = Duration(seconds=0, nanoseconds=0.2 * 1e9) 
+        decay_duration = Duration(seconds=0, nanoseconds=0.3 * 1e9) 
         now = self.get_clock().now()
         decay_time = now - decay_duration
 
@@ -155,7 +171,15 @@ class PadLandCircle(Node):
         radius = self.get_parameter("radius").get_parameter_value().double_value
         for a in range(NUM_FORMATION_POINTS):
             v = math.radians(360.0 / float(NUM_FORMATION_POINTS) * a)
-            yield [radius / 2 * math.sin(v), radius / 2 * math.cos(v), 0.0]
+            yield [radius * math.sin(v), radius * math.cos(v), 0.0]
+    
+    @property
+    def seperation_factor(self) -> float: 
+        return self.get_parameter("seperation_factor").get_parameter_value().double_value
+    
+    @property
+    def circular_speed(self) -> float: 
+        return self.get_parameter("circular_speed").get_parameter_value().double_value
             
     def circular_interpolate(self, a_0, a_1, w_0, w_1):
         """ 

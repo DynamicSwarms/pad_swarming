@@ -28,18 +28,21 @@ class PadflieController:
 
         self._world = "world"
 
-        self._commander = PadflieCommander(
-            node=node,
-            prefix=prefix,
-            cf_prefix=cf_prefix,
-            tf_manager=tf_manager,
-            sleep=sleep,
-        )
+        
 
         # For now the charge controller is the only one who is always active
         self._charge_controller = ChargeController(
             node=node, cf_type=cf_type, cf_prefix=cf_prefix, on_charged_callback=self.on_battery_full_callback
         )  # Checks charge state
+
+        self._commander = PadflieCommander(
+            node=node,
+            prefix=prefix,
+            cf_prefix=cf_prefix,
+            tf_manager=tf_manager,
+            charge_controller=self._charge_controller,
+            sleep=sleep,
+        )
 
         self.availability_publisher = self._node.create_publisher(String, "availability", qos_profile=10)
         self.activated = False

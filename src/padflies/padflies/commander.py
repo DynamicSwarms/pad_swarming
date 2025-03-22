@@ -4,9 +4,9 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.task import Future
 
 from std_msgs.msg import Empty
-from geometry_msgs.msg import PoseStamped, Pose, Quaternion
+from geometry_msgs.msg import PoseStamped, Pose, Quaternion, Point
 from padflies_interfaces.msg import SendTarget, PadflieInfo
-from pad_management_interfaces.srv import PadRightAcquire, PadRightRelease
+from pad_management_interfaces.srv import PadRightAcquire, PadRightRelease, PadCircleBehaviour
 
 from ._hl_commander_minimal import HighLevelCommander
 from ._ll_commander_minimal import LowLevelCommander
@@ -18,6 +18,7 @@ from .actor import PadflieActor
 import numpy as np
 from typing import Callable, Optional
 from scipy.spatial.transform import Rotation
+from .charge_controller import ChargeController
 
 
 class PadflieCommander:
@@ -28,6 +29,7 @@ class PadflieCommander:
         prefix: str,
         cf_prefix: str,
         tf_manager: PadflieTF,
+        charge_controller: ChargeController,
         sleep: Callable[[float], None],
     ):
         self._node = node
@@ -35,6 +37,7 @@ class PadflieCommander:
         self._cf_prefix = cf_prefix
         self._sleep = sleep
         self._tf_manager = tf_manager
+        self._charge_controller = charge_controller
 
         self._state = PadFlieState.DEACTIVATED
         # self._current_priority_id = 0 # Gets increased in every activation.
@@ -53,6 +56,9 @@ class PadflieCommander:
         )  # All subscriptions can be on the same callbackgroup
         
         self._landing_rights_callback_group = MutuallyExclusiveCallbackGroup()
+        self._pad_circle_callback_group = MutuallyExclusiveCallbackGroup()
+
+        self._pad_circle_tf_name = "pad_circle"
 
         self.has_subscriptions = False
 
@@ -61,6 +67,12 @@ class PadflieCommander:
 
         self._state = PadFlieState.IDLE
         # self._current_priority_id += 1
+
+        self.__pad_circle_client = self._node.create_client(
+            srv_type=PadCircleBehaviour, 
+            srv_name="pad_circle",
+            callback_group=self._pad_circle_callback_group
+        )
 
         self.__acquire_pad_rights_client = self._node.create_client(
             srv_type=PadRightAcquire,
@@ -144,6 +156,7 @@ class PadflieCommander:
 
             self._node.destroy_client(self.__acquire_pad_rights_client)
             self._node.destroy_client(self.__release_pad_rights_client)
+            self._node.destroy_client(self.__pad_circle_client)
 
         self.has_subscriptions = False
 
@@ -162,6 +175,7 @@ class PadflieCommander:
             msg.pose = pose
             msg.pose_valid = True
         msg.is_home = self._state == PadFlieState.IDLE
+        msg.battery = self._charge_controller.get_padflie_info_charge_state()
         self.__info_pub.publish(msg)
 
     def get_cf_pose_world(self) -> Optional[Pose]:
@@ -217,6 +231,32 @@ class PadflieCommander:
             resp.success = True
             fut.set_result(resp)
             return fut
+    
+    def _get_pad_circle_target(self) -> PoseStamped:
+        """ Get a position in the pad circle.
+        Returns:
+            PoseStamped: Needs to respond some valid target with correct stamp. (See get_cf_pose_stamped functionality)
+        """
+        req = PadCircleBehaviour.Request()
+        req.name = self._prefix
+
+
+        pose = self.get_cf_pose_stamped()
+        if pose is not None and pose.header.frame_id == self._pad_circle_tf_name: 
+            req.position = pose.pose.position
+        # Else the point is 0, 0, 0, and in next loop this is probably set
+
+        fut = self.__pad_circle_client.call_async(req)
+        for i in range(10):
+            if fut.done(): break
+            self._sleep(0.01)
+
+        pose = PoseStamped()
+        pose.header.frame_id = self._pad_circle_tf_name
+        if fut.done():
+            pose.pose.position = fut.result().target
+        return pose
+
     
     def _set_target_internal(self, target: PoseStamped, use_yaw: bool = False):
         """Set a PoseStamped as the actor target.
@@ -288,8 +328,7 @@ class PadflieCommander:
 
         fut = self._acquire_pad_right(60.0)
         while not fut.done():
-            # Fly in pad_circle during this time. 
-            #self._node.get_logger().info("Waiting for Landing rights.")
+            self._set_target_internal(target=self._get_pad_circle_target(), use_yaw=False)
             self._sleep(0.1) 
         success: PadRightAcquire.Response = fut.result()
         if not success.success: 
