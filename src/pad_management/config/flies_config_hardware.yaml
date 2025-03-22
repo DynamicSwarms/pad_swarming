@@ -33,7 +33,7 @@ flies:
   pad: 0xB0
   channel: 100
 - id: 0xB1
-  pad: 0xB
+  pad: 0xB1
   channel: 100
 - id: 0xB2
   pad: 0xB2

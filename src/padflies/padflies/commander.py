@@ -234,13 +234,13 @@ class PadflieCommander:
 
             target, _yaw = pad_target
             if (
-                np.linalg.norm(np.array(cf_position) - np.array(target)) < 0.1
-            ):  # closer than 10 cm
+                np.linalg.norm(np.array(cf_position) - np.array(target)) < 0.25
+            ):  # closer than 25 cm radius
                 break
 
             timeout -= 0.1
             self._sleep(0.1)
-
+       
         self._node.get_logger().info("Land Routine")     
         self._actor.land_routine()
         self._state = PadFlieState.IDLE

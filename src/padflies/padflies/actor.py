@@ -280,11 +280,11 @@ class PadflieActor:
         self._hl_commander.go_to(
             pad_position[0],
             pad_position[1],
-            pad_position[2] + 0.5,
+            pad_position[2] + 0.25,
             yaw=yaw,
-            duration_seconds=2.0,
+            duration_seconds=4.5,
         )
-        self._sleep(3.0)  # Bleed of momentum we still have from target flight.
+        self._sleep(4.5)  # Bleed of momentum we still have from target flight.
 
         p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
         if p_p_and_yaw is None:
@@ -297,9 +297,9 @@ class PadflieActor:
             pad_position[1],
             pad_position[2] - 0.1,
             yaw=yaw,
-            duration_seconds=4.0,
+            duration_seconds=5.0,
         )
-        self._sleep(3.0)  # The actual landing.
+        self._sleep(5)  # The actual landing.
 
         """
         Phase3: 
@@ -313,7 +313,7 @@ class PadflieActor:
 
         pad_position, yaw = p_p_and_yaw
         self._hl_commander.land(
-            target_height=0.0, duration_seconds=3.0, yaw=yaw
+            target_height=0.0, duration_seconds=2.5, yaw=yaw
         )  # Landing at height 0 ensures motors get shut off completely
         self._sleep(2.5)  # It would be ok to launch after only 2.5 seconds
         return True
