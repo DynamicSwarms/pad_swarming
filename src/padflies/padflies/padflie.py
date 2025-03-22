@@ -100,8 +100,13 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         return True
     
     def deactivate(self) -> bool:
-        self._tf_manager.deactivate()
+        """Deactivation. 
+        First deactivate the controller. 
+        Otherwise we cannot land, because no tf.
+        """
         self._controller.deactivate()
+        self._tf_manager.deactivate()
+
 
     def set_initial_yaw(self):
         p_y = self._tf_manager.get_pad_position_and_yaw()
@@ -207,10 +212,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
         LifecycleNodeMixin.on_deactivate(self, state)
-
+        self.get_logger().info(f"PadFlie {self.cf_id} deactivating")
         self.deactivate()
 
-        self.get_logger().info(f"PadFlie {self.cf_id} deactivating")
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:

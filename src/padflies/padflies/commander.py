@@ -93,13 +93,33 @@ class PadflieCommander:
         self.has_subscriptions = True
 
     def deactivate(self):
-        self._state = PadFlieState.DEACTIVATED
+        """Deactivating. 
+        
+        This closes all subscriptions and lands if neccesarry.
+        Close subscribers first and then do smth about beeing still in the air. 
+        This ensures nobody else will mess with us in the meantime.
+        """
         if self.has_subscriptions:
             self._node.destroy_subscription(self.__send_target_sub)
             self._node.destroy_subscription(self.__takeoff_sub)
             self._node.destroy_subscription(self.__land_sub)
             self._node.destroy_timer(self.__info_timer)
             self._node.destroy_publisher(self.__info_pub)
+
+        wait_timeout = 10.0 # Maximum wait time, before just stopping and deactivatig actor -> fail safe
+        while self._state == PadFlieState.LAND and wait_timeout > 0.0: 
+            """If we are landing. Wait for Landing to complete."""
+            self._sleep(0.1)
+            wait_timeout -= 0.1        
+        while self._state == PadFlieState.TAKEOFF and wait_timeout > 0.0:
+            """If we are taking off. We need to wait for the takeoff, we are then in target and can land."""
+            self._sleep(0.1)
+            wait_timeout -= 0.1
+        if self._state == PadFlieState.TARGET:
+            """If in target mode. Just land."""
+            self.land()
+
+        self._state = PadFlieState.DEACTIVATED
         self._actor.deactivate()
     
     def get_state(self) -> PadFlieState:
