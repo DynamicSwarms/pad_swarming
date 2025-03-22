@@ -14,6 +14,9 @@ find_package(std_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PointFinder.srv"
   "srv/AcquireCrazyflie.srv"
+  "srv/PadRightAcquire.srv"
+  "srv/PadRightRelease.srv"
+  "srv/PadCircleBehaviour.srv"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

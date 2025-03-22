@@ -50,6 +50,8 @@ setup(
             "creator = pad_management.creator:main",
             "default_creator = pad_management.default_creator:main",
             "pad_creator = pad_management.pad_creator:main",
+            "pad_traffic_controller = pad_management.pad_traffic_controller:main",
+            "pad_land_circle = pad_management.pad_land_circle:main",
         ],
     },
 )

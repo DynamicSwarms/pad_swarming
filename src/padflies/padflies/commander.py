@@ -1,9 +1,12 @@
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
+from rclpy.task import Future
+
 from std_msgs.msg import Empty
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion
 from padflies_interfaces.msg import SendTarget, PadflieInfo
+from pad_management_interfaces.srv import PadRightAcquire, PadRightRelease
 
 from ._hl_commander_minimal import HighLevelCommander
 from ._ll_commander_minimal import LowLevelCommander
@@ -49,6 +52,8 @@ class PadflieCommander:
             MutuallyExclusiveCallbackGroup()
         )  # All subscriptions can be on the same callbackgroup
         
+        self._landing_rights_callback_group = MutuallyExclusiveCallbackGroup()
+
         self.has_subscriptions = False
 
     def activate(self):
@@ -56,6 +61,16 @@ class PadflieCommander:
 
         self._state = PadFlieState.IDLE
         # self._current_priority_id += 1
+
+        self.__acquire_pad_rights_client = self._node.create_client(
+            srv_type=PadRightAcquire,
+            srv_name="acquire_pad_right",
+            callback_group=self._landing_rights_callback_group)
+        
+        self.__release_pad_rights_client = self._node.create_client(
+            srv_type=PadRightRelease,
+            srv_name="release_pad_right",
+            callback_group=self._landing_rights_callback_group)
 
         self.__send_target_sub = self._node.create_subscription(
             SendTarget,
@@ -90,6 +105,8 @@ class PadflieCommander:
 
         self.__info_timer = self._node.create_timer(0.1, self._info_timer_callback)
 
+
+
         self.has_subscriptions = True
 
     def deactivate(self):
@@ -121,7 +138,15 @@ class PadflieCommander:
 
         self._state = PadFlieState.DEACTIVATED
         self._actor.deactivate()
-    
+
+        if self.has_subscriptions: 
+            self._release_pad_right() # Maybe we have it. If we dont it is fine.
+
+            self._node.destroy_client(self.__acquire_pad_rights_client)
+            self._node.destroy_client(self.__release_pad_rights_client)
+
+        self.has_subscriptions = False
+
     def get_state(self) -> PadFlieState:
         return self._state
     
@@ -168,6 +193,31 @@ class PadflieCommander:
         ) = Rotation.from_euler("z", self._actor.get_yaw()).as_quat()
         return self._tf_manager.get_cf_pose_stamped(frame_id=frame_id,world_quat=quat)
     
+    def _acquire_pad_right(self, timeout: float) -> Future:
+        if self.__acquire_pad_rights_client.wait_for_service(timeout_sec=timeout):
+            req = PadRightAcquire.Request()
+            req.name = self._prefix
+            req.timeout = timeout
+            return self.__acquire_pad_rights_client.call_async(req)
+        else: 
+            fut = Future()
+            resp = PadRightAcquire.Response()
+            resp.success = True
+            fut.set_result(resp)
+            return fut
+        
+    def _release_pad_right(self) -> Future:
+        if self.__release_pad_rights_client.wait_for_service(timeout_sec=1.0):
+            req = PadRightRelease.Request()
+            req.name = self._prefix
+            return self.__release_pad_rights_client.call_async(req)
+        else: 
+            fut = Future()
+            resp = PadRightRelease.Response()
+            resp.success = True
+            fut.set_result(resp)
+            return fut
+    
     def _set_target_internal(self, target: PoseStamped, use_yaw: bool = False):
         """Set a PoseStamped as the actor target.
 
@@ -193,17 +243,30 @@ class PadflieCommander:
         """
         if self._state is not PadFlieState.IDLE:
             return
+        
+        def _takeoff(fut: Future):
+            success: PadRightAcquire.Response = fut.result()
+            if not success.success: 
+                self._node.get_logger("Did not get takeoff rights. Staying Home.")
+                return
+            
+            position = self._tf_manager.get_cf_position()
+            if position is None:
+                self._node.get_logger().error(
+                    "Crazyflie doesnt have position. Cannot takeoff."
+                )
+                self._release_pad_right()
+                return
 
-        position = self._tf_manager.get_cf_position()
-        if position is None:
-            self._node.get_logger().error(
-                "Crazyflie doesnt have position. Cannot takeoff."
-            )
-            return
+            self._state = PadFlieState.TAKEOFF
+            success = self._actor.takeoff_routine()
+            self._state = PadFlieState.TARGET
+            self._release_pad_right()
+                
+        fut = self._acquire_pad_right(timeout=60.0) 
+        # Up to one minute. Hmm...
+        fut.add_done_callback(_takeoff)
 
-        self._state = PadFlieState.TAKEOFF
-        success = self._actor.takeoff_routine()
-        self._state = PadFlieState.TARGET
         
     def land(self):
         """Execute crazyflie landing. If in target mode.
@@ -220,8 +283,17 @@ class PadflieCommander:
         """
         if self._state is not PadFlieState.TARGET:
             return
-
+    
         self._state = PadFlieState.LAND
+
+        fut = self._acquire_pad_right(60.0)
+        while not fut.done():
+            # Fly in pad_circle during this time. 
+            #self._node.get_logger().info("Waiting for Landing rights.")
+            self._sleep(0.1) 
+        success: PadRightAcquire.Response = fut.result()
+        if not success.success: 
+            self._state = PadFlieState.TARGET
         """
         Phase 1:
             For at most 8 seconds.
@@ -250,6 +322,7 @@ class PadflieCommander:
             if cf_position is None or pad_target is None:
                 self._actor._fail_safe("Landing failed. CF Position or Pad position lost.")
                 self._state = PadFlieState.DEACTIVATED
+                self._release_pad_right()
                 return
 
             target, _yaw = pad_target
@@ -264,6 +337,7 @@ class PadflieCommander:
         self._node.get_logger().info("Land Routine")     
         self._actor.land_routine()
         self._state = PadFlieState.IDLE
+        self._release_pad_right()
 
     def __send_target_callback(self, msg: SendTarget):
         """Callback to the send_target topic.

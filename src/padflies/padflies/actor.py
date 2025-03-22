@@ -242,7 +242,7 @@ class PadflieActor:
         self._hl_commander.go_to(x=0.0,y=0.0,z=0.6, yaw=0.0,duration_seconds=4, relative=True)
         
         # Even though we specified more time for takeoff, this ensures a cleaner transition.
-        self._sleep(3)
+        self._sleep(2)
         self._state = ActorState.LOW_LEVEL_COMMANDER
         return True
 
@@ -315,5 +315,6 @@ class PadflieActor:
         self._hl_commander.land(
             target_height=0.0, duration_seconds=2.5, yaw=yaw
         )  # Landing at height 0 ensures motors get shut off completely
-        self._sleep(2.5)  # It would be ok to launch after only 2.5 seconds
+        self._sleep(0.5)  
+        # Its ok to  launch again now, but landing rights need to be released!!!
         return True

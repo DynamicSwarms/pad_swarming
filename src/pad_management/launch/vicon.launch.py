@@ -169,6 +169,16 @@ def generate_launch_description():
         executable="collision_avoidance_node"
     )
 
+    traffic_controller = Node(
+        package="pad_management",
+        executable="pad_traffic_controller"
+    )
+
+    pad_circle = Node(
+        package="pad_management",
+        executable="pad_land_circle"
+    )
+
     return LaunchDescription(
         [
             backend_arg,
@@ -183,6 +193,8 @@ def generate_launch_description():
             creator,
             point_finder,
             collision_avoidance, 
+            traffic_controller,
+            pad_circle,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
                     flies_hardware_yaml, flies_webots_yaml
