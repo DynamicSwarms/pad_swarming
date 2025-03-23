@@ -326,7 +326,7 @@ class PadflieCommander:
     
         self._state = PadFlieState.LAND
 
-        fut = self._acquire_pad_right(60.0)
+        fut = self._acquire_pad_right(180.0)
         while not fut.done():
             self._set_target_internal(target=self._get_pad_circle_target(), use_yaw=False)
             self._sleep(0.1) 

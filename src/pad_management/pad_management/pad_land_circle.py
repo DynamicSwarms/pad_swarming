@@ -34,7 +34,7 @@ class PadLandCircle(Node):
         super().__init__("pad_circle")
         self.declare_parameter(
             "radius",
-            value=1.0,
+            value=1.75,
             descriptor=ParameterDescriptor(
                 floating_point_range=[
                     FloatingPointRange(from_value=0.5, to_value=3.0),
@@ -54,7 +54,7 @@ class PadLandCircle(Node):
 
         self.declare_parameter(
             "circular_speed",
-            value=0.0,
+            value=0.2,
             descriptor=ParameterDescriptor(
                 floating_point_range=[
                     FloatingPointRange(from_value=0.0, to_value=1.0),

@@ -83,6 +83,9 @@ def generate_launch_description():
             [hardware_gateway_dir, "/launch/crazyflie_hardware_gateway.launch.py"]
         ),
         condition=start_hardware,
+        launch_arguments={
+            "radio_channels": "50, 100", # Could read from hardware config??
+        }.items(),
     )
 
     motion_caputre = Node(
