@@ -17,6 +17,7 @@ from typing import Optional, Tuple, List, Callable
 from rclpy.qos import QoSProfile, HistoryPolicy, DurabilityPolicy, ReliabilityPolicy
 from crazyflie_interfaces.msg import PoseStampedArray
 
+
 class CfPositionListener:
     def __init__(self, buffer: CfPositionBuffer, node: Node):
         self._buffer = buffer
@@ -39,13 +40,14 @@ class CfPositionListener:
     def __del__(self) -> None:
         self.unregister()
 
-    def unregister(self): 
+    def unregister(self):
         self._node.destroy_subscription(self._cf_position_sub)
 
     def callback(self, msg: PoseStampedArray):
         pose_stamped: PoseStamped
         for pose_stamped in msg.poses:
             self._buffer.set_position(pose_stamped, msg.header.frame_id)
+
 
 class PadflieTF:
 
@@ -63,20 +65,19 @@ class PadflieTF:
         self._cf_name = cf_name
         self._world = world
 
-        self._tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=1))   
+        self._tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=1))
         self._cf_buffer = CfPositionBuffer(node=node)
-    
+
     def activate(self):
-        self._tf_listener = TransformListener(self._tf_buffer, node = self._node)
-        self._cf_listener = CfPositionListener(self._cf_buffer, node= self._node)
-    
+        self._tf_listener = TransformListener(self._tf_buffer, node=self._node)
+        self._cf_listener = CfPositionListener(self._cf_buffer, node=self._node)
+
     def deactivate(self):
         self._tf_listener.unregister()
         self._cf_listener.unregister()
-        
+
         del self._tf_listener
         del self._cf_listener
-
 
     def get_pad_position_or_timeout(
         self, timeout_sec: float
@@ -150,7 +151,7 @@ class PadflieTF:
         frame_id: Optional[str],
         world_quat: Quaternion = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
     ) -> Optional[PoseStamped]:
-        """ Get the pose of the cf in a specifc frame_id
+        """Get the pose of the cf in a specifc frame_id
         Args:
             frame_id (Optional[str], optional): The frame to get the cf pose in. Defaults to None.
             world_quat (Quaternion, optional): A Quaternion which is added to the pose. Defaults to Quaternion(x=0.0, y=0.0, z=0.0, w=1.0).
@@ -253,9 +254,7 @@ class PadflieTF:
             time = rclpy.time.Time(seconds=0, nanoseconds=0)
             # The core check needs to be done.
             # Otherwise the lookup transform timeout gets ignored
-            if not self._tf_buffer.can_transform_core(
-                target_frame, source_frame, time
-            ):
+            if not self._tf_buffer.can_transform_core(target_frame, source_frame, time):
                 return None
 
             return self._tf_buffer.lookup_transform_core(

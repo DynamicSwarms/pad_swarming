@@ -1,7 +1,7 @@
 flies:
-- id: 0xA0
-  pad: 0xA0
-  channel: 100
-- id: 0xA1
-  pad: 0xA1
-  channel: 100
+- id: 0xC3
+  pad: 0xC3
+  channel: 50
+- id: 0xD3
+  pad: 0xD3
+  channel: 50

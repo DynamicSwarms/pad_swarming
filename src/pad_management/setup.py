@@ -8,9 +8,7 @@ data_files.append(
 )
 
 data_files.append(("share/" + package_name + "/launch", ["launch/pad.launch.py"]))
-data_files.append(
-    ("share/" + package_name + "/launch", ["launch/vicon.launch.py"])
-)
+data_files.append(("share/" + package_name + "/launch", ["launch/vicon.launch.py"]))
 data_files.append(
     ("share/" + package_name + "/launch", ["launch/lighthouse.launch.py"])
 )
@@ -52,6 +50,7 @@ setup(
             "pad_creator = pad_management.pad_creator:main",
             "pad_traffic_controller = pad_management.pad_traffic_controller:main",
             "pad_land_circle = pad_management.pad_land_circle:main",
+            "pad_spawner = pad_management.pad_spawner:main",
         ],
     },
 )

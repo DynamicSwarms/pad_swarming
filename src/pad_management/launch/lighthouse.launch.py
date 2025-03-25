@@ -68,6 +68,9 @@ def generate_launch_description():
             [hardware_gateway_dir, "/launch/crazyflie_hardware_gateway.launch.py"]
         ),
         condition=start_hardware,
+        launch_arguments={
+            "radio_channels": "50",  # Could read from hardware config??
+        }.items(),
     )
 
     position_visualization = Node(
@@ -80,10 +83,27 @@ def generate_launch_description():
 
     creator = Node(
         package="pad_management",
-        executable="creator",
+        executable="default_creator",
         parameters=[{"setup_yaml": lighthouse_yaml}],
     )
 
+    pad_spawner = Node(
+        package="pad_management",
+        executable="pad_spawner",
+    )
+
+    traffic_controller = Node(
+        package="pad_management", executable="pad_traffic_controller"
+    )
+
+    pad_circle = Node(package="pad_management", executable="pad_land_circle")
+
+    # For webots we need ChargingBase in tf
+    pad_circle_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments="0 0 1.2 0 0 0 world pad_circle".split(" "),
+    )
     return LaunchDescription(
         [
             backend_arg,
@@ -91,10 +111,14 @@ def generate_launch_description():
             hardware_gateway,
             position_visualization,
             creator,
+            pad_spawner,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
                     lighthouse_yaml, LaunchConfiguration("backend")
                 )
             ),
+            traffic_controller,
+            pad_circle,
+            pad_circle_tf,
         ]
     )

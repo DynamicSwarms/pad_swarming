@@ -3,19 +3,20 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from crazyflie_interfaces.msg import NotifySetpointsStop, Position
 
-class LowLevelCommander: 
+
+class LowLevelCommander:
     def __init__(self, node: Node, prefix: str):
         self._node = node
         self._prefix = prefix
         self._callback_group = MutuallyExclusiveCallbackGroup()
         self._qos_profile = 10
-        
+
         self.has_publishers = False
-    
+
     def __del__(self):
         self.destroy_publishers()
 
-    def create_publishers(self): 
+    def create_publishers(self):
         self._notify_setpoints_stop_publisher = self._node.create_publisher(
             NotifySetpointsStop,
             self._prefix + "/notify_setpoints_stop",
@@ -33,7 +34,7 @@ class LowLevelCommander:
         self.has_publishers = True
 
     def destroy_publishers(self):
-        if self.has_publishers: 
+        if self.has_publishers:
             self._node.destroy_publisher(self._notify_setpoints_stop_publisher)
             self._node.destroy_publisher(self._position_publisher)
 
@@ -42,7 +43,8 @@ class LowLevelCommander:
     def notify_setpoints_stop(
         self, remain_valid_milliseconds: int = 100, group_mask: int = 0
     ) -> None:
-        if not self.has_publishers: return
+        if not self.has_publishers:
+            return
         """Send a notify setpoints command
         Informs that streaming low-level setpoint packets are about to stop.
         A common use case is to send this after the last low-level setpoint is sent but before the first high-level setpoint is sent.
@@ -63,10 +65,9 @@ class LowLevelCommander:
             position (List[float]): Position [x, y, z] in m
             yaw (float): Orientation in degrees
         """
-        if not self.has_publishers: return
+        if not self.has_publishers:
+            return
         msg = Position()
         msg.x, msg.y, msg.z = position
         msg.yaw = yaw
         self._position_publisher.publish(msg)
-
-    

@@ -12,7 +12,7 @@ class HighLevelCommander:
         self._prefix = prefix
         self._callback_group = MutuallyExclusiveCallbackGroup()
         self._qos_profile = 10
-        
+
         self.has_publishers = False
 
     def __del__(self):
@@ -34,14 +34,13 @@ class HighLevelCommander:
         )
 
         self._goto_publisher = self._node.create_publisher(
-            GoTo, 
+            GoTo,
             self._prefix + "/go_to",
             qos_profile=self._qos_profile,
-            callback_group=self._callback_group
+            callback_group=self._callback_group,
         )
 
         self.has_publishers = True
-
 
     def destroy_publishers(self):
         if self.has_publishers:
@@ -59,7 +58,8 @@ class HighLevelCommander:
         use_current_yaw: bool = False,
         group_mask: int = 0,
     ) -> None:
-        if not self.has_publishers: return
+        if not self.has_publishers:
+            return
         """Vertical takeoff from current x-y position to given height (high-level)
 
         The Crazyflie will hover indefinetely after target_height is reached.
@@ -87,7 +87,8 @@ class HighLevelCommander:
         yaw: float = None,
         group_mask: int = 0,
     ) -> None:
-        if not self.has_publishers: return
+        if not self.has_publishers:
+            return
         """Vertical landing from current x-y position to given height (high-level)
 
         The Crazyflie will hover indefinetely after target_height is reached.
@@ -119,7 +120,8 @@ class HighLevelCommander:
         linear: bool = False,
         group_mask: int = 0,
     ) -> None:
-        if not self.has_publishers: return
+        if not self.has_publishers:
+            return
         """Move to x, y, z, yaw in duration_seconds amount of time (high-level)
 
         The Crazyflie will hover indefinetely afterwards.
@@ -151,5 +153,5 @@ class HighLevelCommander:
         nanoseconds = int(fractional_seconds * 1_000_000_000)
         duration = Duration()
         duration.sec = i_seconds
-        duration.nanosec = nanoseconds        
+        duration.nanosec = nanoseconds
         return duration

@@ -64,7 +64,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self._cf_prefix = "/cf{}".format(self.cf_id)
 
     def configure(self) -> bool:
-        self.get_logger().debug(f"Configuring with channel:{self.cf_channel}, pad:{self.pad_name}, type: {self.cf_type}.")
+        self.get_logger().debug(
+            f"Configuring with channel:{self.cf_channel}, pad:{self.pad_name}, type: {self.cf_type}."
+        )
 
         self._tf_manager = PadflieTF(
             node=self,
@@ -79,34 +81,39 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             cf_type=self.cf_type,
             prefix=self._prefix,
             cf_prefix=self._cf_prefix,
-            tf_manager= self._tf_manager,
+            tf_manager=self._tf_manager,
             sleep=self._sleep,
-        )  
+        )
         return True
-    
+
     def activate(self) -> bool:
         self._tf_manager.activate()
-        if not self._controller.activate(): # This starts the main control loop of the padflie    
-            self._tf_manager.deactivate() 
+        if (
+            not self._controller.activate()
+        ):  # This starts the main control loop of the padflie
+            self._tf_manager.deactivate()
             return False
-        
-        pad_position, yaw = self._tf_manager.get_pad_position_or_timeout(
-            timeout_sec=1.0
-        )  # might raise TimeoutError
 
-        #if tracked ??
-        self.set_initial_yaw()
-        
+        try:
+            pad_position, yaw = self._tf_manager.get_pad_position_or_timeout(
+                timeout_sec=1.0
+            )  # might raise TimeoutError
+
+            # if tracked ??
+            self.set_initial_yaw()
+        except TimeoutError:
+            self.get_logger().info("No Pad found. Cannot activtate.")
+            return False
+
         return True
-    
+
     def deactivate(self) -> bool:
-        """Deactivation. 
-        First deactivate the controller. 
+        """Deactivation.
+        First deactivate the controller.
         Otherwise we cannot land, because no tf.
         """
         self._controller.deactivate()
         self._tf_manager.deactivate()
-
 
     def set_initial_yaw(self):
         p_y = self._tf_manager.get_pad_position_and_yaw()
@@ -154,13 +161,13 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
     # Lifecycle Overrides
     def on_configure(self, state: State) -> TransitionCallbackReturn:
-        """ Configure the Padflie
-        
+        """Configure the Padflie
+
         Does not created publishers to takeoff, land etc. yet.
         But subscribes to power management.
         """
         LifecycleNodeMixin.on_configure(self, state)
-        
+
         try:
             if self.configure():
                 self.get_logger().info("Configuring complete")
@@ -168,7 +175,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             else:
                 self.get_logger().info("Configuring failed")
                 return TransitionCallbackReturn.FAILURE
-        except (TimeoutError) as ex:
+        except TimeoutError as ex:
             self.get_logger().info(
                 "Crazyflie configuration failed, because: "
                 + str(ex)
@@ -182,20 +189,22 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             return TransitionCallbackReturn.ERROR
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        """ Activate the padflie
+        """Activate the padflie
 
         This is the connection to some commander instance.
         We first check, if battery is fine and will then start all services.
         """
         LifecycleNodeMixin.on_activate(self, state)
-        try: 
+        try:
             if self.activate():
                 self.get_logger().info(f"PadFlie {self.cf_id} transitioned to active.")
                 return TransitionCallbackReturn.SUCCESS
-            else: 
-                self.get_logger().info(f"Padflie wasnt able to transition to active. (Maybe Battery)")
+            else:
+                self.get_logger().info(
+                    f"Padflie wasnt able to transition to active. (Maybe Battery)"
+                )
                 return TransitionCallbackReturn.FAILURE
-        except (TimeoutError) as ex:
+        except TimeoutError as ex:
             self.get_logger().info(
                 "Crazyflie activation failed, because: "
                 + str(ex)
@@ -207,8 +216,6 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             # We therefore catch them here and present user feedback
             self.get_logger().info(str(traceback.format_exc()))
             return TransitionCallbackReturn.ERROR
-        
-
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
         LifecycleNodeMixin.on_deactivate(self, state)
@@ -234,10 +241,10 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         return TransitionCallbackReturn.SUCCESS
 
     def shutdown(self):
-        #if (
+        # if (
         #    self._state_machine.current_state[0]
         #    is not LifecycleState.PRIMARY_STATE_UNCONFIGURED
-        #):
+        # ):
         #    try:
         #        self.gateway_endpoint.close()
         #        self._sleep(1.0)
@@ -249,6 +256,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
     def _sleep(self, duration: float) -> None:
         import time
+
         time.sleep(duration)
         return
         """Sleeps for the provided duration in seconds."""
@@ -257,6 +265,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         while self.__time() < end:
             rclpy.spin_once(self, timeout_sec=0, executor=self.executor)
             rclpy.spin_until_future_complete
+
     def __time(self) -> "Time":
         """Return current time in seconds."""
         return self.get_clock().now().nanoseconds / 1e9
