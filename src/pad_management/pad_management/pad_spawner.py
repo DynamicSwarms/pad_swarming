@@ -46,7 +46,7 @@ class PadSpawner(Node):
             cf_name = pose.header.frame_id
             if cf_name not in self.cfs_wait.keys():
                 self.cfs_wait[cf_name] = 0
-            elif cf_name not in self.cfs.keys() and self.cfs_wait[cf_name] > 10:
+            elif cf_name not in self.cfs.keys() and self.cfs_wait[cf_name] > 20:
                 vec = Vector3()
                 vec.x, vec.y, vec.z = [
                     pose.pose.position.x,

@@ -26,6 +26,7 @@ data_files.append(("share/" + package_name + "/config", ["config/webots_config.y
 data_files.append(
     ("share/" + package_name + "/config", ["config/lighthouse_config.yaml"])
 )
+data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_lh.yaml"]))
 
 setup(
     name=package_name,
@@ -47,10 +48,12 @@ setup(
             "pad_destruction = pad_management.pad_destruction:main",
             "creator = pad_management.creator:main",
             "default_creator = pad_management.default_creator:main",
+            "gui_creator = pad_management.gui_creator:main",
             "pad_creator = pad_management.pad_creator:main",
             "pad_traffic_controller = pad_management.pad_traffic_controller:main",
             "pad_land_circle = pad_management.pad_land_circle:main",
             "pad_spawner = pad_management.pad_spawner:main",
+            "gui_state = pad_management.gui_state:main",
         ],
     },
 )

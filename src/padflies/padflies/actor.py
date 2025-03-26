@@ -279,7 +279,6 @@ class PadflieActor:
             return
 
         self._ll_commander.notify_setpoints_stop(200)
-        self._state = ActorState.HIGH_LEVEL_COMMANDER
         """
         Phase2: 
             We are now only using HighLevelCommander
@@ -293,6 +292,8 @@ class PadflieActor:
             Between each command the pad position gets querried again.
         """
         p_p_and_yaw = self._tf_manager.get_pad_position_and_yaw()
+
+        self._state = ActorState.HIGH_LEVEL_COMMANDER
         if p_p_and_yaw is None:
             self._fail_safe("No pad position found for landing (Phase2a).")
             return False
@@ -334,7 +335,7 @@ class PadflieActor:
 
         pad_position, yaw = p_p_and_yaw
         self._hl_commander.land(
-            target_height=0.0, duration_seconds=2.5, yaw=yaw
+            target_height=-0.5, duration_seconds=2.5, yaw=yaw
         )  # Landing at height 0 ensures motors get shut off completely
         self._sleep(0.5)
         # Its ok to  launch again now, but landing rights need to be released!!!

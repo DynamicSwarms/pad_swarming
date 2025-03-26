@@ -32,6 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
+                        "battery_voltage_empty": 3.5,
                     }
                 ],
             )
@@ -69,7 +70,11 @@ def generate_launch_description():
         ),
         condition=start_hardware,
         launch_arguments={
-            "radio_channels": "50",  # Could read from hardware config??
+            "crazyflie_configuration_yaml": get_package_share_directory(
+                "pad_management"
+            )
+            + "/config/crazyflie_config_lh.yaml",
+            "radio_channels": "100",  # Could read from hardware config??
         }.items(),
     )
 
@@ -83,7 +88,13 @@ def generate_launch_description():
 
     creator = Node(
         package="pad_management",
-        executable="default_creator",
+        executable="gui_creator",
+        parameters=[{"setup_yaml": lighthouse_yaml}],
+    )
+
+    gui_state = Node(
+        package="pad_management",
+        executable="gui_state",
         parameters=[{"setup_yaml": lighthouse_yaml}],
     )
 
@@ -96,13 +107,17 @@ def generate_launch_description():
         package="pad_management", executable="pad_traffic_controller"
     )
 
-    pad_circle = Node(package="pad_management", executable="pad_land_circle")
+    pad_circle = Node(
+        package="pad_management",
+        executable="pad_land_circle",
+        parameters=[{"radius": 0.75}],
+    )
 
     # For webots we need ChargingBase in tf
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0 0 1.2 0 0 0 world pad_circle".split(" "),
+        arguments="0.3 -0.5 0.5 0 0 0 world pad_circle".split(" "),
     )
     return LaunchDescription(
         [
@@ -120,5 +135,6 @@ def generate_launch_description():
             traffic_controller,
             pad_circle,
             pad_circle_tf,
+            gui_state,
         ]
     )

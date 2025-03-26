@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    default_firmware_params:
+      commander:
+        enHighLevel: 1
+      stabilizer:
+        estimator: 2
+        controller: 1
+      posCtlPid:
+        xKp: 2.0 # Half of original
+        yKp: 2.0
+        zKp: 2.0
+        thrustBase: 60000 #100000 # 36000
+      
