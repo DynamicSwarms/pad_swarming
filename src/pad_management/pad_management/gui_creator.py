@@ -96,9 +96,8 @@ class DefaultCreator(Node):
         flies += yaml.safe_load(file)["flies"]
 
         # Randomly permutate to add them in new order every time the system gets restarted.
-        flies = np.random.permutation(flies)
-        self.flies = cycle(flies)
         self.flie_list = flies
+        self.flies = cycle(np.random.permutation(flies))
 
         self.adder = Creator(
             self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback

@@ -7,8 +7,5 @@
         estimator: 2
         controller: 1
       posCtlPid:
-        xKp: 2.0 # Half of original
-        yKp: 2.0
-        zKp: 2.0
-        thrustBase: 60000 #100000 # 36000
+        thrustBase: 45000 # 36000 #60000 for 250maH was great
       

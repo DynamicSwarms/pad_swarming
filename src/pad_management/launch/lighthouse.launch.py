@@ -32,7 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
-                        "battery_voltage_empty": 3.5,
+                        "battery_voltage_empty": 3.75,
                     }
                 ],
             )
@@ -103,6 +103,10 @@ def generate_launch_description():
         executable="pad_spawner",
     )
 
+    collision_avoidance = Node(
+        package="collision_avoidance", executable="collision_avoidance_node"
+    )
+
     traffic_controller = Node(
         package="pad_management", executable="pad_traffic_controller"
     )
@@ -132,6 +136,7 @@ def generate_launch_description():
                     lighthouse_yaml, LaunchConfiguration("backend")
                 )
             ),
+            collision_avoidance,
             traffic_controller,
             pad_circle,
             pad_circle_tf,
