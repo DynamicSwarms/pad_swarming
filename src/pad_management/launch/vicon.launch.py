@@ -84,7 +84,11 @@ def generate_launch_description():
         ),
         condition=start_hardware,
         launch_arguments={
-            "radio_channels": "50, 100", # Could read from hardware config??
+            "crazyflie_configuration_yaml": get_package_share_directory(
+                "pad_management"
+            )
+            + "/config/crazyflie_config_vicon.yaml", # Default params
+            "radio_channels": "50, 100",  # Could read from hardware config??
         }.items(),
     )
 
@@ -179,20 +183,27 @@ def generate_launch_description():
 
     pad_circle = Node(
         package="pad_management",
-        executable="pad_land_circle"
+        executable="pad_land_circle",
+        parameters = [{"radius": 1.0}]
     )
 
     # For webots we need ChargingBase in tf
     pad_circle_tf_webots = Node(package = "tf2_ros", 
                 executable = "static_transform_publisher",
-                arguments = "0 0 1.2 0 0 0 world pad_circle".split(' '), 
+                arguments = "0 0 1.0 0 0 0 world pad_circle".split(' '), 
                 condition=LaunchConfigurationNotEquals("backend", "hardware"))
 
 
     pad_circle_tf = Node(package = "tf2_ros", 
                 executable = "static_transform_publisher",
-                arguments = "0.6 0.6 1.2 0 0 0 ChargingBase20 pad_circle".split(' '),
+                arguments = "0.5 0.8 1.0 0 0 0 ChargingBase20 pad_circle".split(' '),
                 condition=LaunchConfigurationEquals("backend", "hardware"))
+
+    gui_state = Node(
+        package="pad_management",
+        executable="gui_state",
+        parameters=[{"setup_yaml": flies_hardware_yaml}],
+    )
 
     return LaunchDescription(
         [
@@ -212,6 +223,7 @@ def generate_launch_description():
             pad_circle,
             pad_circle_tf_webots, 
             pad_circle_tf, 
+            gui_state,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
                     flies_hardware_yaml, flies_webots_yaml

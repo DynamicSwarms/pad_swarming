@@ -1,0 +1,16 @@
+/**:
+  ros__parameters:
+    default_firmware_params:
+      commander:
+        enHighLevel: 1
+      stabilizer:
+        estimator: 2 # 1: complementary, 2: ekf
+        controller: 1 # 1: PID, 2: Mellinger
+      #posCtlPid:
+      #  thrustBase: 40000 # 36000 is standart. We have QI-Deck -> heavy
+      locSrv:
+        extPosStdDev: 1e-3
+      kalman:
+        resetEstimation: 1
+
+      

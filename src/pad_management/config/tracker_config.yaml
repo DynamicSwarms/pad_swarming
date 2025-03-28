@@ -42,9 +42,9 @@
     numDynamicsConfigurations: 1
     dynamicsConfigurations:
       "0":
-        maxXVelocity: 2.0
-        maxYVelocity: 2.0
-        maxZVelocity: 3.0
+        maxXVelocity: 3.0 # Only these are relevant for single marker tracking.
+        maxYVelocity: 3.0 # Only these are relevant for single marker tracking.
+        maxZVelocity: 3.0 # Only these are relevant for single marker tracking.
         maxPitchRate: 20.0
         maxRollRate: 20.0
         maxYawRate: 10.0

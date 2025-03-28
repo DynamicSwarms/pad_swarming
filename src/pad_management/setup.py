@@ -27,6 +27,8 @@ data_files.append(
     ("share/" + package_name + "/config", ["config/lighthouse_config.yaml"])
 )
 data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_lh.yaml"]))
+data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_vicon.yaml"]))
+
 
 setup(
     name=package_name,
