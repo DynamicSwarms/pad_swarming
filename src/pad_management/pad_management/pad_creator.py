@@ -24,9 +24,10 @@ from itertools import cycle
 
 from typing import Optional, Dict
 
-from .creator import Creator, BackendType 
+from .creator import Creator, BackendType
 
 from threading import Lock
+
 
 class PadCreator(Node):
     """Manages the creation of crazyflies."""
@@ -81,9 +82,13 @@ class PadCreator(Node):
                 "Pad Creator waiting for checkForPoint service. Cannot launch until available."
             )
 
-        self.hardware_creator = Creator(self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback)
-        self.webots_creator = Creator(self, BackendType.WEBOTS, self.on_add_callback, self.on_failure_callback)
-        
+        self.hardware_creator = Creator(
+            self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback
+        )
+        self.webots_creator = Creator(
+            self, BackendType.WEBOTS, self.on_add_callback, self.on_failure_callback
+        )
+
         self.added: list[int] = []
         self.added_lock: Lock = Lock()
 
@@ -111,27 +116,32 @@ class PadCreator(Node):
 
             # Add the crazyflie and transition it to Configuring
             if "channel" in flie.keys():
-                self.hardware_creator.enqueue_creation(cf_id=cf_id,cf_channel=flie["channel"], initial_position=pad_position,type="tracked")
+                self.hardware_creator.enqueue_creation(
+                    cf_id=cf_id,
+                    cf_channel=flie["channel"],
+                    initial_position=pad_position,
+                    type="tracked",
+                )
             else:
                 self.webots_creator.enqueue_creation(cf_id=cf_id)
 
             self.added.append(cf_id)
-    
-    def on_add_callback(self, cf_id: int, success: bool):
+
+    def on_add_callback(self, cf_id: int, success: bool, msg: str):
         do_transition = False
         with self.added_lock:
-            self.get_logger().info(f"AddCallback:{cf_id}, {success}")
+            self.get_logger().info(f"AddCallback:{cf_id}, {success}, {msg}")
             if success:
                 do_transition = True
             else:
                 if cf_id in self.added:
-                    self.added.remove(cf_id) # Retrry creation
-        if do_transition: 
+                    self.added.remove(cf_id)  # Retrry creation
+        if do_transition:
             self._transition_padflie(
-                    cf_id=cf_id,
-                    state=LifecycleState.TRANSITION_STATE_CONFIGURING,
-                    label="configure",
-                )
+                cf_id=cf_id,
+                state=LifecycleState.TRANSITION_STATE_CONFIGURING,
+                label="configure",
+            )
 
     def on_failure_callback(self, cf_id: int):
         do_transition = False
@@ -140,10 +150,18 @@ class PadCreator(Node):
             if cf_id in self.added:
                 self.added.remove(cf_id)
                 do_transition = True
-        if do_transition: 
-            self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_DEACTIVATING, label="deactivate") # Trie this
-            self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_CLEANINGUP, label="cleanup") # But especially return to unconfigured
-            
+        if do_transition:
+            self._transition_padflie(
+                cf_id=cf_id,
+                state=LifecycleState.TRANSITION_STATE_DEACTIVATING,
+                label="deactivate",
+            )  # Trie this
+            self._transition_padflie(
+                cf_id=cf_id,
+                state=LifecycleState.TRANSITION_STATE_CLEANINGUP,
+                label="cleanup",
+            )  # But especially return to unconfigured
+
     def _transition_padflie(self, cf_id: int, state: LifecycleState, label: str):
         change_state_client = self.create_client(
             srv_type=ChangeState,
