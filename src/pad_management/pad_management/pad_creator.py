@@ -207,7 +207,18 @@ def main():
     )  # Because we are calling a service inside a timer
     executor.add_node(creator)
     try:
-        executor.spin()
+
+        def spin():
+            try:
+                executor.spin()
+            except rclpy._rclpy_pybind11.InvalidHandle:
+                creator.get_logger().warn(
+                    "Caught: rclpy._rclpy_pybind11.InvalidHandle: cannot use Destroyable because destruction was requested (see #1206 rclpy)"
+                )
+                spin()
+
+        spin()
+
         rclpy.try_shutdown()
     except KeyboardInterrupt:
         quit()
