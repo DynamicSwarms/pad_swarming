@@ -69,11 +69,20 @@ class PadflieConnection:
                 self._connector.disconnect()  # Gets replaced
 
     def on_connect(self, prefix: str):
+        """
+        Connector module found a crazyflie to connect to.
+        We connect the commander, takeoff and fly
+        """
         self._commander.connect(prefix)
         time.sleep(0.3)
         self._commander.takeoff()
         self.__state = FlieState.FLYING
 
     def on_disconnect(self, prefix: str):
+        """
+        Connector module says its disconnected.
+        Either because we landed and triggered it or there was an error in padflie.
+        We disconnect the commander module and are ready to be connected again.
+        """
         self.__state = FlieState.IDLE
         self._commander.disconnect()
