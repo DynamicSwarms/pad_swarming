@@ -163,7 +163,8 @@ class PadflieConnector:
 
         if not change_state_client.wait_for_service(timeout_sec=1.0):
             self._node.get_logger().info(f"{prefix} is not available.")
-            return False
+            fut = Future()
+            return fut
 
         request = ChangeState.Request()
         request.transition.id = state

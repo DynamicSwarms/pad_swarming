@@ -179,6 +179,7 @@ class PadflieCommander:
             msg.pose_valid = True
         msg.is_home = self._state == PadFlieState.IDLE
         msg.battery = self._charge_controller.get_padflie_info_charge_state()
+        msg.padflie_state = int(self._state)
 
         if self.has_publisher:
             self.__info_pub.publish(msg)

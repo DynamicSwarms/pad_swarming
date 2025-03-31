@@ -1,4 +1,5 @@
 from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from ._padflie_tf import PadflieTF
 from .connection_manager import ConnectionManager
@@ -9,6 +10,7 @@ from typing import Callable
 from crazyflies.crazyflie import CrazyflieType
 
 from std_msgs.msg import String
+
 
 class PadflieController:
     def __init__(
@@ -28,11 +30,12 @@ class PadflieController:
 
         self._world = "world"
 
-        
-
         # For now the charge controller is the only one who is always active
         self._charge_controller = ChargeController(
-            node=node, cf_type=cf_type, cf_prefix=cf_prefix, on_charged_callback=self.on_battery_full_callback
+            node=node,
+            cf_type=cf_type,
+            cf_prefix=cf_prefix,
+            on_charged_callback=self.on_battery_full_callback,
         )  # Checks charge state
 
         self._commander = PadflieCommander(
@@ -44,23 +47,28 @@ class PadflieController:
             sleep=sleep,
         )
 
-        self.availability_publisher = self._node.create_publisher(String, "availability", qos_profile=10)
+        self.availability_publisher = self._node.create_publisher(
+            String,
+            "availability",
+            qos_profile=10,
+            callback_group=MutuallyExclusiveCallbackGroup(),
+        )
         self.activated = False
 
     def on_battery_full_callback(self):
-        if not self.activated: 
+        if not self.activated:
             msg = String()
             msg.data = self._prefix
-            self.availability_publisher.publish(msg) # Say "padflieID" if available.
+            self.availability_publisher.publish(msg)  # Say "padflieID" if available.
 
     def activate(self) -> bool:
-        if not self._charge_controller.is_charged(): 
+        if not self._charge_controller.is_charged():
             return False
-        
+
         self._commander.activate()
         self.activated = True
         return True
-    
+
     def deactivate(self):
         self._commander.deactivate()
         self.activated = False

@@ -6,6 +6,7 @@ from geometry_msgs.msg import PoseStamped
 import time
 
 from typing import Optional
+from padflies._padflie_states import PadFlieState
 
 
 class FlieState(Enum):
@@ -28,6 +29,9 @@ class PadflieConnection:
         )
 
         self._node.create_timer(1.0, self.check_battery)
+
+    def get_padflie_state(self) -> Optional[PadFlieState]:
+        return self._commander.get_padflie_state()
 
     def set_searching(self):
         self._connector.start_search()
