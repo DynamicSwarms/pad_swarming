@@ -114,7 +114,7 @@ class DefaultCreator(Node):
             self.adder.enqueue_creation(cf_id, cf_channel=cf_channel)
             self.added.append(cf_id)
 
-    def on_add_callback(self, cf_id: int, success: bool):
+    def on_add_callback(self, cf_id: int, success: bool, msg: str):
         do_transition = False
         with self.added_lock:
             if success:

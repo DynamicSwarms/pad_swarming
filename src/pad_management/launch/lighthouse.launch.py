@@ -32,7 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
-                        "battery_voltage_empty": 3.75,
+                        "battery_voltage_empty": 3.50,
                     }
                 ],
             )
@@ -114,14 +114,14 @@ def generate_launch_description():
     pad_circle = Node(
         package="pad_management",
         executable="pad_land_circle",
-        parameters=[{"radius": 0.75}],
+        parameters=[{"radius": 0.3}],
     )
 
     # For webots we need ChargingBase in tf
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0.3 -0.5 0.5 0 0 0 world pad_circle".split(" "),
+        arguments="0.3 -1.0 0.5 0 0 0 world pad_circle".split(" "),
     )
     return LaunchDescription(
         [

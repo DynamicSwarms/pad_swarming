@@ -14,3 +14,6 @@ flies:
 - id: 0xA4
   pad: 0xA4
   channel: 100
+- id: 0xB0
+  pad: 0xB0
+  channel: 100
