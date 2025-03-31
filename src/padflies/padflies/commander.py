@@ -298,7 +298,9 @@ class PadflieCommander:
         def _takeoff(fut: Future):
             success: PadRightAcquire.Response = fut.result()
             if not success.success:
-                self._node.get_logger("Did not get takeoff rights. Staying Home.")
+                self._node.get_logger().info(
+                    "Did not get takeoff rights. Staying Home."
+                )
                 return
 
             position = self._tf_manager.get_cf_position()

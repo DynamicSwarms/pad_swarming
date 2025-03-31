@@ -30,6 +30,7 @@ from typing import List, Optional, Tuple, Union
 from ._hl_commander_minimal import HighLevelCommander
 from ._ll_commander_minimal import LowLevelCommander
 
+import traceback
 
 PAD_FLIE_TYPE = "tracked"
 
@@ -295,6 +296,7 @@ def main():
             padflie.get_logger().warn(
                 "Caught: rclpy._rclpy_pybind11.InvalidHandle: cannot use Destroyable because destruction was requested (see #1206 rclpy)"
             )
+            padflie.get_logger().warn(traceback.format_exc())
             spin()
 
     spin()

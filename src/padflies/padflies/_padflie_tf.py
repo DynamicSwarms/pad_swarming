@@ -2,6 +2,7 @@ import rclpy
 import rclpy.duration
 import rclpy.time
 from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 import tf2_py
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -30,17 +31,21 @@ class CfPositionListener:
             history=HistoryPolicy.KEEP_LAST,
         )
 
+        self._callback_group = MutuallyExclusiveCallbackGroup()
+
         self._cf_position_sub = node.create_subscription(
             msg_type=PoseStampedArray,
             topic="/cf_positions",
             callback=self.callback,
             qos_profile=qos,
+            callback_group=self._callback_group,
         )
 
     def __del__(self) -> None:
         self.unregister()
 
     def unregister(self):
+        # cannot destroy callback group. Hope this is ok
         self._node.destroy_subscription(self._cf_position_sub)
 
     def callback(self, msg: PoseStampedArray):
