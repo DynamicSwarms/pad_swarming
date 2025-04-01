@@ -48,8 +48,11 @@ def generate_launch_description():
         description="Select used backend, choose 'webots', 'hardware' or 'both'.",
     )
 
-    lighthouse_yaml = (
-        get_package_share_directory("pad_management") + "/config/lighthouse_config.yaml"
+    setup_yaml_arg = DeclareLaunchArgument(
+        "setup_yaml",
+        default_value=get_package_share_directory("pad_management")
+        + "/config/lighthouse_config.yaml",
+        description="Select a .yaml describing your system setup. (Crazyflie-IDs, Channels, Pads)",
     )
 
     start_hardware = LaunchConfigurationNotEquals("backend", "webots")
@@ -89,13 +92,18 @@ def generate_launch_description():
     creator = Node(
         package="pad_management",
         executable="gui_creator",
-        parameters=[{"setup_yaml": lighthouse_yaml}],
+        parameters=[
+            {
+                "setup_yaml": LaunchConfiguration("setup_yaml"),
+                "backend": LaunchConfiguration("backend"),
+            }
+        ],
     )
 
     gui_state = Node(
         package="pad_management",
         executable="gui_state",
-        parameters=[{"setup_yaml": lighthouse_yaml}],
+        parameters=[{"setup_yaml": LaunchConfiguration("setup_yaml")}],
     )
 
     pad_spawner = Node(
@@ -117,7 +125,6 @@ def generate_launch_description():
         parameters=[{"radius": 0.3}],
     )
 
-    # For webots we need ChargingBase in tf
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
@@ -126,6 +133,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             backend_arg,
+            setup_yaml_arg,
             webots_gateway,
             hardware_gateway,
             position_visualization,
@@ -133,7 +141,8 @@ def generate_launch_description():
             pad_spawner,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
-                    lighthouse_yaml, LaunchConfiguration("backend")
+                    LaunchConfiguration("setup_yaml").perform(ctxt),
+                    LaunchConfiguration("backend").perform(ctxt),
                 )
             ),
             collision_avoidance,

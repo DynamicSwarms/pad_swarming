@@ -71,7 +71,7 @@ class GUI(threading.Thread):
         self.add_callback(cf_id, cf_channel)
 
 
-class DefaultCreator(Node):
+class GUICreator(Node):
     """Manages the creation of crazyflies."""
 
     def __init__(self):
@@ -87,6 +87,11 @@ class DefaultCreator(Node):
             + "/config/lighthouse_config.yaml",
             descriptor=ParameterDescriptor(read_only=True),
         )
+        self.declare_parameter(
+            name="backend",
+            value="hardware",
+            descriptor=ParameterDescriptor(read_only=True),
+        )
         # Read parameters
         yaml_file = self.get_parameter("setup_yaml").get_parameter_value().string_value
 
@@ -99,9 +104,24 @@ class DefaultCreator(Node):
         self.flie_list = flies
         self.flies = cycle(np.random.permutation(flies))
 
-        self.adder = Creator(
-            self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback
-        )
+        if (
+            self.get_parameter("backend").get_parameter_value().string_value
+            == "hardware"
+        ):
+            self.adder = Creator(
+                self,
+                BackendType.HARDWARE,
+                self.on_add_callback,
+                self.on_failure_callback,
+            )
+        else:
+            self.adder = Creator(
+                self,
+                BackendType.WEBOTS,
+                self.on_add_callback,
+                self.on_failure_callback,
+            )
+
         self.added: list[int] = []
         self.added_lock: Lock = Lock()
 
@@ -167,7 +187,7 @@ class DefaultCreator(Node):
 def main():
     rclpy.init()
 
-    creator = DefaultCreator()
+    creator = GUICreator()
     gui = GUI(creator.flie_list, creator.get_logger(), creator.add_crazyflie)
 
     executor = (
