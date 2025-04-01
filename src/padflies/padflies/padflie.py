@@ -295,6 +295,7 @@ def main():
             padflie.get_logger().warn(
                 "Caught: rclpy._rclpy_pybind11.InvalidHandle: cannot use Destroyable because destruction was requested (see #1206 rclpy)"
             )
+            padflie.get_logger().warn(traceback.format_exc())
             spin()
 
     spin()
