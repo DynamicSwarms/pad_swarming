@@ -222,9 +222,11 @@ class PadflieActor:
             self.__current_yaw = safe_yaw
 
     def _fail_safe(self, msg: str):
-        self._state = ActorState.ERROR_STATE
-        self._hl_commander.land(0.0, 5.0)
         self._node.get_logger().info(f"Transitioning to Error state. {msg}")
+        if self.state == ActorState.ERROR_STATE:
+            return
+        self._hl_commander.land(0.0, 5.0)
+        self._state = ActorState.ERROR_STATE
 
     def get_target_pose(self) -> Optional[PoseStamped]:
         return self.__target_pose
@@ -243,7 +245,10 @@ class PadflieActor:
         This ensures that as soon as th crazyflie is in the air it is commanded with cmd_positions.
 
         Precondition: Crazyflie is in its Pad.
-        After: Crazyflie hovers at takeoff_height above the pad. We are in LOW level commander Mode.
+        After: If returns True:
+                    Crazyflie hovers at takeoff_height above the pad. We are in LOW level commander Mode.
+               If returns False:
+                    Crazyflie failed to takeoff due to various reasons.
 
         Args:
             position (List[float]): The position we are currently at.
@@ -252,10 +257,17 @@ class PadflieActor:
         if self._state is ActorState.ERROR_STATE:
             return False
 
+        position = self._tf_manager.get_cf_position()
+        if position is None:
+            self._node.get_logger().error("Cannot takeoff. No cf position.")
+            return False
+
         self._state = ActorState.HIGH_LEVEL_COMMANDER
         target_pose: Optional[PoseStamped] = self._tf_manager.get_pad_pose_world()
         if target_pose is None:
+            self._node.get_logger().error("Cannot takeoff. No pad position.")
             return False
+
         target_pose.pose.position.z += takeoff_height
 
         self.set_target(
@@ -284,7 +296,7 @@ class PadflieActor:
         After: Crazyflie is seated in the pad. Motors are off. State is HIGH Level Commander
         """
         if self._state is ActorState.ERROR_STATE:
-            return
+            return False
 
         self._ll_commander.notify_setpoints_stop(200)
         """

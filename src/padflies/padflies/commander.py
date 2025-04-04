@@ -19,10 +19,19 @@ from ._padflie_states import PadFlieState
 from ._qos_profiles import qos_profile_simple
 from ._padflie_tf import PadflieTF
 from .actor import PadflieActor
+from .charge_controller import ChargeController
+
 import numpy as np
+from threading import Lock
 from typing import Callable, Optional
 from scipy.spatial.transform import Rotation
-from .charge_controller import ChargeController
+
+from enum import Enum, auto
+
+
+class PadflieJob(Enum):
+    TAKEOFF = auto()
+    LAND = auto()
 
 
 class PadflieCommander:
@@ -61,6 +70,10 @@ class PadflieCommander:
         self._pad_circle_callback_group = MutuallyExclusiveCallbackGroup()
 
         self._pad_circle_tf_name = "pad_circle"
+
+        self._job_list_lock: Lock = Lock()
+        self._job_list: "list[PadflieJob]" = []
+        self._job_executing: Optional[PadflieJob] = None
 
         self.has_publisher = False
         self.has_padclients = False
@@ -122,6 +135,7 @@ class PadflieCommander:
         self.has_publisher = True
 
         self.__info_timer = self._node.create_timer(0.1, self._info_timer_callback)
+        self.__job_timer = self._node.create_timer(0.1, self._job_timer_callback)
 
     def deactivate(self):
         """Deactivating.
@@ -129,6 +143,8 @@ class PadflieCommander:
         This closes all subscriptions and lands if neccesarry.
         Close subscribers first and then do smth about beeing still in the air.
         This ensures nobody else will mess with us in the meantime.
+
+        Invariant: This will always only get executed if activate was called before.
         """
         self._node.destroy_subscription(self.__send_target_sub)
         self._node.destroy_subscription(self.__takeoff_sub)
@@ -152,6 +168,8 @@ class PadflieCommander:
             """If in target mode. Just land."""
             self.land()
 
+        self._node.destroy_timer(self.__job_timer)
+
         self._state = PadFlieState.DEACTIVATED
         self._actor.deactivate()
 
@@ -165,6 +183,79 @@ class PadflieCommander:
 
     def get_state(self) -> PadFlieState:
         return self._state
+
+    def _job_timer_callback(self):
+        """
+        A timer to execute jobs like takeoff or land.
+        This is the only Code which is allowed to change the state of this commander.
+        (Apart from deactivate and activate.)
+        """
+        job: Optional[PadflieJob] = None
+        with self._job_list_lock:
+            if self._job_list:  # Not empty
+                job = self._job_list.pop(0)
+
+        if job == PadflieJob.TAKEOFF:
+            self._job_executing = PadflieJob.TAKEOFF
+            self.__takeoff_job()
+        if job == PadflieJob.LAND:
+            self._job_executing = PadflieJob.LAND
+            self.__land_job()
+        self._job_executing = None
+
+    def __takeoff_job(self):
+        if self._state is not PadFlieState.IDLE:
+            return
+        self._state = PadFlieState.TAKEOFF
+        fut = self._acquire_pad_right(timeout=60.0)
+        while not fut.done():
+            if self._job_executing is not PadflieJob.TAKEOFF:
+                self._state = PadFlieState.IDLE
+                # Cancel the pad-right acquire here.
+                return
+
+            self._sleep(0.1)
+        success: PadRightAcquire.Response = fut.result()
+
+        if not success.success:
+            self._node.get_logger().info("Cannot takeoff. Rights not granted.")
+            self._state = PadFlieState.IDLE
+            return
+
+        if self.takeoff():
+            self._state = PadFlieState.TARGET
+        else:
+            self._state = PadFlieState.IDLE
+
+        self._release_pad_right()
+
+    def __land_job(self):
+        if self._state is not PadFlieState.TARGET:
+            return
+
+        self._state = PadFlieState.LAND
+        fut = self._acquire_pad_right(timeout=180.0)
+        while not fut.done():
+            self._set_target_internal(
+                target=self._get_pad_circle_target(), use_yaw=False
+            )
+            if self._job_executing is not PadflieJob.LAND:
+                self._state = PadFlieState.TARGET
+                # Cancle Pad-Right Acquire here.
+                return
+            self._sleep(0.1)
+        success: PadRightAcquire.Response = fut.result()
+        if not success.success:
+            self._state = PadFlieState.TARGET
+            self._node.get_logger().info("Cannot land. Rights not granted.")
+            return
+
+        if self.land():
+            self._state = PadFlieState.IDLE
+        else:
+            self._state = PadFlieState.DEACTIVATED
+
+        self._release_pad_right()
 
     def _info_timer_callback(self):
         msg = PadflieInfo()
@@ -284,44 +375,19 @@ class PadflieCommander:
             return
         self._set_target_internal(target, use_yaw)
 
-    def takeoff(self):
-        """Execute crazyflie takeoff. If in IDLE.
+    def takeoff(self) -> bool:
+        """Execute crazyflie takeoff.
 
         The crazyflie will only takeoff if it knows its position.
 
-        This routine takes exactly 2 seconds to complete
+        The routine takes 2.5 seconds to complete and cannot be cancelled.
 
+        If returns true we took of. If false we are still at home.
         """
-        if self._state is not PadFlieState.IDLE:
-            return
+        return self._actor.takeoff_routine()
 
-        def _takeoff(fut: Future):
-            success: PadRightAcquire.Response = fut.result()
-            if not success.success:
-                self._node.get_logger().info(
-                    "Did not get takeoff rights. Staying Home."
-                )
-                return
-
-            position = self._tf_manager.get_cf_position()
-            if position is None:
-                self._node.get_logger().error(
-                    "Crazyflie doesnt have position. Cannot takeoff."
-                )
-                self._release_pad_right()
-                return
-
-            self._state = PadFlieState.TAKEOFF
-            success = self._actor.takeoff_routine()
-            self._state = PadFlieState.TARGET
-            self._release_pad_right()
-
-        fut = self._acquire_pad_right(timeout=60.0)
-        # Up to one minute. Hmm...
-        fut.add_done_callback(_takeoff)
-
-    def land(self):
-        """Execute crazyflie landing. If in target mode.
+    def land(self) -> bool:
+        """Execute crazyflie landing.
 
         The crazyflie will only land if it knows its own position and the position of its landing pad.
 
@@ -333,20 +399,7 @@ class PadflieCommander:
 
         TODO: Maybe there are strategies to handle this better. But if there is no position available something is bad anyway.
         """
-        if self._state is not PadFlieState.TARGET:
-            return
 
-        self._state = PadFlieState.LAND
-
-        fut = self._acquire_pad_right(180.0)
-        while not fut.done():
-            self._set_target_internal(
-                target=self._get_pad_circle_target(), use_yaw=False
-            )
-            self._sleep(0.1)
-        success: PadRightAcquire.Response = fut.result()
-        if not success.success:
-            self._state = PadFlieState.TARGET
         """
         Phase 1:
             For at most 8 seconds.
@@ -373,12 +426,8 @@ class PadflieCommander:
                 target_pose
             )
             if cf_position is None or pad_target is None:
-                self._actor._fail_safe(
-                    "Landing failed. CF Position or Pad position lost."
-                )
-                self._state = PadFlieState.DEACTIVATED
-                self._release_pad_right()
-                return
+                self._actor._fail_safe("Landing failed. Pad or CF position lost.")
+                return False
 
             target, _yaw = pad_target
             if (
@@ -390,9 +439,7 @@ class PadflieCommander:
             self._sleep(0.1)
 
         self._node.get_logger().info("Land Routine")
-        self._actor.land_routine()
-        self._state = PadFlieState.IDLE
-        self._release_pad_right()
+        return self._actor.land_routine()
 
     def __send_target_callback(self, msg: SendTarget):
         """Callback to the send_target topic.
@@ -409,8 +456,9 @@ class PadflieCommander:
         Args:
             msg (Empty): An Empty message. Just used as trigger.
         """
-        self._node.get_logger().info("Pad-Takeoff")
-        self.takeoff()
+        self._node.get_logger().info("Pad-Takeoff queued.")
+        with self._job_list_lock:
+            self._job_list.append(PadflieJob.TAKEOFF)
 
     def __land_callback(self, msg: Empty):
         """Callback to the land subscription.
@@ -418,5 +466,6 @@ class PadflieCommander:
         Args:
             msg (Empty): An empty message. Just used as trigger.
         """
-        self._node.get_logger().info("Pad-Land")
-        self.land()
+        self._node.get_logger().info("Pad-Land queued.")
+        with self._job_list_lock:
+            self._job_list.append(PadflieJob.LAND)
