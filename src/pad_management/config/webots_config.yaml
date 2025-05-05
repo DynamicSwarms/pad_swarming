@@ -9,16 +9,16 @@ flies:
     pad: 0x04
   - id: 0x05
     pad: 0x05
-  #- id: 0x06
-  #  pad: 0x06
-  #- id: 0x07
-  #  pad: 0x07
-  #- id: 0x08
-  #  pad: 0x08
-  #- id: 0x10
-  #  pad: 0x10
-  #- id: 0x11
-  #  pad: 0x11
+  - id: 0x06
+    pad: 0x06
+  - id: 0x07
+    pad: 0x07
+  - id: 0x08
+    pad: 0x08
+  - id: 0x10
+    pad: 0x10
+  - id: 0x11
+    pad: 0x11
   
 
 
@@ -33,16 +33,16 @@ pads:
     position: [0.0, 0.8, 0.0]
   - id: 0x05
     position: [0.0, 1.0, 0.0]
-  #- id: 0x06
-  #  position: [0.0, 1.2, 0.0]
-  #- id: 0x07
-  #  position: [0.0, 1.4, 0.0]
-  #- id: 0x08
-  #  position: [0.0, 1.6, 0.0]
-  #- id: 0x10
-  #  position: [-0.2, 0.0, 0.0]
-  #- id: 0x11
-  #  position: [-0.2, 0.2, 0.0]
+  - id: 0x06
+    position: [0.0, 1.2, 0.0]
+  - id: 0x07
+    position: [0.0, 1.4, 0.0]
+  - id: 0x08
+    position: [0.0, 1.6, 0.0]
+  - id: 0x10
+    position: [-0.2, 0.0, 0.0]
+  - id: 0x11
+    position: [-0.2, 0.2, 0.0]
 
 wands: 
   - id: 0x1
