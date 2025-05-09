@@ -6,6 +6,7 @@ from launch.actions import (
     IncludeLaunchDescription,
 )
 from launch.conditions import LaunchConfigurationNotEquals, LaunchConfigurationEquals
+from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from ament_index_python.packages import get_package_share_directory
@@ -14,8 +15,12 @@ import os
 import yaml
 
 
-def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str):
-    yamls = {"webots": flies_webots_yaml, "hardware": flies_hardware_yaml}
+def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend: str):
+    yamls = {}
+    if not backend == "hardware":
+        yamls["webots"] = flies_webots_yaml
+    if not backend == "webots":
+        yamls["hardware"] == flies_hardware_yaml
 
     for cf_type in yamls.keys():
         with open(yamls[cf_type], "r") as file:
@@ -203,6 +208,7 @@ def generate_launch_description():
         package="pad_management",
         executable="gui_state",
         parameters=[{"setup_yaml": flies_hardware_yaml}],
+        condition=LaunchConfigurationEquals("backend", "hardware")
     )
 
     return LaunchDescription(
@@ -226,7 +232,7 @@ def generate_launch_description():
             gui_state,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
-                    flies_hardware_yaml, flies_webots_yaml
+                    flies_hardware_yaml, flies_webots_yaml, LaunchConfiguration("backend").perform(ctxt)
                 )
             ),
         ]
