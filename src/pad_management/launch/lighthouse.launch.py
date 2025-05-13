@@ -16,7 +16,6 @@ import yaml
 
 def generate_padflies(world_yaml: str, lighthouse_yaml: str, backend: str):
     clipping_box = read_world_config(world_yaml)
-    print(clipping_box)
     with open(lighthouse_yaml, "r") as file:
         flies = yaml.safe_load(file)["flies"]
         for flie in flies:
@@ -43,7 +42,7 @@ def generate_padflies(world_yaml: str, lighthouse_yaml: str, backend: str):
 def read_world_config(world_yaml: str):
     with open(world_yaml, "r") as file:
         data = yaml.safe_load(file)
-        clipping_box = data.get("clippingbox")
+        clipping_box = data.get("clippingbox", [])
         bboxes = data.get("bboxes")
 
     return clipping_box  # TODO return more when needed

@@ -40,7 +40,7 @@ class PadflieActor:
         self._hl_commander = hl_commander
         self._ll_commander = ll_commander
         self._sleep = sleep
-        self._clipping_box = clipping_box
+        self._clipping_box = self._node.get_parameter("clipping_box")
 
         ### Instance variables
         self._state: ActorState = ActorState.DEACTIVATED

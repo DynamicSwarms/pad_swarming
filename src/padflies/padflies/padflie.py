@@ -84,8 +84,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             prefix=self._prefix,
             cf_prefix=self._cf_prefix,
             tf_manager=self._tf_manager,
-            sleep=self._sleep,
-            clipping_box=self.clipping_box
+            sleep=self._sleep
         )
         return True
 

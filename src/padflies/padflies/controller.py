@@ -20,15 +20,13 @@ class PadflieController:
         prefix: str,
         cf_prefix: str,
         tf_manager: PadflieTF,
-        sleep: Callable[[float], None],
-        clipping_box: Optional[List[float]]
+        sleep: Callable[[float], None]
     ):
         self._node = node
         self._cf_type = cf_type
         self._prefix = prefix
         self._cf_prefix = cf_prefix
         self._sleep = sleep
-        self._clipping_box = clipping_box
 
         self._world = "world"
 
@@ -46,8 +44,7 @@ class PadflieController:
             cf_prefix=cf_prefix,
             tf_manager=tf_manager,
             charge_controller=self._charge_controller,
-            sleep=sleep,
-            clipping_box=self._clipping_box
+            sleep=sleep
         )
 
         self.availability_publisher = self._node.create_publisher(
