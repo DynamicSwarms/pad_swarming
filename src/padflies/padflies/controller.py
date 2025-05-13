@@ -6,7 +6,7 @@ from .connection_manager import ConnectionManager
 from .charge_controller import ChargeController
 from .commander import PadflieCommander
 
-from typing import Callable
+from typing import Callable, List, Optional
 from crazyflies.crazyflie import CrazyflieType
 
 from std_msgs.msg import String
@@ -21,12 +21,14 @@ class PadflieController:
         cf_prefix: str,
         tf_manager: PadflieTF,
         sleep: Callable[[float], None],
+        clipping_box: Optional[List[float]]
     ):
         self._node = node
         self._cf_type = cf_type
         self._prefix = prefix
         self._cf_prefix = cf_prefix
         self._sleep = sleep
+        self._clipping_box = clipping_box
 
         self._world = "world"
 
@@ -45,6 +47,7 @@ class PadflieController:
             tf_manager=tf_manager,
             charge_controller=self._charge_controller,
             sleep=sleep,
+            clipping_box=self._clipping_box
         )
 
         self.availability_publisher = self._node.create_publisher(

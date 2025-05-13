@@ -20,7 +20,7 @@ from ._qos_profiles import qos_profile_simple
 from ._padflie_tf import PadflieTF
 from .actor import PadflieActor
 import numpy as np
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 from scipy.spatial.transform import Rotation
 from .charge_controller import ChargeController
 
@@ -34,6 +34,7 @@ class PadflieCommander:
         tf_manager: PadflieTF,
         charge_controller: ChargeController,
         sleep: Callable[[float], None],
+        clipping_box: Optional[List[float]]
     ):
         self._node = node
         self._prefix = prefix
@@ -41,6 +42,7 @@ class PadflieCommander:
         self._sleep = sleep
         self._tf_manager = tf_manager
         self._charge_controller = charge_controller
+        self._clipping_box = clipping_box
 
         self._state = PadFlieState.DEACTIVATED
         # self._current_priority_id = 0 # Gets increased in every activation.
@@ -51,6 +53,7 @@ class PadflieCommander:
             hl_commander=HighLevelCommander(node=self._node, prefix=self._cf_prefix),
             ll_commander=LowLevelCommander(node=self._node, prefix=self._cf_prefix),
             sleep=sleep,
+            clipping_box=self._clipping_box
         )  # This actor is allowed to send control commands to the crazyflie
 
         self._callback_group = (

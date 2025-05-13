@@ -14,7 +14,9 @@ import os
 import yaml
 
 
-def generate_padflies(lighthouse_yaml: str, backend: str):
+def generate_padflies(world_yaml: str, lighthouse_yaml: str, backend: str):
+    clipping_box = read_world_config(world_yaml)
+    print(clipping_box)
     with open(lighthouse_yaml, "r") as file:
         flies = yaml.safe_load(file)["flies"]
         for flie in flies:
@@ -33,10 +35,18 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "pad_id": pad_id,
                         "type": backend,
                         "battery_voltage_empty": 3.50,
+                        "clipping_box": clipping_box,
                     }
                 ],
             )
 
+def read_world_config(world_yaml: str):
+    with open(world_yaml, "r") as file:
+        data = yaml.safe_load(file)
+        clipping_box = data.get("clippingbox")
+        bboxes = data.get("bboxes")
+
+    return clipping_box  # TODO return more when needed
 
 def generate_launch_description():
     webots_gateway_dir = get_package_share_directory("crazyflie_webots_gateway")
@@ -53,6 +63,12 @@ def generate_launch_description():
         default_value=get_package_share_directory("pad_management")
         + "/config/lighthouse_config.yaml",
         description="Select a .yaml describing your system setup. (Crazyflie-IDs, Channels, Pads)",
+    )
+    world_yaml_arg = DeclareLaunchArgument(
+        "world_yaml",
+        default_value=get_package_share_directory("pad_management")
+        + "/config/world.yaml",
+        description="Select a .yaml describing your world. (Clipping Box, No-Fly zones, more to come)",
     )
 
     start_hardware = LaunchConfigurationNotEquals("backend", "webots")
@@ -134,6 +150,7 @@ def generate_launch_description():
         [
             backend_arg,
             setup_yaml_arg,
+            world_yaml_arg,
             webots_gateway,
             hardware_gateway,
             position_visualization,
@@ -141,6 +158,7 @@ def generate_launch_description():
             pad_spawner,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
+                    LaunchConfiguration("world_yaml").perform(ctxt),
                     LaunchConfiguration("setup_yaml").perform(ctxt),
                     LaunchConfiguration("backend").perform(ctxt),
                 )

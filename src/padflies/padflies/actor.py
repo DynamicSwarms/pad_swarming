@@ -33,12 +33,14 @@ class PadflieActor:
         hl_commander: HighLevelCommander,
         ll_commander: LowLevelCommander,
         sleep: Callable[[float], None],
+        clipping_box: Optional[List[float]]
     ):
         self._node = node
         self._tf_manager = tf_manager
         self._hl_commander = hl_commander
         self._ll_commander = ll_commander
         self._sleep = sleep
+        self._clipping_box = clipping_box
 
         ### Instance variables
         self._state: ActorState = ActorState.DEACTIVATED
@@ -51,7 +53,6 @@ class PadflieActor:
         self.max_rotational_speed: float = 0.5  # Dependent on update rate??
         self.max_step_distance_xy: float = 3  # in meters/second
         self.max_step_distance_z: float = 1  # in meters/second
-        self.clipping_box: Optional[List[float]] = None
         self.fixed_yaw_target: float = 0.0
 
         # TODO: This is from old isse_core for a stable flight
@@ -66,7 +67,7 @@ class PadflieActor:
             dt=self._dt,
             max_step_distance_xy=self.max_step_distance_xy,
             max_step_distance_z=self.max_step_distance_z,
-            clipping_box=self.clipping_box,
+            clipping_box=self._clipping_box,
         )
 
         # Control Variables, These should not be changed from outside.

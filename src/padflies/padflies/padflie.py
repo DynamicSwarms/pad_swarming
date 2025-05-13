@@ -60,6 +60,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
         self.declare_parameter("battery_voltage_empty", 3.2)
         self.declare_parameter("battery_voltage_charged", 4.12)
+        self.declare_parameter("clipping_box", [0.0])
 
         self._prefix = "/padflie{}".format(self.cf_id)
         self._cf_prefix = "/cf{}".format(self.cf_id)
@@ -84,6 +85,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             cf_prefix=self._cf_prefix,
             tf_manager=self._tf_manager,
             sleep=self._sleep,
+            clipping_box=self.clipping_box
         )
         return True
 
@@ -159,6 +161,13 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
     def cf_type(self) -> CrazyflieType:
         tp = self.get_parameter("type").get_parameter_value().string_value
         return CrazyflieType.HARDWARE if tp == "hardware" else CrazyflieType.WEBOTS
+
+    @property
+    def clipping_box(self) -> int:
+        _clipping_box = self.get_parameter("clipping_box").get_parameter_value().double_array_value
+        if len(_clipping_box) != 6:
+            _clipping_box = None
+        return _clipping_box
 
     # Lifecycle Overrides
     def on_configure(self, state: State) -> TransitionCallbackReturn:

@@ -30,6 +30,8 @@ data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_lh.
 data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_vicon.yaml"]))
 
 
+data_files.append(("share/" + package_name + "/config", ["config/world.yaml"]))
+
 setup(
     name=package_name,
     version="0.0.0",
