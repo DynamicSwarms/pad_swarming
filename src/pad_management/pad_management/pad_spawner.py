@@ -1,10 +1,12 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from tf2_ros import StaticTransformBroadcaster
 from crazyflie_interfaces.msg import PoseStampedArray
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Quaternion, Vector3, TransformStamped
+from pad_management_interfaces.srv import PadPositionReset
 
 from typing import Dict, Tuple
 import re
@@ -27,9 +29,41 @@ class PadSpawner(Node):
 
         self.create_timer(1.0, callback=self.pub_tf)
 
+        self.reset_group = MutuallyExclusiveCallbackGroup()
+
+        self.reset_service = self.create_service(
+            srv_type=PadPositionReset,
+            srv_name="pad_position_reset",
+            callback=self.reset_callback, 
+            callback_group=self.reset_group,
+        )
+    
+    def reset_callback(self, request: PadPositionReset.Request, response: PadPositionReset.Response):
+        """In case you need to reset the pad position manually. Warning: The next cf position will be
+        the new pad position! So maybe don't call this if the cf is currently busy ;)
+        
+        Args:
+            request (PadRightRelease.Request): includes the name
+            response (PadRightRelease.Response): success if the action was successfull
+        """
+        # remove the requested pad from the list, so the code in self.on_cf_positions, will 
+        # take the next incoming position of the cf as new pad position.
+
+        if request.pad_name in self.cfs.keys():
+            del self.cfs[request.pad_name]
+            response.success = True
+            return response
+        response.success = False
+        return response
+    
+
     def pub_tf(self):
-        transforms = []
-        for cf_name in self.cfs.keys():
+        transforms = [] 
+        # list makes a shallow copy of the dicts.keys()
+        # this is to make sure the dict doesn't change during for loop
+        # which could happen in self.reset_callback
+        keys = list(self.cfs.keys())
+        for cf_name in keys: 
             t = TransformStamped()
             t.transform.translation, t.transform.rotation = self.cfs[cf_name]
             cf_id = int(re.search(r"\d+", cf_name).group())
