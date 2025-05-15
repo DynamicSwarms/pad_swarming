@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PadRightAcquire.srv"
   "srv/PadRightRelease.srv"
   "srv/PadCircleBehaviour.srv"
+  "srv/PadPositionReset.srv"
   DEPENDENCIES std_msgs geometry_msgs
 )
 
