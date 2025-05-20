@@ -59,7 +59,7 @@ class TrafficController(Node):
         return response
 
     def release_callback(self, request: PadRightRelease.Request, response: PadRightRelease.Response):
-        """A crazyflie wants to relaese Pad rights.
+        """A crazyflie wants to release Pad rights.
 
         First check if the lock is locked by the crazyflie asking. 
         Then release.
