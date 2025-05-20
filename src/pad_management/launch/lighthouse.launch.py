@@ -32,7 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
-                        "battery_voltage_empty": 3.50,
+                        "battery_voltage_empty": 3.30,
                     }
                 ],
             )
@@ -74,7 +74,7 @@ def generate_launch_description():
                 "pad_management"
             )
             + "/config/crazyflie_config_lh.yaml",
-            "radio_channels": "100",  # Could read from hardware config??
+            "radio_channels": "50, 100",  # Could read from hardware config??
         }.items(),
     )
 
@@ -121,7 +121,7 @@ def generate_launch_description():
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0.3 -1.0 0.5 0 0 0 world pad_circle".split(" "),
+        arguments="-0.5 0.6 0.5 0 0 0 world pad_circle".split(" "),
     )
     return LaunchDescription(
         [
