@@ -1,3 +1,4 @@
+import time
 import rclpy
 from rclpy.node import Node
 import rclpy.time
@@ -48,6 +49,8 @@ class NoFlyZoneManager(Node):
             qos_profile=_bbox_qos_profile,
         )
 
+        self.update_bboxes()
+
     def callback(self, request: GetBBoxes.Request, response: GetBBoxes.Response):
         response.bboxes = []
         return response
@@ -59,7 +62,10 @@ class NoFlyZoneManager(Node):
             data = yaml.safe_load(file)
             #TODO format
             self.bboxes = data.get("bboxes")
-            print("ROSSI", self.bboxes)
+        
+        while self._update_pub.get_subscription_count() == 0:
+            time.sleep(0.5)
+        
         self._update_pub.publish(Empty())
 
 

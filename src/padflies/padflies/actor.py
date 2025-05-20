@@ -401,6 +401,4 @@ class PadflieActor:
             req = GetBBoxes.Request()
             bbox_future = client.call_async(req)
             bbox_future.add_done_callback(update_bboxes)
-        
-        
-        self._node.get_logger().error("fewfewfew")
+            
