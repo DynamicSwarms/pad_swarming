@@ -1,7 +1,11 @@
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from geometry_msgs.msg import PoseStamped
+from rclpy.qos import QoSProfile
+from rclpy.qos import QoSDurabilityPolicy, QoSReliabilityPolicy, QoSHistoryPolicy
+from padflies_interfaces.srv import GetBBoxes
 
+from std_msgs.msg import Empty
 from ._hl_commander_minimal import HighLevelCommander
 from ._ll_commander_minimal import LowLevelCommander
 
@@ -32,8 +36,7 @@ class PadflieActor:
         tf_manager: PadflieTF,
         hl_commander: HighLevelCommander,
         ll_commander: LowLevelCommander,
-        sleep: Callable[[float], None],
-        clipping_box: Optional[List[float]]
+        sleep: Callable[[float], None]
     ):
         self._node = node
         self._tf_manager = tf_manager
@@ -68,6 +71,20 @@ class PadflieActor:
             max_step_distance_xy=self.max_step_distance_xy,
             max_step_distance_z=self.max_step_distance_z,
             clipping_box=self._clipping_box,
+        )
+
+        # for no fly zones
+        _bbox_qos_profile = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
+        )
+        self._node.create_subscription(
+            msg_type=Empty,
+            topic="/update_bboxes",
+            callback=self._update_bboxes_callback,
+            qos_profile=_bbox_qos_profile,
         )
 
         # Control Variables, These should not be changed from outside.
@@ -349,3 +366,36 @@ class PadflieActor:
         self._sleep(0.5)
         # Its ok to  launch again now, but landing rights need to be released!!!
         return True
+
+    def _update_bboxes_callback(self, msg: Empty) -> None:
+        """
+        Requests new bboxes from no_fly_zone_manager.
+        Then calls update_bboxes of self._safe_commander.
+        """
+        def update_bboxes(response: GetBBoxes.Response):
+            names = []
+            centers = []
+            rotations = []
+            sizes = []
+
+            for obj in response.bboxes:
+                bbox = obj.bbox
+                names.append(obj.name)
+                center = bbox.center.position
+                centers.append([center.x, center.y, center.z])
+                rot = bbox.center.orientation
+                rotations.append([rot.x, rot.y, rot.z, rot.w])
+                size = bbox.size
+                sizes.append([size.x, size.y, size.z])
+            
+            self._safe_commander.set_bboxes(names, centers, rotations, sizes)
+
+        client = self._node.create_client(
+            srv_type=GetBBoxes,
+            srv_name="get_no_fly_zones"
+        )
+
+        if client.wait_for_service(timeout_sec=1.0):
+            req = GetBBoxes.Request()
+            bbox_future = client.call_async(req)
+            bbox_future.add_done_callback(update_bboxes)

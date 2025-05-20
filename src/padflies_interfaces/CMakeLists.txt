@@ -13,10 +13,12 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Connect.srv"
+  "srv/GetBBoxes.srv"
   "msg/AvailabilityInfo.msg"
   "msg/SendTarget.msg"
   "msg/PadflieInfo.msg"
-  DEPENDENCIES std_msgs geometry_msgs
+  "msg/BBox.msg"
+  DEPENDENCIES std_msgs geometry_msgs vision_msgs
 )
 
 if(BUILD_TESTING)

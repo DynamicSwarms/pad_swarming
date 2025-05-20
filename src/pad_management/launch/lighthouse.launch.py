@@ -145,6 +145,13 @@ def generate_launch_description():
         executable="static_transform_publisher",
         arguments="0.3 -1.0 0.5 0 0 0 world pad_circle".split(" "),
     )
+
+    no_fly_zone_manager = Node(
+        package="pad_management",
+        executable="no_fly_zones",
+        parameters=[{"bboxes_yaml": LaunchConfiguration("world_yaml")}],
+    )
+
     return LaunchDescription(
         [
             backend_arg,
@@ -167,5 +174,6 @@ def generate_launch_description():
             pad_circle,
             pad_circle_tf,
             gui_state,
+            no_fly_zone_manager,
         ]
     )
