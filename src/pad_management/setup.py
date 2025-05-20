@@ -58,6 +58,7 @@ setup(
             "pad_land_circle = pad_management.pad_land_circle:main",
             "pad_spawner = pad_management.pad_spawner:main",
             "gui_state = pad_management.gui_state:main",
+            "no_fly_zones = pad_management.no_fly_zones:main",
         ],
     },
 )

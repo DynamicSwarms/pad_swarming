@@ -43,7 +43,7 @@ class PadflieActor:
         self._hl_commander = hl_commander
         self._ll_commander = ll_commander
         self._sleep = sleep
-        self._clipping_box = self._node.get_parameter("clipping_box")
+        self._clipping_box = self._node.get_parameter("clipping_box").value
 
         ### Instance variables
         self._state: ActorState = ActorState.DEACTIVATED
@@ -372,13 +372,15 @@ class PadflieActor:
         Requests new bboxes from no_fly_zone_manager.
         Then calls update_bboxes of self._safe_commander.
         """
-        def update_bboxes(response: GetBBoxes.Response):
+        def update_bboxes(response):
+            result = response.result()
+
             names = []
             centers = []
             rotations = []
             sizes = []
 
-            for obj in response.bboxes:
+            for obj in result.bboxes:
                 bbox = obj.bbox
                 names.append(obj.name)
                 center = bbox.center.position
@@ -399,3 +401,6 @@ class PadflieActor:
             req = GetBBoxes.Request()
             bbox_future = client.call_async(req)
             bbox_future.add_done_callback(update_bboxes)
+        
+        
+        self._node.get_logger().error("fewfewfew")

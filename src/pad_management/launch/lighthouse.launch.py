@@ -47,6 +47,7 @@ def read_world_config(world_yaml: str):
 
     return clipping_box  # TODO return more when needed
 
+
 def generate_launch_description():
     webots_gateway_dir = get_package_share_directory("crazyflie_webots_gateway")
     hardware_gateway_dir = get_package_share_directory("crazyflie_hardware_gateway")

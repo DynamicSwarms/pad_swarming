@@ -42,7 +42,7 @@ class NoFlyZoneManager(Node):
             reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.TRANSIENT_LOCAL
         )
-        self._update_pub = self._node.create_publisher(
+        self._update_pub = self.create_publisher(
             Empty,
             "/update_bboxes",
             qos_profile=_bbox_qos_profile,
@@ -61,3 +61,13 @@ class NoFlyZoneManager(Node):
             self.bboxes = data.get("bboxes")
             print("ROSSI", self.bboxes)
         self._update_pub.publish(Empty())
+
+
+def main():
+    rclpy.init()
+
+    manager = NoFlyZoneManager()
+    rclpy.spin(manager)
+
+if __name__ == "__main__":
+    main()
