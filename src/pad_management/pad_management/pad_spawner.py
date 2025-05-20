@@ -43,8 +43,8 @@ class PadSpawner(Node):
         the new pad position! So maybe don't call this if the cf is currently busy ;)
         
         Args:
-            request (PadRightRelease.Request): includes the name
-            response (PadRightRelease.Response): success if the action was successfull
+            request (PadPositionReset.Request): includes the name
+            response (PadPositionReset.Response): success if the action was successfull
         """
         # remove the requested pad from the list, so the code in self.on_cf_positions, will 
         # take the next incoming position of the cf as new pad position.
@@ -59,9 +59,7 @@ class PadSpawner(Node):
 
     def pub_tf(self):
         transforms = [] 
-        # list makes a shallow copy of the dicts.keys()
-        # this is to make sure the dict doesn't change during for loop
-        # which could happen in self.reset_callback
+        
         keys = list(self.cfs.keys())
         for cf_name in keys: 
             t = TransformStamped()
