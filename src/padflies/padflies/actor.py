@@ -374,7 +374,7 @@ class PadflieActor:
             target = [target.pose.position.x, target.pose.position.y, target.pose.position.z]
             force, inside_mask = point_in_any_box(target, centers, rotations, sizes)
 
-            self._node.get_logger().error("Force to move outside the boxes " + str(force))
+            self._node.get_logger().error(str(inside_mask))
 
     def _update_bboxes_callback(self, msg: Empty) -> None:
         """
@@ -446,6 +446,7 @@ def point_in_any_box(point, center_batch, quaternion_batch, size_batch):
     """
     p = np.asarray(point)
     centers = np.asarray(center_batch)
+    print("c", centers)
     sizes = np.asarray(size_batch)
     half_sizes = sizes / 2
     quats = np.asarray(quaternion_batch)
