@@ -367,6 +367,9 @@ class PadflieActor:
         # Its ok to  launch again now, but landing rights need to be released!!!
         return True
 
+    def set_bboxes(self, names:List[str], centers: List[List[float]], rotations:List[List[float]], sizes:List[List[float]]) -> None:
+        self._node.get_logger().error("Updated BBoxessss: " + str(len(names)))
+
     def _update_bboxes_callback(self, msg: Empty) -> None:
         """
         Requests new bboxes from no_fly_zone_manager.
@@ -381,23 +384,22 @@ class PadflieActor:
             sizes = []
 
             for obj in result.bboxes:
-                bbox = obj.bbox
-                names.append(obj.name)
-                center = bbox.center.position
+                names.append(str(obj.transform.child_frame_id))
+                center = obj.transform.transform.translation
                 centers.append([center.x, center.y, center.z])
-                rot = bbox.center.orientation
+                rot =  obj.transform.transform.rotation
                 rotations.append([rot.x, rot.y, rot.z, rot.w])
-                size = bbox.size
+                size = obj.size
                 sizes.append([size.x, size.y, size.z])
             
-            self._safe_commander.set_bboxes(names, centers, rotations, sizes)
+            self.set_bboxes(names, centers, rotations, sizes)
 
         client = self._node.create_client(
             srv_type=GetBBoxes,
             srv_name="get_no_fly_zones"
         )
 
-        if client.wait_for_service(timeout_sec=1.0):
+        if client.wait_for_service(timeout_sec=1.0): # TODO Winni, ist das doof?
             req = GetBBoxes.Request()
             bbox_future = client.call_async(req)
             bbox_future.add_done_callback(update_bboxes)

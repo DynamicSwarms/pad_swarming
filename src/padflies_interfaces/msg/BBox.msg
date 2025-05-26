@@ -1,2 +1,2 @@
-vision_msgs/BoundingBox3D bbox
-string name
+geometry_msgs/TransformStamped transform
+geometry_msgs/Vector3 size
