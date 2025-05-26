@@ -368,12 +368,19 @@ class PadflieActor:
         return True
 
     def set_bboxes(self, names:List[str], centers: List[List[float]], rotations:List[List[float]], sizes:List[List[float]]) -> None:
-        self._node.get_logger().error("Updated BBoxessss: " + str(len(names)))
+        # or do this somewhere else as this is being triggered from outside..
+        target = self.get_target_pose()
+        if target:
+            target = [target.pose.position.x, target.pose.position.y, target.pose.position.z]
+            force, inside_mask = point_in_any_box(target, centers, rotations, sizes)
+
+            self._node.get_logger().error("Force to move outside the boxes " + str(force))
 
     def _update_bboxes_callback(self, msg: Empty) -> None:
         """
         Requests new bboxes from no_fly_zone_manager.
-        Then calls update_bboxes of self._safe_commander.
+        Important: The transformation received is in world coordinates!
+        Then calls update_bboxes of self
         """
         def update_bboxes(response):
             result = response.result()
@@ -403,4 +410,72 @@ class PadflieActor:
             req = GetBBoxes.Request()
             bbox_future = client.call_async(req)
             bbox_future.add_done_callback(update_bboxes)
-            
+
+
+def quaternion_to_rotation_matrix_batch(quaternion_batch):
+    """
+    Converts a list of quaternions with shape (N, 4) into rotation matrices with shape (N, 3, 3).
+    :param quaternion_batch: (N, 4) rotations
+    """
+    q = np.asarray(quaternion_batch)
+    w, x, y, z = q[:,0], q[:,1], q[:,2], q[:,3]
+
+    R = np.empty((len(q), 3, 3))
+    R[:, 0, 0] = 1 - 2*(y**2 + z**2)
+    R[:, 0, 1] = 2*(x*y - z*w)
+    R[:, 0, 2] = 2*(x*z + y*w)
+
+    R[:, 1, 0] = 2*(x*y + z*w)
+    R[:, 1, 1] = 1 - 2*(x**2 + z**2)
+    R[:, 1, 2] = 2*(y*z - x*w)
+
+    R[:, 2, 0] = 2*(x*z - y*w)
+    R[:, 2, 1] = 2*(y*z + x*w)
+    R[:, 2, 2] = 1 - 2*(x**2 + y**2)
+    return R
+
+def point_in_any_box(point, center_batch, quaternion_batch, size_batch):
+    """
+    Checks if a point is inside of any of the given rotated boxes
+
+    :param point: (3,) Point to check
+    :param center_batch: (N, 3) centers
+    :param quaternion_batch: (N, 4) rotations
+    :param size_batch: (N, 3) sizes
+    :return: Bool-Array (N,) → True for every box the point is inside of
+    """
+    p = np.asarray(point)
+    centers = np.asarray(center_batch)
+    sizes = np.asarray(size_batch)
+    half_sizes = sizes / 2
+    quats = np.asarray(quaternion_batch)
+
+    # Calculate rotation matrices of all rotations
+    R = quaternion_to_rotation_matrix_batch(quats)  # (N, 3, 3)
+
+    # Perform a batched transformation of vectors from global/world coordinates into local coordinates 
+    # by applying the transpose (i.e., inverse) of rotation matrices.
+    relative = p - centers  # (N, 3)
+    local = np.einsum('nij,nj->ni', R.transpose(0, 2, 1), relative)
+
+    # no check if our point is in any box
+    inside_mask =  np.all(np.abs(local) <= half_sizes, axis=1)
+
+    force = np.zeros(3)
+
+    for i, inside in enumerate(inside_mask):
+        if not inside:
+            continue
+        # Compute vector to nearest box face in local space
+        delta = half_sizes[i] - np.abs(local[i])  # distance to each face
+        min_axis = np.argmin(delta)              # closest face
+        direction = np.zeros(3)
+        direction[min_axis] = np.sign(local[i][min_axis])  # push outward along that axis
+
+        exit_local = direction * delta[min_axis]
+
+        # Rotate back to world frame
+        exit_world = R[i] @ exit_local
+        force += exit_world
+
+    return force, inside_mask
