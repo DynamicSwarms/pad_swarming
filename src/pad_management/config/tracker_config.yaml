@@ -2,7 +2,7 @@
   ros__parameters:
     use_tf: false
     pointCloud2TopicName: "pointCloud2"
-    tfBroadcastRate: 20 # Hz
+    tfBroadcastRate: 20 # Hz, this also represents broadcast rate
     numMarkerConfigurations: 5
     markerConfigurations:
       "0":  # for standard Crazyflie

@@ -6,8 +6,10 @@
       stabilizer:
         estimator: 2 # 1: complementary, 2: ekf
         controller: 1 # 1: PID, 2: Mellinger
-      #posCtlPid:
-      #  thrustBase: 40000 # 36000 is standart. We have QI-Deck -> heavy
+      posCtlPid:
+        zKp: 3.5  # from 2.0
+        zKd: 1.0  # from 0.0
+        thrustBase: 42000 # 40000 # 36000 is standart. We have QI-Deck -> heavy
       locSrv:
         extPosStdDev: 1e-3
       kalman:

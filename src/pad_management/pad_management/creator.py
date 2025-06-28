@@ -83,7 +83,7 @@ class Creator:
         self.add_queue: "list[CreationFlie]" = []
         self.add_queue_lock: Lock = Lock()
         self._node.create_timer(
-            1.0, self.create, callback_group=self._transition_event_callback_group
+            0.3, self.create, callback_group=self._transition_event_callback_group
         )
 
     def enqueue_creation(

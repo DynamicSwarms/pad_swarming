@@ -52,7 +52,7 @@ class DefaultCreator(Node):
         self.added_lock: Lock = Lock()
 
         self.create_timer(
-            timer_period_sec=1.0,
+            timer_period_sec=0.2,
             callback=self.update_crazyflies,
             callback_group=MutuallyExclusiveCallbackGroup(),
         )

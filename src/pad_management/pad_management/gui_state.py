@@ -62,6 +62,7 @@ class GUI_State(threading.Thread):
 
     def close(self):
         self.root.quit()
+        self.root.destroy()
 
     def run(self):
         self.root = tk.Tk()

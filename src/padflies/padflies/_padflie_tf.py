@@ -53,7 +53,6 @@ class CfPositionListener:
 
 
 class PadflieTF:
-
     def __init__(
         self,
         node: Node,
@@ -266,7 +265,11 @@ class PadflieTF:
                 time=time,
             )
 
-        except (tf2_py.LookupException, tf2_py.ConnectivityException) as ex:
+        except (
+            tf2_py.LookupException,
+            tf2_py.ConnectivityException,
+            tf2_py.ExtrapolationException,
+        ) as ex:
             # This is most likely a Transform execption, which is expected and therefore None is ok.
             # It is very likely
             return None

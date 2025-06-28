@@ -58,8 +58,8 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             descriptor=ParameterDescriptor(read_only=True),
         )
 
-        self.declare_parameter("battery_voltage_empty", 3.2)
-        self.declare_parameter("battery_voltage_charged", 4.12)
+        self.declare_parameter("battery_voltage_empty", 3.44)
+        self.declare_parameter("battery_voltage_charged", 4.14)
 
         self._prefix = "/padflie{}".format(self.cf_id)
         self._cf_prefix = "/cf{}".format(self.cf_id)
