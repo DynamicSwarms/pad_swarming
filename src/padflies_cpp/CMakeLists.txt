@@ -25,6 +25,7 @@ target_compile_features(padflie PUBLIC c_std_99 cxx_std_17)  # Require C99 and C
 
 set(PADFLIE_DEPS
   src/padflie_tf.cpp
+  src/hl_commander_minimal.cpp
 )
 
 ament_target_dependencies(padflie

@@ -3,7 +3,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 #include "padflies_cpp/padflie_tf.hpp"
-
+#include "padflies_cpp/hl_commander_minimal.hpp"
 enum class CrazyflieType {
     HARDWARE,
     WEBOTS
@@ -50,6 +50,11 @@ public:
       "world");
     m_padflie_tf->set_pad("pad_" + std::to_string(m_pad_id));
 
+    m_hl_commander = std::make_unique<HighLevelCommanderMinimal>(
+      shared_from_this(), 
+      m_cf_prefix);
+
+
     m_is_configured = true;
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -72,6 +77,13 @@ public:
         RCLCPP_ERROR(this->get_logger(), "Failed to get pad position.");
       }
     }
+
+    if (m_hl_commander) {
+      m_hl_commander->takeoff(1.0, 3.0, 0.0);
+    }
+
+
+
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -81,6 +93,9 @@ public:
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
     // Deactivate publishers, subscribers, and services here
     // ...    
+    if (m_hl_commander) {
+      m_hl_commander->land(0.0, 3.0, 0.0);
+    }
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -122,6 +137,7 @@ private:
   CrazyflieType m_type;
 
   std::unique_ptr<PadflieTF> m_padflie_tf;
+  std::unique_ptr<HighLevelCommanderMinimal> m_hl_commander;
   bool m_is_configured = false;
 };
 
