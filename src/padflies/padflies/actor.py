@@ -50,7 +50,7 @@ class PadflieActor:
         ### Commanders (non ROS)
         self.max_rotational_speed: float = 0.5  # Dependent on update rate??
         self.max_step_distance_xy: float = 3  # in meters/second
-        self.max_step_distance_z: float = 1  # in meters/second
+        self.max_step_distance_z: float = 1.5  # in meters/second
         self.clipping_box: Optional[List[float]] = None
         self.fixed_yaw_target: float = 0.0
 
