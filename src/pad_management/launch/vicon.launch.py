@@ -188,7 +188,7 @@ def generate_launch_description():
     pad_circle = Node(
         package="pad_management",
         executable="pad_land_circle",
-        parameters=[{"radius": 1.25}],
+        parameters=[{"radius": 1.45}],
     )
 
     # For webots we need ChargingBase in tf

@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 20)
+
 project(padflies_cpp)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -12,6 +14,8 @@ find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
+find_package(padflies_interfaces REQUIRED)
+find_package(pad_management_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -26,6 +30,10 @@ target_compile_features(padflie PUBLIC c_std_99 cxx_std_17)  # Require C99 and C
 set(PADFLIE_DEPS
   src/padflie_tf.cpp
   src/hl_commander_minimal.cpp
+  src/ll_commander_minimal.cpp
+  src/charge_controller.cpp
+  src/commander.cpp
+  src/pad_control.cpp
 )
 
 ament_target_dependencies(padflie
@@ -43,6 +51,8 @@ target_include_directories(padflie_deps PUBLIC
 ament_target_dependencies(padflie_deps 
   rclcpp
   crazyflie_interfaces
+  padflies_interfaces
+  pad_management_interfaces
   rclcpp_lifecycle
   tf2
   tf2_ros

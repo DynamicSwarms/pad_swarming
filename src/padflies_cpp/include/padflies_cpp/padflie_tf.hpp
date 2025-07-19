@@ -17,9 +17,11 @@ public:
     using Time = rclcpp::Time;
 
     PadflieTF(
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
         const std::string & cf_name,
         const std::string & world_frame = "world");
+    
+    void on_configure(
+        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
     void set_pad(
         const std::string & pad_name);
@@ -100,21 +102,27 @@ private:
 
 
 private:
-    std::weak_ptr<rclcpp_lifecycle::LifecycleNode> m_node;
-
     std::string m_cf_name;
     std::string m_world_frame;
 
     bool m_has_pad;
-    std::string m_pad_name;
 
+
+    geometry_msgs::msg::PoseStamped m_last_position;
+    rclcpp::Time m_last_position_time;
+    rclcpp::Duration m_position_timeout;
+    
     std::unique_ptr<tf2_ros::Buffer> m_tf_buffer;
+
+private:
+
+    std::weak_ptr<rclcpp_lifecycle::LifecycleNode> m_node;
+
     std::unique_ptr<tf2_ros::TransformListener> m_tf_listener;
 
     rclcpp::Subscription<crazyflie_interfaces::msg::PoseStampedArray>::SharedPtr m_cf_positions_sub;
     rclcpp::CallbackGroup::SharedPtr m_callback_group;
 
-    geometry_msgs::msg::PoseStamped m_last_position;
-    rclcpp::Time m_last_position_time;
-    rclcpp::Duration m_position_timeout;
+private:
+    std::string m_pad_name;
 };

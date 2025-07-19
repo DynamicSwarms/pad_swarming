@@ -6,21 +6,26 @@ using std::placeholders::_1;
 
 
 PadflieTF::PadflieTF(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     const std::string & cf_name,
     const std::string & world_frame)
-: m_node(node)
-, m_cf_name(cf_name)
+: m_cf_name(cf_name)
 , m_world_frame(world_frame)
 , m_has_pad(false)
-, m_tf_buffer(std::make_unique<tf2_ros::Buffer>(node->get_clock()))
-, m_tf_listener(std::make_unique<tf2_ros::TransformListener>(*m_tf_buffer))
 , m_last_position()
-, m_last_position_time(node->now())
+, m_last_position_time(rclcpp::Time(0))
 , m_position_timeout(rclcpp::Duration::from_seconds(1.0))
+, m_tf_buffer(std::make_unique<tf2_ros::Buffer>(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)))
 {
-    RCLCPP_INFO(node->get_logger(), "PadflieTF initialized for CF: %s, world frame: %s", 
+    RCLCPP_INFO(rclcpp::get_logger("TF"), "PadflieTF initialized for CF: %s, world frame: %s", 
                 m_cf_name.c_str(), m_world_frame.c_str());      
+}
+void PadflieTF::on_configure(
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+{
+    m_node = node;
+    m_tf_listener = std::make_unique<tf2_ros::TransformListener>(*m_tf_buffer, node);
+    
+    RCLCPP_INFO(node->get_logger(), "PadflieTF creating stufff");      
 
     m_cf_positions_sub = node->create_subscription<crazyflie_interfaces::msg::PoseStampedArray>(
        "/cf_positions",
