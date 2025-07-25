@@ -34,6 +34,9 @@ set(PADFLIE_DEPS
   src/charge_controller.cpp
   src/commander.cpp
   src/pad_control.cpp
+  src/position_controller.cpp
+  src/yaw_controller.cpp
+  src/actor.cpp
 )
 
 ament_target_dependencies(padflie

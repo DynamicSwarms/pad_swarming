@@ -2,8 +2,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
-#include "padflies_cpp/hl_commander_minimal.hpp"
-
 #include "padflies_cpp/commander.hpp"
 
 enum class CrazyflieType {
@@ -34,13 +32,7 @@ public:
   on_configure(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Configuring Padflie with id: %d", m_cf_id);  
-
-    m_hl_commander = std::make_unique<HighLevelCommanderMinimal>(
-      shared_from_this(), 
-      m_cf_prefix);
-
     m_padflie_commander.on_configure(shared_from_this());
-
     m_is_configured = true;
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -49,12 +41,7 @@ public:
   on_activate(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Activating Padflie with prefix: %s", m_prefix.c_str());
-    // Activate publishers, subscribers, and services here
-    // ...
-     
-    throw std::invalid_argument("Padflie is not configured yet. Please call on_configure() first.");
-
-
+    m_padflie_commander.on_activate(shared_from_this());
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -62,11 +49,7 @@ public:
   on_deactivate(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
-    // Deactivate publishers, subscribers, and services here
-    // ...    
-    if (m_hl_commander) {
-      m_hl_commander->land(0.0, 3.0, 0.0);
-    }
+    m_padflie_commander.on_deactivate(shared_from_this());
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -105,7 +88,6 @@ private:
 
   PadflieCommander m_padflie_commander;
 
-  std::unique_ptr<HighLevelCommanderMinimal> m_hl_commander;
   bool m_is_configured = false;
 };
 

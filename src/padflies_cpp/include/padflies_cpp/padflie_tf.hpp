@@ -1,3 +1,5 @@
+#pragma once
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "tf2_ros/transform_listener.h"
@@ -19,6 +21,8 @@ public:
     PadflieTF(
         const std::string & cf_name,
         const std::string & world_frame = "world");
+
+    ~PadflieTF();
     
     void on_configure(
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
@@ -69,6 +73,10 @@ public:
     bool get_cf_position(
         Eigen::Vector3d & position);
 
+    bool pose_stamped_to_world_position_and_yaw(
+        const geometry_msgs::msg::PoseStamped & pose_stamped,
+        Eigen::Vector3d & position,
+        double & yaw);
 private: 
 
     bool transform_point_stamped(
@@ -80,11 +88,6 @@ private:
         const geometry_msgs::msg::PoseStamped & pose,
         const std::string & target_frame,
         geometry_msgs::msg::PoseStamped & transformed_pose);
-
-    bool pose_stamped_to_world_position_and_yaw(
-        const geometry_msgs::msg::PoseStamped & pose_stamped,
-        Eigen::Vector3d & position,
-        double & yaw);
 
     bool lookup_transform(
         const std::string & target_frame,

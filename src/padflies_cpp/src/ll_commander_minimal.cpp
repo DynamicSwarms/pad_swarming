@@ -7,16 +7,21 @@ LowLevelCommanderMinimal::LowLevelCommanderMinimal(
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
 {
-    callback_group = node->create_callback_group(
-        rclcpp::CallbackGroupType::MutuallyExclusive);
+    //callback_group = node->create_callback_group(
+    //    rclcpp::CallbackGroupType::MutuallyExclusive);
 
-    auto pub_options = rclcpp::PublisherOptions();
-    pub_options.callback_group = callback_group;
+    //auto pub_options = rclcpp::PublisherOptions();
+    //pub_options.callback_group = callback_group;
 
     m_notify_setpoints_stop_pub = node->create_publisher<crazyflie_interfaces::msg::NotifySetpointsStop>(
-        m_cf_prefix + "/notify_setpoints_stop", 10, pub_options);
-    m_cmd_position_pub = node->create_publisher<crazyflie_interfaces::msg::Position>(
-        m_cf_prefix + "/cmd_position", 10, pub_options);
+         m_cf_prefix + "/notify_setpoints_stop",10); //, 10, pub_options);
+    // m_cmd_position_pub = node->create_publisher<crazyflie_interfaces::msg::Position>(
+    //     m_cf_prefix + "/cmd_position", 10, pub_options);
+}
+
+LowLevelCommanderMinimal::~LowLevelCommanderMinimal()
+{
+    RCLCPP_INFO(rclcpp::get_logger("LowLevelCommanderMinimal"), "LowLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 
 void LowLevelCommanderMinimal::notify_setpoints_stop(

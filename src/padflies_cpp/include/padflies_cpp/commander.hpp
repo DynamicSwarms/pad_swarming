@@ -4,6 +4,7 @@
 
 #include "padflies_cpp/charge_controller.hpp"
 #include "padflies_cpp/padflie_tf.hpp"
+#include "padflies_cpp/actor.hpp"
 
 class PadflieCommander{
     public: 
@@ -20,6 +21,10 @@ class PadflieCommander{
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
         );
 
+        bool on_deactivate(
+            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
+        );
+
         void on_charged_callback();
 
 
@@ -30,6 +35,7 @@ class PadflieCommander{
         ChargeController m_charge_controller;
         PadflieTF m_padflie_tf;
 
+        std::unique_ptr<PadflieActor> m_padflie_actor;
     private: 
         uint8_t m_pad_id;    
 };

@@ -44,7 +44,18 @@ bool PadflieCommander::on_activate(
         RCLCPP_ERROR(rclcpp::get_logger("PadflieCommander"), "Failed to get pad position.");
     }
 
+    m_padflie_actor = std::make_unique<PadflieActor>(node, m_cf_prefix, &m_padflie_tf);
+
     return true; // Indicate successful activation
+}
+
+bool PadflieCommander::on_deactivate(
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+{
+    RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
+    // Deactivation logic can be added here
+    m_padflie_actor.reset(); // Reset the actor to clean up resources
+    return true; // Indicate successful deactivation
 }
 
 void PadflieCommander::on_charged_callback()

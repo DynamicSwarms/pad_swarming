@@ -19,6 +19,12 @@ PadflieTF::PadflieTF(
     RCLCPP_INFO(rclcpp::get_logger("TF"), "PadflieTF initialized for CF: %s, world frame: %s", 
                 m_cf_name.c_str(), m_world_frame.c_str());      
 }
+
+PadflieTF::~PadflieTF()
+{
+    RCLCPP_INFO(rclcpp::get_logger("TF"), "PadflieTF destructor called");
+}
+
 void PadflieTF::on_configure(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {

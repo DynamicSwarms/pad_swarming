@@ -1,3 +1,5 @@
+#pragma once
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "crazyflie_interfaces/msg/notify_setpoints_stop.hpp"
@@ -14,6 +16,8 @@ public:
     LowLevelCommanderMinimal(
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
         const std::string & cf_prefix);
+
+    ~LowLevelCommanderMinimal();
 
     void notify_setpoints_stop(
         int remain_valid_milliseconds = 100, 

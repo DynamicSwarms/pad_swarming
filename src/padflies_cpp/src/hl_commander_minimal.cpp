@@ -7,20 +7,25 @@ HighLevelCommanderMinimal::HighLevelCommanderMinimal(
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
 {
-    callback_group = node->create_callback_group(
-        rclcpp::CallbackGroupType::MutuallyExclusive);
+    //callback_group = node->create_callback_group(
+    //    rclcpp::CallbackGroupType::MutuallyExclusive);
 
-    auto pub_options = rclcpp::PublisherOptions();
-    pub_options.callback_group = callback_group;
+    //auto pub_options = rclcpp::PublisherOptions();
+    //pub_options.callback_group = callback_group;
 
-    m_takeoff_pub = node->create_publisher<crazyflie_interfaces::msg::Takeoff>(
-        m_cf_prefix + "/takeoff", 10, pub_options);
+    //m_takeoff_pub = node->create_publisher<crazyflie_interfaces::msg::Takeoff>(
+    //    m_cf_prefix + "/takeoff", 10, pub_options);
+//
+    //m_land_pub = node->create_publisher<crazyflie_interfaces::msg::Land>(
+    //    m_cf_prefix + "/land", 10, pub_options);
+//
+    //m_go_to_pub = node->create_publisher<crazyflie_interfaces::msg::GoTo>(
+    //    m_cf_prefix + "/go_to", 10, pub_options);
+}
 
-    m_land_pub = node->create_publisher<crazyflie_interfaces::msg::Land>(
-        m_cf_prefix + "/land", 10, pub_options);
-
-    m_go_to_pub = node->create_publisher<crazyflie_interfaces::msg::GoTo>(
-        m_cf_prefix + "/go_to", 10, pub_options);
+HighLevelCommanderMinimal::~HighLevelCommanderMinimal()
+{
+    RCLCPP_INFO(rclcpp::get_logger("HighLevelCommanderMinimal"), "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 
 void HighLevelCommanderMinimal::takeoff(
