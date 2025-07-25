@@ -48,9 +48,7 @@ public:
 
 private: 
     std::string m_cf_prefix;
-
-    rclcpp::CallbackGroup::SharedPtr callback_group; 
-
+    
     rclcpp::Publisher<crazyflie_interfaces::msg::Takeoff>::SharedPtr m_takeoff_pub;
     rclcpp::Publisher<crazyflie_interfaces::msg::Land>::SharedPtr m_land_pub;
     rclcpp::Publisher<crazyflie_interfaces::msg::GoTo>::SharedPtr m_go_to_pub;

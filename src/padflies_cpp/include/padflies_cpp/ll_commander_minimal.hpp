@@ -33,8 +33,6 @@ public:
 private: 
     std::string m_cf_prefix;
 
-    rclcpp::CallbackGroup::SharedPtr callback_group; 
-
     rclcpp::Publisher<crazyflie_interfaces::msg::NotifySetpointsStop>::SharedPtr m_notify_setpoints_stop_pub;
     rclcpp::Publisher<crazyflie_interfaces::msg::Position>::SharedPtr m_cmd_position_pub;
 };

@@ -1,30 +1,36 @@
 #include "padflies_cpp/hl_commander_minimal.hpp"
 
 
+static rclcpp::CallbackGroup::SharedPtr m_callback_group = nullptr; 
 
 HighLevelCommanderMinimal::HighLevelCommanderMinimal(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
 {
-    //callback_group = node->create_callback_group(
-    //    rclcpp::CallbackGroupType::MutuallyExclusive);
+    if (!m_callback_group)
+        m_callback_group = node->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
 
-    //auto pub_options = rclcpp::PublisherOptions();
-    //pub_options.callback_group = callback_group;
+    auto pub_options = rclcpp::PublisherOptions();
+    pub_options.callback_group = m_callback_group;
 
-    //m_takeoff_pub = node->create_publisher<crazyflie_interfaces::msg::Takeoff>(
-    //    m_cf_prefix + "/takeoff", 10, pub_options);
-//
-    //m_land_pub = node->create_publisher<crazyflie_interfaces::msg::Land>(
-    //    m_cf_prefix + "/land", 10, pub_options);
-//
-    //m_go_to_pub = node->create_publisher<crazyflie_interfaces::msg::GoTo>(
-    //    m_cf_prefix + "/go_to", 10, pub_options);
+    m_takeoff_pub = node->create_publisher<crazyflie_interfaces::msg::Takeoff>(
+        m_cf_prefix + "/takeoff", 10, pub_options);
+
+    m_land_pub = node->create_publisher<crazyflie_interfaces::msg::Land>(
+        m_cf_prefix + "/land", 10, pub_options);
+
+    m_go_to_pub = node->create_publisher<crazyflie_interfaces::msg::GoTo>(
+        m_cf_prefix + "/go_to", 10, pub_options);
 }
 
 HighLevelCommanderMinimal::~HighLevelCommanderMinimal()
 {
+    m_takeoff_pub.reset();
+    m_land_pub.reset();
+    m_go_to_pub.reset();
+    // m_callback_group.reset(); // See note above about m_callback_group
     RCLCPP_INFO(rclcpp::get_logger("HighLevelCommanderMinimal"), "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 

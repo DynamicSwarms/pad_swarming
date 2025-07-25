@@ -32,18 +32,6 @@ bool PadflieCommander::on_activate(
     // Activation logic can be added here
     RCLCPP_INFO(node->get_logger(), "Padflie Commander activated for %s", m_cf_prefix.c_str());
 
-
-    geometry_msgs::msg::PoseStamped pad_pose;
-    if (m_padflie_tf.get_pad_pose_world(pad_pose))
-    {
-        RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Pad position: [x: %.3f, y: %.3f, z: %.3f]", 
-                    pad_pose.pose.position.x, pad_pose.pose.position.y, pad_pose.pose.position.z);
-    }
-    else
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("PadflieCommander"), "Failed to get pad position.");
-    }
-
     m_padflie_actor = std::make_unique<PadflieActor>(node, m_cf_prefix, &m_padflie_tf);
 
     return true; // Indicate successful activation
