@@ -8,7 +8,7 @@ using std::placeholders::_1;
 PadflieTF::PadflieTF(
     const std::string & cf_name,
     const std::string & world_frame)
-: m_cf_name(cf_name)
+: m_cf_name(cf_name) 
 , m_world_frame(world_frame)
 , m_has_pad(false)
 , m_last_position()
@@ -241,7 +241,7 @@ void PadflieTF::log(const char* format, Args&&... args)
 
 rclcpp::Time PadflieTF::get_now() 
 {
-    static rclcpp::Time last_valid_time{0, 0, RCL_ROS_TIME};
+    static rclcpp::Time last_valid_time = rclcpp::Time(0);
 
     if (auto node_shared = m_node.lock()) {
         last_valid_time = node_shared->now();

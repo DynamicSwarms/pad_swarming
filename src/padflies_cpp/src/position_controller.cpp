@@ -1,4 +1,5 @@
 #include "padflies_cpp/position_controller.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include <numeric>
 PositionController::PositionController(
     double dt,
@@ -19,19 +20,18 @@ void PositionController::safe_command_position(
 {
     // Start with the target position
     safe_position = target_position;
-
+    m_fade_target(safe_position);
     m_clip_velocity(current_position, safe_position);
     m_clip_box(safe_position);
-    m_fade_target(safe_position);
 }
 
 void PositionController::m_clip_box(
     Eigen::Vector3d & target)
 {
    target = Eigen::Vector3d(
-        std::min(m_clipping_box[3], std::max(m_clipping_box[0], target.x())),
-        std::min(m_clipping_box[4], std::max(m_clipping_box[1], target.y())),
-        std::min(m_clipping_box[5], std::max(m_clipping_box[2], target.z())));
+        std::min(m_clipping_box[0], std::max(m_clipping_box[3], target.x())),   // x
+        std::min(m_clipping_box[1], std::max(m_clipping_box[4], target.y())),   // y
+        std::min(m_clipping_box[2], std::max(m_clipping_box[5], target.z())));  // z
 }
 
 void PositionController::m_clip_velocity(

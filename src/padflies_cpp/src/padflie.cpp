@@ -15,9 +15,9 @@ public:
   Padflie(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
   : rclcpp_lifecycle::LifecycleNode("padflie", options)
   , m_cf_id(declare_parameter("id", rclcpp::ParameterValue(0xE7), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
-  , m_prefix("/padflie_" + std::to_string(m_cf_id))
+  , m_prefix("/padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
-  , m_padflie_commander(m_cf_prefix, this->get_node_parameters_interface())
+  , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_parameters_interface())
   {
 
 
@@ -41,8 +41,12 @@ public:
   on_activate(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Activating Padflie with prefix: %s", m_prefix.c_str());
-    m_padflie_commander.on_activate(shared_from_this());
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    bool success = m_padflie_commander.on_activate(shared_from_this());
+    
+    if (success) 
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    else
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
   }
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn

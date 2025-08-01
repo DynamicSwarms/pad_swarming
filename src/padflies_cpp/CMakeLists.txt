@@ -16,6 +16,7 @@ find_package(lifecycle_msgs REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
 find_package(padflies_interfaces REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
+find_package(collision_avoidance_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -37,6 +38,7 @@ set(PADFLIE_DEPS
   src/position_controller.cpp
   src/yaw_controller.cpp
   src/actor.cpp
+  src/collision_avoidance_client.cpp
 )
 
 ament_target_dependencies(padflie
@@ -59,7 +61,8 @@ ament_target_dependencies(padflie_deps
   rclcpp_lifecycle
   tf2
   tf2_ros
-  tf2_geometry_msgs)
+  tf2_geometry_msgs
+  collision_avoidance_interfaces)
 
 target_link_libraries(padflie
   padflie_deps)

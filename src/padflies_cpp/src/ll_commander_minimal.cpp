@@ -1,6 +1,6 @@
 #include "padflies_cpp/ll_commander_minimal.hpp"
 
-static rclcpp::CallbackGroup::SharedPtr m_callback_group = nullptr; 
+static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callback_groups;
 // https://github.com/ros2/rclcpp/pull/2683/commits/86d831375e8a7acdc55272866e04f4c214002414
 // As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
 
@@ -9,13 +9,13 @@ LowLevelCommanderMinimal::LowLevelCommanderMinimal(
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
 {
-    if (!m_callback_group)
-        m_callback_group = node->create_callback_group(
+    if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
+        m_callback_groups[cf_prefix] = node->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
     //m_callback_group = node->create_callback_group(
     //    rclcpp::CallbackGroupType::MutuallyExclusive);
     auto pub_options = rclcpp::PublisherOptions();
-    pub_options.callback_group = m_callback_group;
+    pub_options.callback_group = m_callback_groups[cf_prefix];
 
     m_notify_setpoints_stop_pub = node->create_publisher<crazyflie_interfaces::msg::NotifySetpointsStop>(
          m_cf_prefix + "/notify_setpoints_stop",10, pub_options);

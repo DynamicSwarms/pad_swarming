@@ -32,7 +32,7 @@ def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend:
                 pad_id = flie["pad"]
                 if cf_type == "webots" or id < 0xF0:
                     yield Node(
-                        package="padflies",
+                        package="padflies_cpp",
                         executable="padflie",
                         name=f"padflie{id}",
                         parameters=[

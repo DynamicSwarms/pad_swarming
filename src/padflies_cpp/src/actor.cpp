@@ -1,5 +1,8 @@
 #include "padflies_cpp/actor.hpp"
 
+static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callback_groups;
+// https://github.com/ros2/rclcpp/pull/2683/commits/86d831375e8a7acdc55272866e04f4c214002414
+// As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
 
 PadflieActor::PadflieActor(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
@@ -11,15 +14,21 @@ PadflieActor::PadflieActor(
 , m_target_pose()
 , m_fixed_yaw(false)
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
-, m_position_controller(m_dt, 3.0, 1.5, { 3.5, 4.0, 0.000, -7.5, -2.0, 4.500 }) // Default clipping box
+, m_position_controller(m_dt, 3.0, 1.5, { 3.5, 4.0, 4.500, -7.5, -2.0, 0.0 }) // Default clipping box
+, m_collision_avoidance_client(node, std::stoi(cf_prefix.substr(3))) // Extract ID from cf_prefix (/cfID)
 , m_hl_commander(node, cf_prefix)
 , m_ll_commander(node, cf_prefix)
 , m_padflie_tf(padflie_tf)
 {
-    // m_send_target_timer = node->create_wall_timer(
-    //     std::chrono::milliseconds(100), // 100 ms interval
-    //     std::bind(&PadflieActor::m_send_target_callback, this)
-    // );
+    if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
+        m_callback_groups[cf_prefix] = node->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
+
+    m_send_target_timer = node->create_wall_timer(
+        std::chrono::milliseconds((long int)m_dt * 1000),
+        std::bind(&PadflieActor::m_send_target_callback, this),
+        m_callback_groups[cf_prefix]
+    );
 }
 
 PadflieActor::~PadflieActor()
@@ -52,7 +61,7 @@ bool PadflieActor::takeoff_routine(
     geometry_msgs::msg::PoseStamped target_pose;
     if (!m_padflie_tf->get_pad_pose_world(target_pose))
     {
-        RCLCPP_ERROR(rclcpp::get_logger("PadflieActor"), "Failed to get pad position for takeoff.");
+        RCLCPP_ERROR(rclcpp::get_logger("PadflieActor"), "Aborting takeoff, position not available.");
         return false;
     }
 
@@ -187,6 +196,8 @@ void PadflieActor::m_send_target_callback()
         }
 
         if (m_fixed_yaw) target_yaw = m_fixed_yaw_target;
+
+        m_collision_avoidance_client.get_collision_avoidance_target(position, target_position);
 
         Eigen::Vector3d safe_target;
         m_position_controller.safe_command_position(position, target_position, safe_target);

@@ -4,6 +4,7 @@
 
 #include "padflies_cpp/yaw_controller.hpp"
 #include "padflies_cpp/position_controller.hpp"
+#include "padflies_cpp/collision_avoidance_client.hpp"
 
 #include "padflies_cpp/hl_commander_minimal.hpp"
 #include "padflies_cpp/ll_commander_minimal.hpp"
@@ -61,11 +62,13 @@ private:
 
     YawController m_yaw_controller;
     PositionController m_position_controller;
+    CollisionAvoidanceClient m_collision_avoidance_client;
+
 
     HighLevelCommanderMinimal m_hl_commander;
     LowLevelCommanderMinimal m_ll_commander;
     
     PadflieTF * m_padflie_tf;
 
-    //rclcpp::TimerBase::SharedPtr m_send_target_timer;
+    rclcpp::TimerBase::SharedPtr m_send_target_timer;
 };
