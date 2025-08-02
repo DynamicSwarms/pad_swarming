@@ -100,6 +100,7 @@ bool PadflieActor::land_routine()
     if (m_state == ActorState::ERROR_STATE)
         return false;
     m_ll_commander.notify_setpoints_stop(200);
+    m_state = ActorState::HIGH_LEVEL_COMMANDER;
 
     /**
      * Phase2: 
@@ -118,7 +119,7 @@ bool PadflieActor::land_routine()
 
     if (!m_padflie_tf->get_pad_position_and_yaw(pad_position, pad_yaw))
     {
-        m_fail_safe("No pad position found for landing (Phase2a).");
+        this->fail_safe("No pad position found for landing (Phase2a).");
         return false;
     }
 
@@ -131,7 +132,7 @@ bool PadflieActor::land_routine()
 
     if (!m_padflie_tf->get_pad_position_and_yaw(pad_position, pad_yaw))
     {
-        m_fail_safe("No pad position found for landing (Phase2b).");
+        this->fail_safe("No pad position found for landing (Phase2b).");
         return false;
     }
 
@@ -149,7 +150,7 @@ bool PadflieActor::land_routine()
     */
     if (!m_padflie_tf->get_pad_position_and_yaw(pad_position, pad_yaw))
     {
-        m_fail_safe("No pad position found for landing (Phase3).");
+        this->fail_safe("No pad position found for landing (Phase3).");
         return false;
     }
 
@@ -165,6 +166,11 @@ double PadflieActor::get_yaw() const
 {
     return m_current_yaw;
 }
+std::string PadflieActor::get_current_target_frame() const
+{
+    return m_target_pose.header.frame_id;
+}
+
 
 void PadflieActor::m_send_target_callback()
 {
@@ -173,7 +179,7 @@ void PadflieActor::m_send_target_callback()
         Eigen::Vector3d position;
         if (!m_padflie_tf->get_cf_position(position))
         {
-            m_fail_safe("Failed to get current position for sending target.");
+            this->fail_safe("Failed to get current position for sending target.");
             return;
         }
 
@@ -213,8 +219,12 @@ void PadflieActor::m_send_target_callback()
     }
 }
 
-void PadflieActor::m_fail_safe(std::string reason)
+void PadflieActor::fail_safe(std::string reason)
 {
     m_state = ActorState::ERROR_STATE;
+    m_hl_commander.land(
+        -0.5,       // target height
+        4.0,        // duration in seconds
+        0.0);       // yaw
     RCLCPP_ERROR(rclcpp::get_logger("PadflieActor"), "Fail-safe triggered! Landing in place. %s", reason.c_str());
 }

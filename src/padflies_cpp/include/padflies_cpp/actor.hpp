@@ -42,11 +42,16 @@ public:
     void get_target_pose(
         geometry_msgs::msg::PoseStamped & target_pose) const;
 
+    std::string get_current_target_frame() const;
+
     double get_yaw() const;
+
+    void fail_safe(std::string reason);
+
+
 private: 
     void m_send_target_callback();
 
-    void m_fail_safe(std::string reason);
 private: 
     ActorState m_state;
     double m_dt;

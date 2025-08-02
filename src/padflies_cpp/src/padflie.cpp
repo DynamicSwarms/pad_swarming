@@ -32,9 +32,15 @@ public:
   on_configure(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Configuring Padflie with id: %d", m_cf_id);  
-    m_padflie_commander.on_configure(shared_from_this());
-    m_is_configured = true;
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    bool success = m_padflie_commander.on_configure(shared_from_this());
+    
+    if (success)
+    {
+      m_is_configured = true;
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    } else {
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+    }  
   }
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn

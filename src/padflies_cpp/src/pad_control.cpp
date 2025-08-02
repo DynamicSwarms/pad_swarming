@@ -9,7 +9,7 @@ PadControl::PadControl()
 {
 }
 
-void PadControl::configure(const std::string & prefix,
+void PadControl::on_activate(const std::string & prefix,
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
     m_prefix = prefix;
@@ -31,7 +31,7 @@ void PadControl::configure(const std::string & prefix,
         m_callback_groups[prefix]);
 }
 
-void PadControl::unconfigure(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+void PadControl::on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
     m_acquire_client.reset();
     m_release_client.reset();
@@ -90,40 +90,40 @@ bool PadControl::release_right()
 
 void PadControl::acquire_right_async(double timeout_seconds, RightCallbackT && callback)
 {
-    if (!m_acquire_client || !m_acquire_client->wait_for_service(std::chrono::milliseconds(100))) {
+    if (m_acquire_client && m_acquire_client->wait_for_service(std::chrono::milliseconds(100))) {
+        auto request = std::make_shared<pad_management_interfaces::srv::PadRightAcquire::Request>();
+        request->name = m_prefix;
+        request->timeout = timeout_seconds;
+
+        m_acquire_client->async_send_request(
+            request, 
+            [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedFutureWithRequest response_future) {
+                auto response = response_future.get().second;
+                RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Pad right acquired: %s", response->success ? "true" : "false");
+                callback(response->success);
+            });
+    } else {      
         RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for acquiring pad right");
         callback(false);
-        return;
     }
-    auto request = std::make_shared<pad_management_interfaces::srv::PadRightAcquire::Request>();
-    request->name = m_prefix;
-    request->timeout = timeout_seconds;
-
-    auto result = m_acquire_client->async_send_request(request, 
-        [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedFutureWithRequest response_future) {
-            auto response = response_future.get().second;
-            RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Pad right acquired: %s", response->success ? "true" : "false");
-            callback(response->success);
-        }
-    );
 }
 
 void PadControl::release_right_async(RightCallbackT && callback)
 {
-    if (!m_release_client || !m_release_client->wait_for_service(std::chrono::milliseconds(100))) {
+    if (m_release_client && m_release_client->wait_for_service(std::chrono::milliseconds(100))) {  
+        auto request = std::make_shared<pad_management_interfaces::srv::PadRightRelease::Request>();
+        request->name = m_prefix;
+        m_release_client->async_send_request(
+            request, 
+            [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedFutureWithRequest response_future) {
+                auto response = response_future.get().second;
+                RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Pad right released: %s", response->success ? "true" : "false");
+                callback(response->success);
+            });
+    }  else {
         RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for releasing pad right");
-        return callback(false);
-    }
-    auto request = std::make_shared<pad_management_interfaces::srv::PadRightRelease::Request>();
-    request->name = m_prefix;
-
-    auto result = m_release_client->async_send_request(request, 
-        [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedFutureWithRequest response_future) {
-            auto response = response_future.get().second;
-            RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Pad right released: %s", response->success ? "true" : "false");
-            callback(response->success);
-        }
-    );
+        callback(false);
+    }    
 }
 
 bool PadControl::get_pad_circle_target(

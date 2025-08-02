@@ -17,10 +17,10 @@ public:
 
     PadControl();
 
-    void configure(const std::string & prefix,
+    void on_activate(const std::string & prefix,
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
     
-    void unconfigure(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+    void on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
     bool acquire_right(double timeout_seconds);
     bool release_right();

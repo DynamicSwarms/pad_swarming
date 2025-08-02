@@ -8,7 +8,9 @@
 #include "padflies_cpp/pad_control.hpp"
 
 #include "std_msgs/msg/empty.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "padflies_interfaces/msg/send_target.hpp"
+#include "padflies_interfaces/msg/padflie_info.hpp"
 
 
 
@@ -43,8 +45,12 @@ class PadflieCommander{
         void m_remove_subscriptions(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
         );
-
+        
+        void m_handle_info_timer();
         void m_handle_landing_target_timer();
+
+        void m_trigger_landing();
+        void m_trigger_takeoff();
 
         void m_acquire_pad_right_callback(bool success);
 
@@ -62,19 +68,19 @@ class PadflieCommander{
 
 
     private: 
-        enum class PendingCommand { NONE, TAKEOFF, LAND };
-        PendingCommand m_pending_command = PendingCommand::NONE;
+        bool m_deactivating = false;
 
         enum class CommanderState {
             UNCONFIGURED,
+            CONFIGURED,
             CHARGING, 
             CHARGED,
             WAITING_FOR_TAKEOFF_RIGHTS,
             TAKEOFF,
             FLYING,
             WAITING_FOR_LAND_RIGHTS, 
-            LANDING,
-            LANDED
+            LANDING, 
+            READY_TO_DEACTIVATE
         };
         CommanderState m_state = CommanderState::UNCONFIGURED;
 
@@ -88,6 +94,10 @@ class PadflieCommander{
         rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_takeoff_sub;
         rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_land_sub;
         rclcpp::Subscription<padflies_interfaces::msg::SendTarget>::SharedPtr m_send_target_sub;
+
+        rclcpp::TimerBase::SharedPtr m_info_timer;
+        rclcpp::Publisher<std_msgs::msg::String>::SharedPtr m_availability_pub;
+        rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>::SharedPtr m_padflie_info_pub;
 
         ChargeController m_charge_controller;
         PadflieTF m_padflie_tf;

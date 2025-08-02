@@ -20,6 +20,7 @@ class ChargeController
         void set_on_charged_callback(std::function<void()> callback);
         bool is_charged() const;
         bool is_empty() const;
+        bool is_critical() const;
         double get_battery_voltage() const;
 
     private:
@@ -29,6 +30,7 @@ class ChargeController
 
         double get_battery_voltage_charged() const;
         double get_battery_voltage_empty() const;
+        double get_battery_voltage_critical() const;
 
     private: 
         double m_battery_voltage;
