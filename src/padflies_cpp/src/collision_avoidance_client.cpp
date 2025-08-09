@@ -8,6 +8,7 @@ CollisionAvoidanceClient::CollisionAvoidanceClient(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     uint8_t cf_id)
 : m_cf_id(cf_id)
+, m_logger_name(node->get_name())
 {
     if (m_callback_groups.find(cf_id) == m_callback_groups.end())
         m_callback_groups[cf_id] = node->create_callback_group(
@@ -23,7 +24,7 @@ CollisionAvoidanceClient::~CollisionAvoidanceClient()
 {
     m_client.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
-    RCLCPP_INFO(rclcpp::get_logger("CollisionAvoidanceClient"), "CollisionAvoidanceClient destructor called");
+    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "CollisionAvoidanceClient destructor called");
 }
 
 void CollisionAvoidanceClient::get_collision_avoidance_target(

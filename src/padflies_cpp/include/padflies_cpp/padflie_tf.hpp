@@ -128,4 +128,5 @@ private:
 
 private:
     std::string m_pad_name;
+    std::string m_logger_name;
 };

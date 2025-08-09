@@ -42,4 +42,6 @@ private:
     rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedPtr m_acquire_client;
     rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedPtr m_release_client;
     rclcpp::Client<pad_management_interfaces::srv::PadCircleBehaviour>::SharedPtr m_circle_behaviour_client;
+
+    std::string m_logger_name;
 };

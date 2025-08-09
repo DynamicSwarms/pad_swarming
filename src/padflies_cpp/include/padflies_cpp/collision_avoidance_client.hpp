@@ -23,5 +23,5 @@ public:
 private: 
     uint8_t m_cf_id;
     rclcpp::Client<collision_avoidance_interfaces::srv::CollisionAvoidance>::SharedPtr m_client;
-
+    std::string m_logger_name;
 };

@@ -53,4 +53,5 @@ private:
     rclcpp::Publisher<crazyflie_interfaces::msg::Land>::SharedPtr m_land_pub;
     rclcpp::Publisher<crazyflie_interfaces::msg::GoTo>::SharedPtr m_go_to_pub;
 
-};
+    std::string m_logger_name;
+};  

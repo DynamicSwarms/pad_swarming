@@ -1,6 +1,7 @@
 #include <cstdio>
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "lifecycle_msgs/msg/transition_event.hpp"
 
 #include "padflies_cpp/commander.hpp"
 
@@ -19,9 +20,6 @@ public:
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
   , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_parameters_interface())
   {
-
-
-    RCLCPP_INFO(this->get_logger(), "Padflie node has been created.");
   }
 
   /**
@@ -104,12 +102,12 @@ private:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+  rclcpp::executors::MultiThreadedExecutor executor;
 
   auto padflie_node = std::make_shared<Padflie>();
-  executor->add_node(padflie_node->get_node_base_interface());
-
-  executor->spin();
+  executor.add_node(padflie_node->get_node_base_interface());
+  executor.spin(); // spin_some will not work, be very careful (callback_groups do not work)
+  executor.remove_node(padflie_node->get_node_base_interface());
 
   rclcpp::shutdown();
   return 0;

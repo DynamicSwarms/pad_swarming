@@ -8,6 +8,7 @@ LowLevelCommanderMinimal::LowLevelCommanderMinimal(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
+, m_logger_name(node->get_name())
 {
     if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
         m_callback_groups[cf_prefix] = node->create_callback_group(
@@ -28,7 +29,7 @@ LowLevelCommanderMinimal::~LowLevelCommanderMinimal()
     m_notify_setpoints_stop_pub.reset();
     m_cmd_position_pub.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
-    RCLCPP_INFO(rclcpp::get_logger("LowLevelCommanderMinimal"), "LowLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
+    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "LowLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 
 void LowLevelCommanderMinimal::notify_setpoints_stop(

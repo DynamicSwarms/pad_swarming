@@ -12,6 +12,7 @@ PadflieCommander::PadflieCommander(
 , m_padflie_tf(cf_prefix.substr(1), WORLD)
 , m_pad_control()
 , m_pad_id(param_iface->declare_parameter("pad_id", rclcpp::ParameterValue(0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
+, m_logger_name(prefix)
 {
     m_padflie_tf.set_pad("pad_" + std::to_string(m_pad_id));    
 
@@ -138,9 +139,9 @@ PadflieCommander::on_deactivate(
     m_padflie_actor.reset(); // Reset the actor to clean up resources
     m_pad_control.on_deactivate(node);
 
-    RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
     m_deactivating = false;
     m_state = CommanderState::CONFIGURED;
+    RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
     return true; // Indicate successful deactivation
 }
 
@@ -181,13 +182,16 @@ void
 PadflieCommander::m_handle_info_timer()
 {
     switch (m_state) {
-        case CommanderState::CHARGED:
+        case CommanderState::CONFIGURED:
+            if (m_charge_controller.is_charged()) 
             {
-            auto msg = std_msgs::msg::String();
-            msg.data = m_prefix;
-            m_availability_pub->publish(msg);
+                auto msg = std_msgs::msg::String();
+                msg.data = m_prefix;
+                m_availability_pub->publish(msg);
             }
             break;
+        case CommanderState::CHARGING:
+        case CommanderState::CHARGED:
         case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
         case CommanderState::TAKEOFF:
         case CommanderState::FLYING:
@@ -210,6 +214,8 @@ PadflieCommander::m_handle_info_timer()
             if (m_charge_controller.is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;
             else if (m_charge_controller.is_empty()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_LOW;
             else info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_OK;
+
+            info_msg.padflie_state = 1; // STATE ISNT USED YET, but 0 throws an error
             
             m_padflie_info_pub->publish(info_msg);
             }
@@ -224,20 +230,27 @@ void
 PadflieCommander::m_handle_landing_target_timer()
 {
     if (m_state == CommanderState::WAITING_FOR_LAND_RIGHTS && m_padflie_actor ) {       
-        Eigen::Vector3d position;
         Eigen::Vector3d target_position;
+        
+        geometry_msgs::msg::PoseStamped current_pose;
+        if (!m_padflie_tf.get_cf_pose_stamped(m_pad_control.get_frame_name(), current_pose))
+            return;
 
-        if (m_padflie_tf.get_cf_position(position)
-            && m_pad_control.get_pad_circle_target(0.1, position, target_position))
+        Eigen::Vector3d position;
+        position.x() = current_pose.pose.position.x;
+        position.y() = current_pose.pose.position.y;
+        position.z() = current_pose.pose.position.z;
+
+        // For this call position must be in the get_frame_name() frame of pad_circle
+        // and target_position  will also be in the same frame
+        if (m_pad_control.get_pad_circle_target(0.1, position, target_position))
         {
             geometry_msgs::msg::PoseStamped target_pose;
-            target_pose.header.frame_id = WORLD;
             target_pose.pose.position.x = target_position.x();
             target_pose.pose.position.y = target_position.y();
             target_pose.pose.position.z = target_position.z();
             target_pose.header.frame_id = m_pad_control.get_frame_name();
-            m_padflie_actor->set_target(target_pose, false);
-                    
+            m_padflie_actor->set_target(target_pose, false);        
         }
     }        
 }
@@ -245,23 +258,26 @@ PadflieCommander::m_handle_landing_target_timer()
 void 
 PadflieCommander::m_acquire_pad_right_callback(bool success)
 {
+    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), success ? "Acquired pad right successfully." : "Failed to acquire pad right.");
+    CommanderState new_state = m_state;
+
     switch (m_state) {
         case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
             if (m_deactivating) {
-                m_state = CommanderState::READY_TO_DEACTIVATE;
+                new_state = CommanderState::READY_TO_DEACTIVATE;
             } else if  (success) {
                 m_state = CommanderState::TAKEOFF;
                 m_padflie_actor->takeoff_routine(); // Blocking call, might take some time so in meantime m_deactivating might be set to true
                 if (m_deactivating || m_state == CommanderState::LANDING) 
                 {
-                    if (m_state == CommanderState::LANDING) RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Weird transtion from TAKEOFF to LANDING");
+                    if (m_state == CommanderState::LANDING) RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Weird transtion from TAKEOFF to LANDING");
                     m_padflie_actor->land_routine();
-                    if (m_deactivating) m_state = CommanderState::READY_TO_DEACTIVATE;
-                    else m_state = CommanderState::CHARGING; // After landing, we are in charging state
+                    if (m_deactivating) new_state = CommanderState::READY_TO_DEACTIVATE;
+                    else new_state = CommanderState::CHARGING; // After landing, we are in charging state
                 }
-                else m_state = CommanderState::FLYING;
+                else new_state = CommanderState::FLYING;
             } else {
-                m_state = CommanderState::CHARGING; 
+                new_state = CommanderState::CHARGING; 
             } 
             break;          
         case CommanderState::WAITING_FOR_LAND_RIGHTS:
@@ -270,30 +286,27 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
                 m_state = CommanderState::LANDING;
                 m_landing_target_timer->cancel(); 
                 m_padflie_actor->land_routine();
-                if (m_deactivating) m_state = CommanderState::READY_TO_DEACTIVATE;
-                else m_state = CommanderState::CHARGING; // After landing, we are in charging state
+                if (m_deactivating) new_state = CommanderState::READY_TO_DEACTIVATE;
+                else new_state = CommanderState::CHARGING; // After landing, we are in charging state
             } 
             else 
             {
-                if (m_deactivating) m_state = CommanderState::READY_TO_DEACTIVATE;
-                else m_state = CommanderState::FLYING; // If we cannot acquire rights, we stay in flying state
+                if (m_deactivating) new_state = CommanderState::READY_TO_DEACTIVATE;
+                else m_trigger_landing(); // Retry landing
             }          
             break;
         default:
             break;
     }    
 
-    
+    // Release rights and only THEN change the state, otherwise use after free issue might occur
     m_pad_control.release_right_async(
-        [this](bool released) {
-            if (released) {
-                RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Released pad right successfully.");
-            } else {
-                RCLCPP_ERROR(rclcpp::get_logger("PadflieCommander"), "Failed to release pad right.");
-            }
+        [this, new_state](bool released)
+        {
+            (void)released; // We don't care about the result of releasing rights
+            m_state = new_state;
         }
     );
-    RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Right acquired, command executed, released, ready to deactivate.");
 }
 
 void 
@@ -302,7 +315,7 @@ PadflieCommander::m_trigger_landing()
     m_landing_target_timer->reset(); // Start sending landing targets
 
     m_pad_control.acquire_right_async(
-        5.0, // Timeout for acquiring rights
+        180.0, // Timeout for acquiring rights
         std::bind(&PadflieCommander::m_acquire_pad_right_callback, this, std::placeholders::_1));     
 }
 
@@ -310,7 +323,7 @@ void
 PadflieCommander::m_trigger_takeoff()
 {
     m_pad_control.acquire_right_async(
-        5.0, // Timeout for acquiring rights
+        60.0, // Timeout for acquiring rights
         std::bind(&PadflieCommander::m_acquire_pad_right_callback, this, std::placeholders::_1));
 }
 
@@ -320,7 +333,7 @@ PadflieCommander::m_handle_takeoff_command(
     const std_msgs::msg::Empty::SharedPtr msg)
 {
     (void)msg; 
-    RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Takeoff command received for %s", m_cf_prefix.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Takeoff command received for %s", m_cf_prefix.c_str());
     if (m_deactivating) return; // Reject any command while deactivating
     switch (m_state) {
         case CommanderState::CHARGED:
@@ -328,7 +341,7 @@ PadflieCommander::m_handle_takeoff_command(
             m_trigger_takeoff();            
             break;
         default:
-            RCLCPP_ERROR(rclcpp::get_logger("PadflieCommander"), "Cannot take off in current state: %d", static_cast<int>(m_state));
+            RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Cannot take off in current state: %d", static_cast<int>(m_state));
             break;
     }
 }
@@ -338,7 +351,7 @@ PadflieCommander::m_handle_land_command(
     const std_msgs::msg::Empty::SharedPtr msg)
 {
     (void)msg;
-    RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Land command received for %s", m_cf_prefix.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Land command received for %s", m_cf_prefix.c_str());
     if (m_deactivating) return; // Reject any command while deactivating
 
     switch (m_state) {
@@ -353,7 +366,7 @@ PadflieCommander::m_handle_land_command(
             m_state = CommanderState::LANDING;
             break;
         default:
-            RCLCPP_ERROR(rclcpp::get_logger("PadflieCommander"), "Cannot land in current state: %d", static_cast<int>(m_state));
+            RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Cannot land in current state: %d", static_cast<int>(m_state));
             break;
     }
     
@@ -363,7 +376,7 @@ void
 PadflieCommander::m_handle_send_target_command(
     const padflies_interfaces::msg::SendTarget::SharedPtr msg)
 {
-    RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Send target command received for %s: %s", m_cf_prefix.c_str(), msg->info.c_str());
+    //RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Send target command received for %s: %d", m_cf_prefix.c_str(), static_cast<int>(m_state));
     if (m_deactivating) return; // Reject any command while deactivating
     if (m_padflie_actor && m_state == CommanderState::FLYING) {
         m_padflie_actor->set_target(msg->target, msg->use_yaw);

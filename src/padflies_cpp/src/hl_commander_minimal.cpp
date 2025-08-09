@@ -9,6 +9,7 @@ HighLevelCommanderMinimal::HighLevelCommanderMinimal(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
+, m_logger_name(node->get_name())
 {
      if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
         m_callback_groups[cf_prefix] = node->create_callback_group(
@@ -33,7 +34,7 @@ HighLevelCommanderMinimal::~HighLevelCommanderMinimal()
     m_land_pub.reset();
     m_go_to_pub.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
-    RCLCPP_INFO(rclcpp::get_logger("HighLevelCommanderMinimal"), "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
+    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 
 void HighLevelCommanderMinimal::takeoff(

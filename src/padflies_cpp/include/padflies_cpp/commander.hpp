@@ -105,5 +105,7 @@ class PadflieCommander{
 
         std::unique_ptr<PadflieActor> m_padflie_actor;
     private: 
-        uint8_t m_pad_id;    
+        uint8_t m_pad_id; 
+        
+        std::string m_logger_name;
 };

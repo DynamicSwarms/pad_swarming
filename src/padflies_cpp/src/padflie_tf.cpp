@@ -15,14 +15,15 @@ PadflieTF::PadflieTF(
 , m_last_position_time(rclcpp::Time(0))
 , m_position_timeout(rclcpp::Duration::from_seconds(1.0))
 , m_tf_buffer(std::make_unique<tf2_ros::Buffer>(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)))
+, m_logger_name(cf_name)
 {
-    RCLCPP_INFO(rclcpp::get_logger("TF"), "PadflieTF initialized for CF: %s, world frame: %s", 
+    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "PadflieTF initialized for CF: %s, world frame: %s", 
                 m_cf_name.c_str(), m_world_frame.c_str());      
 }
 
 PadflieTF::~PadflieTF()
 {
-    RCLCPP_INFO(rclcpp::get_logger("TF"), "PadflieTF destructor called");
+    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "PadflieTF destructor called");
 }
 
 void PadflieTF::on_configure(
@@ -31,12 +32,16 @@ void PadflieTF::on_configure(
     m_node = node;
     m_tf_listener = std::make_unique<tf2_ros::TransformListener>(*m_tf_buffer, node);
     
-    RCLCPP_INFO(node->get_logger(), "PadflieTF creating stufff");      
-
+    m_callback_group = node->create_callback_group(
+        rclcpp::CallbackGroupType::MutuallyExclusive);
+    auto sub_opt = rclcpp::SubscriptionOptions();
+    sub_opt.callback_group = m_callback_group;
     m_cf_positions_sub = node->create_subscription<crazyflie_interfaces::msg::PoseStampedArray>(
-       "/cf_positions",
-       10, 
-       std::bind(&PadflieTF::cf_positions_callback, this, _1));
+        "/cf_positions",
+        10, 
+        std::bind(&PadflieTF::cf_positions_callback, this, _1),
+        sub_opt);
+    m_logger_name = node->get_name();
 }
 
 void PadflieTF::set_pad(const std::string & pad_name)

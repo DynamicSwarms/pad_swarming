@@ -6,6 +6,7 @@ static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callb
 
 PadControl::PadControl()
 : m_frame_name("pad_circle")
+, m_logger_name("PadControlNoNode")
 {
 }
 
@@ -29,6 +30,8 @@ void PadControl::on_activate(const std::string & prefix,
         "pad_circle",
         rclcpp::QoS(10).get_rmw_qos_profile(),
         m_callback_groups[prefix]);
+
+    m_logger_name = node->get_name();
 }
 
 void PadControl::on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
@@ -44,7 +47,7 @@ bool PadControl::acquire_right(double timeout_seconds)
     if (!m_acquire_client) return false;
 
     if (!m_acquire_client->wait_for_service(std::chrono::seconds(static_cast<int>(timeout_seconds)))) {
-        RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for acquiring pad right");
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for acquiring pad right");
         return false;
     }
 
@@ -69,7 +72,7 @@ bool PadControl::release_right()
     if (!m_release_client) return false;
 
     if (!m_release_client->wait_for_service(std::chrono::seconds(1))) {
-        RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for releasing pad right");
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for releasing pad right");
         return false;
     }
 
@@ -99,11 +102,11 @@ void PadControl::acquire_right_async(double timeout_seconds, RightCallbackT && c
             request, 
             [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedFutureWithRequest response_future) {
                 auto response = response_future.get().second;
-                RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Pad right acquired: %s", response->success ? "true" : "false");
+                RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Pad right acquired: %s", response->success ? "true" : "false");
                 callback(response->success);
             });
     } else {      
-        RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for acquiring pad right");
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for acquiring pad right");
         callback(false);
     }
 }
@@ -117,11 +120,11 @@ void PadControl::release_right_async(RightCallbackT && callback)
             request, 
             [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedFutureWithRequest response_future) {
                 auto response = response_future.get().second;
-                RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Pad right released: %s", response->success ? "true" : "false");
+                RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Pad right released: %s", response->success ? "true" : "false");
                 callback(response->success);
             });
     }  else {
-        RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for releasing pad right");
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for releasing pad right");
         callback(false);
     }    
 }
@@ -133,13 +136,10 @@ bool PadControl::get_pad_circle_target(
 {
     if (!m_circle_behaviour_client) return false;
 
-    RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Waiting for service for %s", m_prefix.c_str());
     if (!m_circle_behaviour_client->wait_for_service(std::chrono::milliseconds((long int)(timeout_seconds * 1000)))) {
-        RCLCPP_ERROR(rclcpp::get_logger("PadControl"), "Service not available for getting pad circle target");
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for getting pad circle target");
         return false;
     }
-
-    RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Requesting pad circle target for %s", m_prefix.c_str());
 
     auto request = std::make_shared<pad_management_interfaces::srv::PadCircleBehaviour::Request>();
     request->name = m_prefix;
@@ -149,15 +149,16 @@ bool PadControl::get_pad_circle_target(
     request->position.z = position.z();
 
     auto result = m_circle_behaviour_client->async_send_request(request);
-    RCLCPP_INFO(rclcpp::get_logger("PadControl"), "Waiting for pad circle target response for %s", m_prefix.c_str());
     auto status = result.wait_for(std::chrono::milliseconds((long int)(timeout_seconds * 1000)));
     
+
     if (status == std::future_status::ready)
     {
         auto response = result.get();
         target_position.x() = response->target.x;
         target_position.y() = response->target.y;
         target_position.z() = response->target.z;
+
         return true;
     } 
 

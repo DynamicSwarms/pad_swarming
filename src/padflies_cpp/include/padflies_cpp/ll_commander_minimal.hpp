@@ -35,4 +35,6 @@ private:
 
     rclcpp::Publisher<crazyflie_interfaces::msg::NotifySetpointsStop>::SharedPtr m_notify_setpoints_stop_pub;
     rclcpp::Publisher<crazyflie_interfaces::msg::Position>::SharedPtr m_cmd_position_pub;
+
+    std::string m_logger_name;
 };

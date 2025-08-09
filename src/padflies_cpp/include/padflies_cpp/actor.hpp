@@ -76,4 +76,5 @@ private:
     PadflieTF * m_padflie_tf;
 
     rclcpp::TimerBase::SharedPtr m_send_target_timer;
+    std::string m_logger_name;
 };
