@@ -17,5 +17,6 @@
         extPosStdDev: 1e-3
       kalman:
         resetEstimation: 1
+        mNGyro_yaw: 0.001 # 0.1 default
 
       
