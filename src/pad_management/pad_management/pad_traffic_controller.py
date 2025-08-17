@@ -14,7 +14,7 @@ class TrafficController(Node):
     def __init__(self):
         super().__init__("traffic_controller")
 
-        self.max_acquire_time = Duration(seconds=30, nanoseconds=0) 
+        self.max_acquire_time = Duration(seconds=20, nanoseconds=0) 
 
 
         self.pad_lock: Lock = Lock()
