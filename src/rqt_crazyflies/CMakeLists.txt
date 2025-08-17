@@ -86,7 +86,7 @@ install(FILES
   scripts/state_plugin
   DESTINATION share/${PROJECT_NAME}
 )
-install(DIRECTORY resources/       # resources into shared folder
+install(DIRECTORY resource/       # resources into shared folder
   DESTINATION share/${PROJECT_NAME}
 )
 install(FILES state_plugin.xml     # plugin-xml into shared folder
