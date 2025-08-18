@@ -20,7 +20,27 @@ public:
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
   , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_parameters_interface())
   {
+    m_cf_transition_event_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
+      m_cf_prefix + "/transition_event", 10,
+      std::bind(&Padflie::m_cf_transition_event_callback, this, _1));
+      // Lifecycle sub has explicitely the default callback group, so lifecycle transitions are mutually exclusive
   }
+
+  void m_cf_transition_event_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg)
+  {
+    if (msg->goal_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+    {
+      RCLCPP_INFO(this->get_logger(), "Crazyflie started, activating commander");
+      this->configure();
+    } else if (msg->goal_state.id == lifecycle_msgs::msg::State::TRANSITION_STATE_SHUTTINGDOWN)
+    {
+      RCLCPP_INFO(this->get_logger(), "Crazyflie is shutting down, deactivating commander");
+      this->deactivate();
+    }else {
+      RCLCPP_WARN(this->get_logger(), "Padflie received unexpected transition event: %d", msg->goal_state.id);
+    }
+  }
+
 
   /**
    * Lifecycle callbacks
@@ -29,8 +49,15 @@ public:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn 
   on_configure(const rclcpp_lifecycle::State &) 
   {
-    RCLCPP_INFO(this->get_logger(), "Configuring Padflie with id: %d", m_cf_id);  
-    bool success = m_padflie_commander.on_configure(shared_from_this());
+    RCLCPP_INFO(this->get_logger(), "Configuring Padflie with id: %d", m_cf_id); 
+    
+    bool success;
+    if (m_is_configured)
+    {
+      success = true; // Maybe inform the commander??
+    } else {
+      success = m_padflie_commander.on_configure(shared_from_this());
+    }
     
     if (success)
     {
@@ -95,6 +122,8 @@ private:
   std::string m_cf_prefix;
 
   PadflieCommander m_padflie_commander;
+
+  std::shared_ptr<rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>> m_cf_transition_event_sub;
 
   bool m_is_configured = false;
 };

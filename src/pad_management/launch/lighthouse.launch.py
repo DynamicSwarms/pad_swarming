@@ -23,7 +23,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
             pad_id = flie["pad"]
 
             yield Node(
-                package="padflies",
+                package="padflies_cpp",
                 executable="padflie",
                 name=f"padflie{id}",
                 parameters=[
@@ -32,7 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
-                        "battery_voltage_empty": 3.30,
+                        "battery_voltage_empty": 3.35,
                     }
                 ],
             )
@@ -77,7 +77,7 @@ def generate_launch_description():
                 "pad_management"
             )
             + "/config/crazyflie_config_lh.yaml",
-            "radio_channels": "50, 100",  # Could read from hardware config??
+            "radio_channels": "100",  # Could read from hardware config??
         }.items(),
     )
 
