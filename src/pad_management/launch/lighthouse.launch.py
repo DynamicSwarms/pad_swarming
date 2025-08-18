@@ -89,23 +89,6 @@ def generate_launch_description():
 
     ## Custom stuff
 
-    creator = Node(
-        package="pad_management",
-        executable="gui_creator",
-        parameters=[
-            {
-                "setup_yaml": LaunchConfiguration("setup_yaml"),
-                "backend": LaunchConfiguration("backend"),
-            }
-        ],
-    )
-
-    gui_state = Node(
-        package="pad_management",
-        executable="gui_state",
-        parameters=[{"setup_yaml": LaunchConfiguration("setup_yaml")}],
-    )
-
     pad_spawner = Node(
         package="pad_management",
         executable="pad_spawner",
@@ -137,7 +120,6 @@ def generate_launch_description():
             webots_gateway,
             hardware_gateway,
             position_visualization,
-            creator,
             pad_spawner,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
@@ -149,6 +131,5 @@ def generate_launch_description():
             traffic_controller,
             pad_circle,
             pad_circle_tf,
-            gui_state,
         ]
     )

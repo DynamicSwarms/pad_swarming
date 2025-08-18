@@ -31,31 +31,31 @@ flies:
   channel: 100
 - id: 0xC0
   pad: 0xC0
-  channel: 50
+  channel: 100
 - id: 0xC1
   pad: 0xC1
-  channel: 50
+  channel: 100
 - id: 0xC2
   pad: 0xC2
-  channel: 50
+  channel: 100
 - id: 0xC3
   pad: 0xC3
-  channel: 50
+  channel: 100
 - id: 0xC4
   pad: 0xC4
-  channel: 50
+  channel: 100
 - id: 0xD0
   pad: 0xD0
-  channel: 50
+  channel: 100
 - id: 0xD1
   pad: 0xD1
-  channel: 50
+  channel: 100
 - id: 0xD2
   pad: 0xD2
-  channel: 50
+  channel: 100
 - id: 0xD3
   pad: 0xD3
-  channel: 50
+  channel: 100
 - id: 0xD4
   pad: 0xD4
-  channel: 50
+  channel: 100
