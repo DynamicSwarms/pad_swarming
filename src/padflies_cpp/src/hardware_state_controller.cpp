@@ -76,6 +76,17 @@ HardwareStateController::is_tumbled() const
 }
 
 void 
+HardwareStateController::reset_state()
+{
+    m_battery_voltage = 0.0;
+    m_battery_charge_current = 0.0;
+    m_battery_charge_state = 0;
+    m_canfly = false;
+    m_is_flying = false;
+    m_is_tumbled = true;
+}
+
+void 
 HardwareStateController::m_on_state_data(
     const crazyflie_interfaces::msg::GenericLogData::SharedPtr msg)
 {
