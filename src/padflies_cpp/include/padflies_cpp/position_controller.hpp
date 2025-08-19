@@ -43,7 +43,7 @@ private:
     double m_max_z_velocity_tick; // Maximum Z velocity per tick (tick is m_dt seconds)
     std::vector<double> m_clipping_box; // Clipping box for the position
 
-    size_t m_target_history_size = 13; // Size of the target history for fading
+    size_t m_target_history_size = 20; // Size of the target history for fading
     std::vector<Eigen::Vector3d> m_target_history; // History of target positions for fading
 };
 
