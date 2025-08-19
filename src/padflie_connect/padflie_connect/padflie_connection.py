@@ -33,6 +33,13 @@ class PadflieConnection:
     def get_padflie_state(self) -> Optional[PadFlieState]:
         return self._commander.get_padflie_state()
 
+    def is_home(self) -> bool:
+        """Returns True if the padflie is home, False if it is not. Returns true if unknwon."""
+        home = self._commander.is_home()
+        if home is None:
+            return True
+        return home
+
     def set_searching(self):
         self._connector.start_search()
 

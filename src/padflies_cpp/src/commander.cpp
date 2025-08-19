@@ -8,7 +8,7 @@ PadflieCommander::PadflieCommander(
     rclcpp::node_interfaces::NodeParametersInterface::SharedPtr param_iface)
 : m_prefix(prefix)
 , m_cf_prefix(cf_prefix)
-, m_charge_controller(param_iface)
+, m_hw_state_controller(param_iface)
 , m_padflie_tf(cf_prefix.substr(1), WORLD)
 , m_pad_control()
 , m_pad_id(param_iface->declare_parameter("pad_id", rclcpp::ParameterValue(0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
@@ -16,9 +16,16 @@ PadflieCommander::PadflieCommander(
 {
     m_padflie_tf.set_pad("pad_" + std::to_string(m_pad_id));    
 
-    m_charge_controller.set_on_charged_callback(
+    m_hw_state_controller.set_on_charged_callback(
         std::bind(&PadflieCommander::m_on_charged_callback, this));
 
+}
+
+bool 
+PadflieCommander::is_healthy() const {
+    bool isnt_flying = m_state == CommanderState::FLYING && !m_hw_state_controller.is_flying();
+    bool cant_flying = m_state == CommanderState::FLYING && !m_hw_state_controller.canfly();
+    return m_commander_is_healthy && !isnt_flying && !cant_flying; 
 }
 
 void 
@@ -50,7 +57,7 @@ PadflieCommander::on_configure(
     m_landing_target_timer->cancel(); 
 
     m_pad_control.on_activate(m_prefix, node);
-    m_charge_controller.on_configure(m_cf_prefix, node);
+    m_hw_state_controller.on_configure(m_cf_prefix, node);
     m_padflie_tf.on_configure(node);
 
     auto pub_options = rclcpp::PublisherOptions();
@@ -78,68 +85,90 @@ bool PadflieCommander::on_activate(
         RCLCPP_ERROR(node->get_logger(), "PadflieCommander is not in CONFIGURED state!");
         return false;
     }
-    if (!m_charge_controller.is_charged()) {
+    if (!m_hw_state_controller.is_charged()) {
         RCLCPP_ERROR(node->get_logger(), "Crazyflie is not charged!");
         return false;
     }
+    if  (!m_hw_state_controller.canfly()) {
+        RCLCPP_ERROR(node->get_logger(), "Crazyflie cannot fly!");
+        return false;
+    }
 
-    
+    m_commander_is_healthy = true;
     m_pad_control.on_activate(m_prefix, node);
     m_padflie_actor = std::make_unique<PadflieActor>(node, m_cf_prefix, &m_padflie_tf);
     m_create_subscriptions(node);
 
     RCLCPP_INFO(node->get_logger(), "Padflie Commander activated for %s", m_cf_prefix.c_str());
-    m_state = m_charge_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
+    m_state = m_hw_state_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
     return true; // Indicate successful activation
 }
 
 bool 
 PadflieCommander::on_deactivate(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+    bool force)
 {
     if (m_state == CommanderState::UNCONFIGURED || m_state == CommanderState::CONFIGURED) {
         RCLCPP_ERROR(node->get_logger(), "Invalid state for deactivation: %d", static_cast<int>(m_state));
         return false;
     }
      
-
     m_remove_subscriptions(node); // First block all incomming commands
     m_deactivating = true;
 
-    switch (m_state) {
-        case CommanderState::CHARGING:
-        case CommanderState::CHARGED:
-            m_state = CommanderState::READY_TO_DEACTIVATE;
-            break;
-        case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
-        case CommanderState::TAKEOFF:
-            break;
-        case CommanderState::FLYING: 
-            m_state = CommanderState::WAITING_FOR_LAND_RIGHTS;
-            m_trigger_landing();
-            break;
-        case CommanderState::WAITING_FOR_LAND_RIGHTS:
-        case CommanderState::LANDING:
-            break;
-        case CommanderState::READY_TO_DEACTIVATE:
-            // This is impossible as the state transition is called from nodes lifecycle transitio
-            // which is not parallel code
-            RCLCPP_ERROR(node->get_logger(), "Impossible state transition!");
-            return false;
-        default:
-            RCLCPP_ERROR(node->get_logger(), "Padflie Commander tries to deactivate but is in an invalid state: %d", static_cast<int>(m_state));
-            return false;
+    // If force flag is true, we dont care about if we are in the air (crazyflie tumbled)
+    if (force) {
+        switch (m_state) {
+            case CommanderState::WAITING_FOR_LAND_RIGHTS:
+            case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
+                m_state = CommanderState::FORCE_DEACTIVATE_RIGHT_WAIT;
+                break;
+            case CommanderState::LANDING:
+            case CommanderState::TAKEOFF:
+                break; // The padright callback will set the state to READY_TO_DEACTIVATE
+            case CommanderState::CHARGING:
+            case CommanderState::CHARGED:
+            case CommanderState::FLYING:
+                m_state = CommanderState::READY_TO_DEACTIVATE;
+                break;           
+        }
+    } else {
+        switch (m_state) {
+            case CommanderState::CHARGING:
+            case CommanderState::CHARGED:
+                m_state = CommanderState::READY_TO_DEACTIVATE;
+                break;
+            case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
+            case CommanderState::TAKEOFF:
+                break;
+            case CommanderState::FLYING: 
+                m_state = CommanderState::WAITING_FOR_LAND_RIGHTS;
+                m_trigger_landing();
+                break;
+            case CommanderState::WAITING_FOR_LAND_RIGHTS:
+            case CommanderState::LANDING:
+                break;
+            case CommanderState::READY_TO_DEACTIVATE:
+                // This is impossible as the state transition is called from nodes lifecycle transitio
+                // which is not parallel code
+                RCLCPP_ERROR(node->get_logger(), "Impossible state transition!");
+                return false;
+            default:
+                RCLCPP_ERROR(node->get_logger(), "Padflie Commander tries to deactivate but is in an invalid state: %d", static_cast<int>(m_state));
+                return false;
+        }
     }
 
-    if (m_state != CommanderState::READY_TO_DEACTIVATE) {
+    if (m_state != CommanderState::READY_TO_DEACTIVATE)
         RCLCPP_ERROR(node->get_logger(), "PadflieCommander waiting for READY_TO_DEACTIVATE state!");
-    }
     while (m_state != CommanderState::READY_TO_DEACTIVATE) rclcpp::sleep_for(std::chrono::milliseconds(10));
        
     m_padflie_actor.reset(); // Reset the actor to clean up resources
     m_pad_control.on_deactivate(node);
 
     m_deactivating = false;
+    m_commander_is_healthy = true;
     m_state = CommanderState::CONFIGURED;
     RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
     return true; // Indicate successful deactivation
@@ -183,7 +212,9 @@ PadflieCommander::m_handle_info_timer()
 {
     switch (m_state) {
         case CommanderState::CONFIGURED:
-            if (m_charge_controller.is_charged()) 
+            if (m_hw_state_controller.is_charged() && 
+                m_hw_state_controller.canfly() &&
+                !m_hw_state_controller.is_tumbled())
             {
                 auto msg = std_msgs::msg::String();
                 msg.data = m_prefix;
@@ -211,8 +242,8 @@ PadflieCommander::m_handle_info_timer()
                 info_msg.pose_world.position.z = position.z();
             }
             info_msg.is_home = m_state == CommanderState::WAITING_FOR_TAKEOFF_RIGHTS;
-            if (m_charge_controller.is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;
-            else if (m_charge_controller.is_empty()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_LOW;
+            if (m_hw_state_controller.is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;
+            else if (m_hw_state_controller.is_empty()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_LOW;
             else info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_OK;
 
             info_msg.padflie_state = 1; // STATE ISNT USED YET, but 0 throws an error
@@ -267,7 +298,14 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
                 new_state = CommanderState::READY_TO_DEACTIVATE;
             } else if  (success) {
                 m_state = CommanderState::TAKEOFF;
-                m_padflie_actor->takeoff_routine(); // Blocking call, might take some time so in meantime m_deactivating might be set to true
+                bool takeoff_success = m_padflie_actor->takeoff_routine(); // Blocking call, might take some time so in meantime m_deactivating might be set to true
+                if (!takeoff_success || !m_hw_state_controller.is_flying())
+                {
+                    RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Failed to takeoff");
+                    m_commander_is_healthy = false;
+                }
+
+
                 if (m_deactivating || m_state == CommanderState::LANDING) 
                 {
                     if (m_state == CommanderState::LANDING) RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Weird transtion from TAKEOFF to LANDING");
@@ -294,6 +332,9 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
                 if (m_deactivating) new_state = CommanderState::READY_TO_DEACTIVATE;
                 else m_trigger_landing(); // Retry landing
             }          
+            break;
+        case CommanderState::FORCE_DEACTIVATE_RIGHT_WAIT:
+            new_state = CommanderState::READY_TO_DEACTIVATE;
             break;
         default:
             break;

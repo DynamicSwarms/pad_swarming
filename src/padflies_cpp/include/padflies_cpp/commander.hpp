@@ -2,7 +2,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 
-#include "padflies_cpp/charge_controller.hpp"
+#include "padflies_cpp/hardware_state_controller.hpp"
 #include "padflies_cpp/padflie_tf.hpp"
 #include "padflies_cpp/actor.hpp"
 #include "padflies_cpp/pad_control.hpp"
@@ -23,6 +23,8 @@ class PadflieCommander{
             rclcpp::node_interfaces::NodeParametersInterface::SharedPtr param_iface
         );
 
+        bool is_healthy() const;
+
         bool on_configure(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
         );
@@ -32,7 +34,8 @@ class PadflieCommander{
         );
 
         bool on_deactivate(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
+            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+            bool force
         );
 
         void m_on_charged_callback();
@@ -69,6 +72,7 @@ class PadflieCommander{
 
     private: 
         bool m_deactivating = false;
+        bool m_commander_is_healthy = true;
 
         enum class CommanderState {
             UNCONFIGURED,
@@ -80,7 +84,8 @@ class PadflieCommander{
             FLYING,
             WAITING_FOR_LAND_RIGHTS, 
             LANDING, 
-            READY_TO_DEACTIVATE
+            READY_TO_DEACTIVATE,
+            FORCE_DEACTIVATE_RIGHT_WAIT
         };
         CommanderState m_state = CommanderState::UNCONFIGURED;
 
@@ -99,7 +104,7 @@ class PadflieCommander{
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr m_availability_pub;
         rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>::SharedPtr m_padflie_info_pub;
 
-        ChargeController m_charge_controller;
+        HardwareStateController m_hw_state_controller;
         PadflieTF m_padflie_tf;
         PadControl m_pad_control;
 

@@ -64,7 +64,7 @@ class PadflieCommander:
             self._pose_info.pose.position.z,
         ]
 
-    def is_home(self) -> Optional[List[float]]:
+    def is_home(self) -> Optional[bool]:
         return self._is_home_info
 
     def get_padflie_state(self) -> Optional[PadFlieState]:
@@ -119,6 +119,8 @@ class PadflieCommander:
         self._padflie_state_info = PadFlieState(info.padflie_state)
 
     def disconnect(self):
+        self._pose_info = None
+        self._pose_world_info = None
         self._is_home_info = None
         self._battery_state_info = None
         self._padflie_state_info = None

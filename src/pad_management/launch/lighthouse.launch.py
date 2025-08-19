@@ -32,7 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
-                        "battery_voltage_empty": 3.35,
+                        "battery_voltage_empty": 3.38,
                     }
                 ],
             )

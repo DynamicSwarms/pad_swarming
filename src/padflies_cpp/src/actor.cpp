@@ -59,11 +59,18 @@ bool PadflieActor::takeoff_routine(
     if (m_state == ActorState::ERROR_STATE)
         return false;
     
+    Eigen::Vector3d cf_position;
+    if (!m_padflie_tf->get_cf_position(cf_position))
+    {
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Aborting takeoff, cf position not available.");
+        return false;
+    }
+    
     m_state = ActorState::HIGH_LEVEL_COMMANDER;
     geometry_msgs::msg::PoseStamped target_pose;
     if (!m_padflie_tf->get_pad_pose_world(target_pose))
     {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Aborting takeoff, position not available.");
+        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Aborting takeoff, pad position not available.");
         return false;
     }
 

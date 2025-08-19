@@ -11,6 +11,7 @@ from pad_management_interfaces.srv import PadPositionReset
 from typing import Dict, Tuple
 import re
 
+WAIT_FRAMES = 20 # The amount of crazyflie positions waited before it is used as pad_position
 
 class PadSpawner(Node):
     def __init__(self):
@@ -48,6 +49,11 @@ class PadSpawner(Node):
         """
         # remove the requested pad from the list, so the code in self.on_cf_positions, will 
         # take the next incoming position of the cf as new pad position.
+        if request.all: 
+            self.cfs = {}
+            self.cfs_wait = {}
+            response.success = True
+            return response
 
         if request.pad_name in self.cfs.keys():
             del self.cfs[request.pad_name]
@@ -78,7 +84,7 @@ class PadSpawner(Node):
             cf_name = pose.header.frame_id
             if cf_name not in self.cfs_wait.keys():
                 self.cfs_wait[cf_name] = 0
-            elif cf_name not in self.cfs.keys() and self.cfs_wait[cf_name] > 20:
+            elif cf_name not in self.cfs.keys() and self.cfs_wait[cf_name] > WAIT_FRAMES:
                 vec = Vector3()
                 vec.x, vec.y, vec.z = [
                     pose.pose.position.x,

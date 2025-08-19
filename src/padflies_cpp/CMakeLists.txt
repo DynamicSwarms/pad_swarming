@@ -32,7 +32,7 @@ set(PADFLIE_DEPS
   src/padflie_tf.cpp
   src/hl_commander_minimal.cpp
   src/ll_commander_minimal.cpp
-  src/charge_controller.cpp
+  src/hardware_state_controller.cpp
   src/commander.cpp
   src/pad_control.cpp
   src/position_controller.cpp

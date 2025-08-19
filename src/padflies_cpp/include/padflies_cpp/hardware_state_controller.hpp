@@ -5,10 +5,10 @@
 #include "crazyflie_interfaces/msg/generic_log_data.hpp"
 using std::placeholders::_1;
 
-class ChargeController
+class HardwareStateController
 {
     public:
-        ChargeController(
+        HardwareStateController(
             rclcpp::node_interfaces::NodeParametersInterface::SharedPtr param_iface
         );
 
@@ -23,17 +23,26 @@ class ChargeController
         bool is_critical() const;
         double get_battery_voltage() const;
 
+        bool canfly() const;
+        bool is_flying() const;
+        bool is_tumbled() const;
+
     private:
-        void on_battery_data(
+        void m_on_state_data(
             const crazyflie_interfaces::msg::GenericLogData::SharedPtr msg
         );
 
-        double get_battery_voltage_charged() const;
-        double get_battery_voltage_empty() const;
-        double get_battery_voltage_critical() const;
+        double m_get_battery_voltage_charged() const;
+        double m_get_battery_voltage_empty() const;
+        double m_get_battery_voltage_critical() const;
 
     private: 
-        double m_battery_voltage;
+        double m_battery_voltage = 0.0;
+        double m_battery_charge_current = 0.0;
+        int m_battery_charge_state = 0;
+        bool m_canfly = false;
+        bool m_is_flying = false;
+        bool m_is_tumbled = false;
 
         rclcpp::node_interfaces::NodeParametersInterface::SharedPtr m_param_iface;
 

@@ -20,10 +20,22 @@ public:
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
   , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_parameters_interface())
   {
+
+    m_commander_health_check_timer = this->create_wall_timer(
+      std::chrono::milliseconds(200),
+      [this]() {
+        if (!m_padflie_commander.is_healthy()) 
+        {
+          RCLCPP_ERROR(this->get_logger(), "Padflie Commander is not healthy, deactivating");
+          m_force_deactivate = true;
+          this->deactivate();
+        }
+      });
+
     m_cf_transition_event_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
       m_cf_prefix + "/transition_event", 10,
       std::bind(&Padflie::m_cf_transition_event_callback, this, _1));
-      // Lifecycle sub has explicitely the default callback group, so lifecycle transitions are mutually exclusive
+      // Lifecycle sub and healthy check has explicitely the default callback group, so lifecycle transitions are mutually exclusive
   }
 
   void m_cf_transition_event_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg)
@@ -35,6 +47,7 @@ public:
     } else if (msg->goal_state.id == lifecycle_msgs::msg::State::TRANSITION_STATE_SHUTTINGDOWN)
     {
       RCLCPP_INFO(this->get_logger(), "Crazyflie is shutting down, deactivating commander");
+      m_force_deactivate = true; // Force deactivation
       this->deactivate();
     }else {
       RCLCPP_WARN(this->get_logger(), "Padflie received unexpected transition event: %d", msg->goal_state.id);
@@ -84,35 +97,30 @@ public:
   on_deactivate(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
-    m_padflie_commander.on_deactivate(shared_from_this());
+    m_padflie_commander.on_deactivate(shared_from_this(), m_force_deactivate);
+    m_force_deactivate = false; // Reset the force deactivate flag
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_shutdown(const rclcpp_lifecycle::State &) 
   {
-    RCLCPP_INFO(this->get_logger(), "Shutting down Padflie with prefix: %s", m_prefix.c_str());
-    // Cleanup resources here
-    // ...
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    RCLCPP_INFO(this->get_logger(), "Padflie doesnt suport shutdonw");
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
   }
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_error(const rclcpp_lifecycle::State &) 
   {
-    RCLCPP_ERROR(this->get_logger(), "Error in Padflie with prefix: %s", m_prefix.c_str());
-    // Handle error state here
-    // ...
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    RCLCPP_ERROR(this->get_logger(), "Padflie doesnt suport error handling");
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
   }
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_cleanup(const rclcpp_lifecycle::State &) 
   { 
-    RCLCPP_INFO(this->get_logger(), "Cleaning up Padflie with prefix: %s", m_prefix.c_str());
-    // Cleanup resources here
-    // ...
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    RCLCPP_INFO(this->get_logger(), "Cleanup not supported for padflies");
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
   }
 
 private: 
@@ -124,8 +132,11 @@ private:
   PadflieCommander m_padflie_commander;
 
   std::shared_ptr<rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>> m_cf_transition_event_sub;
+  std::shared_ptr<rclcpp::TimerBase> m_commander_health_check_timer;
 
   bool m_is_configured = false;
+
+  bool m_force_deactivate = false; // Used to force deactivation when the Crazyflie is shutting down
 };
 
 int main(int argc, char ** argv)
