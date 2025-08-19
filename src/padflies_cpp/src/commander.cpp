@@ -169,6 +169,7 @@ PadflieCommander::on_deactivate(
 
     m_deactivating = false;
     m_commander_is_healthy = true;
+    m_hw_state_controller.reset_state();
     m_state = CommanderState::CONFIGURED;
     RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
     return true; // Indicate successful deactivation

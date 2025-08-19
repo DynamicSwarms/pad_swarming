@@ -27,6 +27,8 @@ class HardwareStateController
         bool is_flying() const;
         bool is_tumbled() const;
 
+        void reset_state();
+
     private:
         void m_on_state_data(
             const crazyflie_interfaces::msg::GenericLogData::SharedPtr msg
