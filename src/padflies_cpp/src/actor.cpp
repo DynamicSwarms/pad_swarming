@@ -82,7 +82,6 @@ bool PadflieActor::takeoff_routine(
         0.0,                      // yaw
         1.0,                      // duration in seconds
         true);                    // relative movement
-
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
  
     m_hl_commander.go_to(
@@ -90,11 +89,11 @@ bool PadflieActor::takeoff_routine(
         0.0,                      // yaw
         4.0,                      // duration in seconds
         true);                    // relative movement
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     // Even though we specified more time for takeoff, this ensures a cleaner transition.
     m_state = ActorState::LOW_LEVEL_COMMANDER;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000)); // Ensure to leave the pad before releasing rights
     return true; // Indicate successful takeoff
 }
 
