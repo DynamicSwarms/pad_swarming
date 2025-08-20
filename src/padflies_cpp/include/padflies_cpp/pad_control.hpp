@@ -4,7 +4,7 @@
 #include "pad_management_interfaces/srv/pad_right_acquire.hpp"
 #include "pad_management_interfaces/srv/pad_right_release.hpp"
 
-#include "pad_management_interfaces/srv/pad_circle_behaviour.hpp"
+#include "pad_management_interfaces/srv/pad_idle_target.hpp"
 
 #include <Eigen/Dense>
 
@@ -30,18 +30,15 @@ public:
 
     bool get_pad_circle_target(
         double timeout_seconds,
-        Eigen::Vector3d & position, 
-        Eigen::Vector3d & target_position);
-
-    std::string get_frame_name() const;
+        const geometry_msgs::msg::PoseStamped & position, 
+        geometry_msgs::msg::PoseStamped & target_position);
 
 private: 
     std::string m_prefix;
-    std::string m_frame_name;
 
     rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedPtr m_acquire_client;
     rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedPtr m_release_client;
-    rclcpp::Client<pad_management_interfaces::srv::PadCircleBehaviour>::SharedPtr m_circle_behaviour_client;
+    rclcpp::Client<pad_management_interfaces::srv::PadIdleTarget>::SharedPtr m_pad_idle_target_client;
 
     std::string m_logger_name;
 };

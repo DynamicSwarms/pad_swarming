@@ -161,7 +161,7 @@ PadflieCommander::on_deactivate(
     }
 
     if (m_state != CommanderState::READY_TO_DEACTIVATE)
-        RCLCPP_ERROR(node->get_logger(), "PadflieCommander waiting for READY_TO_DEACTIVATE state!");
+        RCLCPP_DEBUG(node->get_logger(), "PadflieCommander waiting for READY_TO_DEACTIVATE state!");
     while (m_state != CommanderState::READY_TO_DEACTIVATE) rclcpp::sleep_for(std::chrono::milliseconds(10));
        
     m_padflie_actor.reset(); // Reset the actor to clean up resources
@@ -262,26 +262,12 @@ void
 PadflieCommander::m_handle_landing_target_timer()
 {
     if (m_state == CommanderState::WAITING_FOR_LAND_RIGHTS && m_padflie_actor ) {       
-        Eigen::Vector3d target_position;
-        
         geometry_msgs::msg::PoseStamped current_pose;
-        if (!m_padflie_tf.get_cf_pose_stamped(m_pad_control.get_frame_name(), current_pose))
-            return;
-
-        Eigen::Vector3d position;
-        position.x() = current_pose.pose.position.x;
-        position.y() = current_pose.pose.position.y;
-        position.z() = current_pose.pose.position.z;
-
-        // For this call position must be in the get_frame_name() frame of pad_circle
-        // and target_position  will also be in the same frame
-        if (m_pad_control.get_pad_circle_target(0.1, position, target_position))
+        geometry_msgs::msg::PoseStamped target_pose;
+        
+        if (m_padflie_tf.get_cf_pose_stamped("world", current_pose) &&
+            m_pad_control.get_pad_circle_target(0.1, current_pose, target_pose))
         {
-            geometry_msgs::msg::PoseStamped target_pose;
-            target_pose.pose.position.x = target_position.x();
-            target_pose.pose.position.y = target_position.y();
-            target_pose.pose.position.z = target_position.z();
-            target_pose.header.frame_id = m_pad_control.get_frame_name();
             m_padflie_actor->set_target(target_pose, false);        
         }
     }        

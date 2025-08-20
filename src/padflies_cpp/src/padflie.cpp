@@ -40,17 +40,18 @@ public:
 
   void m_cf_transition_event_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg)
   {
-    if (msg->goal_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+    if (msg->goal_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE && !m_is_configured)
     {
-      RCLCPP_INFO(this->get_logger(), "Crazyflie started, activating commander");
+      RCLCPP_DEBUG(this->get_logger(), "Crazyflie started, activating commander");
       this->configure();
     } else if (msg->goal_state.id == lifecycle_msgs::msg::State::TRANSITION_STATE_SHUTTINGDOWN)
     {
-      RCLCPP_INFO(this->get_logger(), "Crazyflie is shutting down, deactivating commander");
-      m_force_deactivate = true; // Force deactivation
-      this->deactivate();
-    }else {
-      RCLCPP_WARN(this->get_logger(), "Padflie received unexpected transition event: %d", msg->goal_state.id);
+      RCLCPP_DEBUG(this->get_logger(), "Crazyflie is shutting down, deactivating commander");
+      if (this->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+      {
+        m_force_deactivate = true; // Force deactivation
+        this->deactivate();
+      }      
     }
   }
 

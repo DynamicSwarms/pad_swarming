@@ -113,7 +113,7 @@ class Creator:
         if flie is None:
             return
 
-        self._node.get_logger().info(f"Creator adding Crazyflie with ID:{flie.cf_id}")
+        self._node.get_logger().debug(f"Creator adding Crazyflie with ID:{flie.cf_id}")
         self._transition_event_subscriptions[flie.cf_id] = (
             self._node.create_subscription(
                 msg_type=TransitionEvent,

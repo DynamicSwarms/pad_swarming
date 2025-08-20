@@ -1,15 +1,19 @@
+import geometry_msgs
 import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
 from rclpy.time import Time, Duration
 
 
-from pad_management_interfaces.srv import PadCircleBehaviour
+from pad_management_interfaces.srv import PadIdleTarget
+from geometry_msgs.msg import PoseStamped
+from tf2_ros import TransformListener, Buffer
+import tf2_geometry_msgs as tf2_geom
 
 
 from dataclasses import dataclass
 
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 from rcl_interfaces.msg import (
@@ -65,13 +69,18 @@ class PadLandCircle(Node):
             ),
         )
 
+        self.tf_frame = self.declare_parameter("tf_frame", "pad_circle").value
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
         self.agents: Dict[str, Agent] = {}
 
         self.callback_group = MutuallyExclusiveCallbackGroup()
 
         self.create_service(
-            srv_type=PadCircleBehaviour,
-            srv_name="pad_circle",
+            srv_type=PadIdleTarget,
+            srv_name="/megapad/pad_idle_target",
             callback=self.calculate_behaviour,
             callback_group=self.callback_group,
         )
@@ -89,21 +98,30 @@ class PadLandCircle(Node):
                 del self.agents[name]
 
     def calculate_behaviour(
-        self, request: PadCircleBehaviour.Request, response: PadCircleBehaviour.Response
+        self,
+        request: PadIdleTarget.Request,
+        response: PadIdleTarget.Response,
     ):
         name = request.name
-        position = [request.position.x, request.position.y, request.position.z]
-        now = self.get_clock().now()
 
+        position = self._to_local_coordinates(request.position)
+
+        if position is None:
+            response.target = request.position
+            return response
+
+        now = self.get_clock().now()
         if name in self.agents.keys():
             self.agents[name].position = position
             self.agents[name].last_time = now
         else:
             self.agents[name] = Agent(name=name, position=position, last_time=now)
 
-        response.target.x, response.target.y, response.target.z = self.match_formation(
-            name
-        )
+        target = self.match_formation(name)
+        response.target.header.frame_id = self.tf_frame
+        response.target.pose.position.x = target[0]
+        response.target.pose.position.y = target[1]
+        response.target.pose.position.z = target[2]
         return response
 
     def match_formation(self, name: str):
@@ -264,6 +282,30 @@ class PadLandCircle(Node):
             return d
         else:
             return 2 * np.pi - d
+
+    def _to_local_coordinates(
+        self, pose_stamped: PoseStamped
+    ) -> Optional["list[float]"]:
+        """
+        Converts a PoseStamped to local coordinates
+        """
+        try:
+            t = self.tf_buffer.lookup_transform(
+                target_frame=self.tf_frame,
+                source_frame=pose_stamped.header.frame_id,
+                time=rclpy.time.Time(),
+            )
+            world_pose: PoseStamped = tf2_geom.do_transform_pose_stamped(
+                pose_stamped, t
+            )
+            return [
+                world_pose.pose.position.x,
+                world_pose.pose.position.y,
+                world_pose.pose.position.z,
+            ]
+        except Exception as ex:
+            self.get_logger().debug(str(ex))
+            return None
 
 
 def main():

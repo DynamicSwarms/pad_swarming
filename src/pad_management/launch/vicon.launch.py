@@ -185,12 +185,6 @@ def generate_launch_description():
         package="pad_management", executable="pad_traffic_controller"
     )
 
-    pad_circle = Node(
-        package="pad_management",
-        executable="pad_land_circle",
-        parameters=[{"radius": 1.45}],
-    )
-
     # For webots we need ChargingBase in tf
     pad_circle_tf_webots = Node(
         package="tf2_ros",
@@ -204,6 +198,12 @@ def generate_launch_description():
         executable="static_transform_publisher",
         arguments="0.5 0.8 1.0 0 0 0 ChargingBase20 pad_circle".split(" "),
         condition=LaunchConfigurationEquals("backend", "hardware"),
+    )
+
+    pad_circle = Node(
+        package="pad_management",
+        executable="pad_land_circle",
+        parameters=[{"radius": 1.45, "tf_frame": "pad_circle"}],
     )
 
     return LaunchDescription(

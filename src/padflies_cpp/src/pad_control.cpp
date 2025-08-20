@@ -5,8 +5,7 @@ static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callb
 // As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
 
 PadControl::PadControl()
-: m_frame_name("pad_circle")
-, m_logger_name("PadControlNoNode")
+: m_logger_name("PadControlNoNode")
 {
 }
 
@@ -19,15 +18,15 @@ void PadControl::on_activate(const std::string & prefix,
             rclcpp::CallbackGroupType::MutuallyExclusive);
 
     m_acquire_client = node->create_client<pad_management_interfaces::srv::PadRightAcquire>(
-        "acquire_pad_right",
+        "/megapad/pad_right_acquire",
         rclcpp::QoS(10).get_rmw_qos_profile(),
         m_callback_groups[prefix]);
     m_release_client = node->create_client<pad_management_interfaces::srv::PadRightRelease>(
-        "release_pad_right", 
+        "/megapad/pad_right_release", 
         rclcpp::QoS(10).get_rmw_qos_profile(),
         m_callback_groups[prefix]);
-    m_circle_behaviour_client = node->create_client<pad_management_interfaces::srv::PadCircleBehaviour>(
-        "pad_circle",
+    m_pad_idle_target_client = node->create_client<pad_management_interfaces::srv::PadIdleTarget>(
+        "/megapad/pad_idle_target",
         rclcpp::QoS(10).get_rmw_qos_profile(),
         m_callback_groups[prefix]);
 
@@ -38,7 +37,7 @@ void PadControl::on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> 
 {
     m_acquire_client.reset();
     m_release_client.reset();
-    m_circle_behaviour_client.reset();
+    m_pad_idle_target_client.reset();
 }
 
 
@@ -131,42 +130,31 @@ void PadControl::release_right_async(RightCallbackT && callback)
 
 bool PadControl::get_pad_circle_target(
     double timeout_seconds,
-    Eigen::Vector3d & position, 
-    Eigen::Vector3d & target_position)
+    const geometry_msgs::msg::PoseStamped & position, 
+    geometry_msgs::msg::PoseStamped & target_position)
 {
-    if (!m_circle_behaviour_client) return false;
+    if (!m_pad_idle_target_client) return false;
 
-    if (!m_circle_behaviour_client->wait_for_service(std::chrono::milliseconds((long int)(timeout_seconds * 1000)))) {
+    if (!m_pad_idle_target_client->wait_for_service(std::chrono::milliseconds((long int)(timeout_seconds * 1000)))) {
         RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for getting pad circle target");
         return false;
     }
 
-    auto request = std::make_shared<pad_management_interfaces::srv::PadCircleBehaviour::Request>();
+    auto request = std::make_shared<pad_management_interfaces::srv::PadIdleTarget::Request>();
     request->name = m_prefix;
-    request->position = geometry_msgs::msg::Point();
-    request->position.x = position.x();
-    request->position.y = position.y();
-    request->position.z = position.z();
+    request->position = position;
 
-    auto result = m_circle_behaviour_client->async_send_request(request);
+    auto result = m_pad_idle_target_client->async_send_request(request);
     auto status = result.wait_for(std::chrono::milliseconds((long int)(timeout_seconds * 1000)));
     
 
     if (status == std::future_status::ready)
     {
         auto response = result.get();
-        target_position.x() = response->target.x;
-        target_position.y() = response->target.y;
-        target_position.z() = response->target.z;
-
+        target_position = response->target;
         return true;
     } 
 
     return false;
-}
-
-std::string PadControl::get_frame_name() const
-{
-    return m_frame_name;
 }
 

@@ -164,7 +164,7 @@ class PadCreator(Node):
 
     def on_failure_callback(self, cf_id: int):
         with self.added_lock:
-            self.get_logger().info(f"Pad creator detected failure for: cf{cf_id}.")
+            self.get_logger().debug(f"Pad creator detected failure for: cf{cf_id}.")
             if cf_id in self.added:
                 self.added.remove(cf_id)
 
