@@ -135,7 +135,7 @@ bool PadflieActor::land_routine()
         if (m_padflie_tf->get_cf_position(cf_position))
         {
             Eigen::Vector3d pad_position(pad_pose.pose.position.x, pad_pose.pose.position.y, pad_pose.pose.position.z);
-            if ((cf_position - pad_position).norm() < 0.25)
+            if ((cf_position - pad_position).norm() < 0.5) // 0.5 meters tolerance -> transition to hl commander
                 break;
         } else {
             this->fail_safe("Failed to get current position for landing (Phase1).");
@@ -177,6 +177,23 @@ bool PadflieActor::land_routine()
         4.5);                                      // duration in seconds
 
     std::this_thread::sleep_for(std::chrono::milliseconds(4500));
+
+    // Log landing accuracy
+    Eigen::Vector3d cf_position;
+    if (m_padflie_tf->get_cf_position(cf_position)) {
+        RCLCPP_INFO(
+            rclcpp::get_logger(m_logger_name),
+            "Landing accuracy (XY): pad_position=(%.3f, %.3f, %.3f), cf_position=(%.3f, %.3f, %.3f), xy_distance=%.3f",
+            pad_position.x(), pad_position.y(), pad_position.z(),
+            cf_position.x(), cf_position.y(), cf_position.z(),
+            (cf_position.head<2>() - pad_position.head<2>()).norm()
+        );
+    } else {
+        RCLCPP_WARN(
+            rclcpp::get_logger(m_logger_name),
+            "Could not get cf position for landing accuracy log."
+        );
+    }
 
     if (!m_padflie_tf->get_pad_position_and_yaw(pad_position, pad_yaw))
     {

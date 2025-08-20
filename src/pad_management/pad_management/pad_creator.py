@@ -128,54 +128,19 @@ class PadCreator(Node):
             self.added.append(cf_id)
 
     def on_add_callback(self, cf_id: int, success: bool, msg: str):
-        do_transition = False
         with self.added_lock:
-            self.get_logger().info(f"AddCallback:{cf_id}, {success}, {msg}")
-            if success:
-                do_transition = True
-            else:
+            self.get_logger().debug(
+                f"Pad creator detected add feedback for:{cf_id}, {success}, {msg}"
+            )
+            if not success:
                 if cf_id in self.added:
                     self.added.remove(cf_id)  # Retrry creation
-        if do_transition:
-            self._transition_padflie(
-                cf_id=cf_id,
-                state=LifecycleState.TRANSITION_STATE_CONFIGURING,
-                label="configure",
-            )
 
     def on_failure_callback(self, cf_id: int):
-        do_transition = False
         with self.added_lock:
-            self.get_logger().info(f"Failure detected: {cf_id}. Trying to reconnect.")
+            self.get_logger().info(f"Pad creator detected failure for: cf{cf_id}.")
             if cf_id in self.added:
                 self.added.remove(cf_id)
-                do_transition = True
-        if do_transition:
-            self._transition_padflie(
-                cf_id=cf_id,
-                state=LifecycleState.TRANSITION_STATE_DEACTIVATING,
-                label="deactivate",
-            )  # Trie this
-            self._transition_padflie(
-                cf_id=cf_id,
-                state=LifecycleState.TRANSITION_STATE_CLEANINGUP,
-                label="cleanup",
-            )  # But especially return to unconfigured
-
-    def _transition_padflie(self, cf_id: int, state: LifecycleState, label: str):
-        change_state_client = self.create_client(
-            srv_type=ChangeState,
-            srv_name=f"padflie{cf_id}/change_state",
-            callback_group=self.crazyflies_callback_group,
-        )
-        if not change_state_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f"The Padflie with ID {cf_id} is not available.")
-            return  ## This permanently disables this crazyflie.
-
-        request = ChangeState.Request()
-        request.transition.id = state
-        request.transition.label = label
-        change_state_client.call_async(request)
 
     def _check_point_existance(self, point: "list[float]") -> bool:
         request = PointFinder.Request()

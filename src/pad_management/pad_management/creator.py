@@ -83,7 +83,9 @@ class Creator:
         self.add_queue: "list[CreationFlie]" = []
         self.add_queue_lock: Lock = Lock()
         self._node.create_timer(
-            0.3, self.create, callback_group=self._transition_event_callback_group
+            0.1,
+            self.create_timer_callback,
+            callback_group=self._transition_event_callback_group,
         )
 
     def enqueue_creation(
@@ -103,7 +105,7 @@ class Creator:
                 )
             )
 
-    def create(self):
+    def create_timer_callback(self):
         flie: Optional[CreationFlie] = None
         with self.add_queue_lock:
             if len(self.add_queue):
@@ -111,15 +113,17 @@ class Creator:
         if flie is None:
             return
 
-        self._node.get_logger().info(f"Adding Crazyflie with ID:{flie.cf_id}")
-        self._transition_event_subscriptions[
-            flie.cf_id
-        ] = self._node.create_subscription(
-            msg_type=TransitionEvent,
-            topic=f"cf{flie.cf_id}/transition_event",
-            callback=lambda event: self._transition_event_callback(flie.cf_id, event),
-            qos_profile=10,
-            callback_group=self._transition_event_callback_group,
+        self._node.get_logger().info(f"Creator adding Crazyflie with ID:{flie.cf_id}")
+        self._transition_event_subscriptions[flie.cf_id] = (
+            self._node.create_subscription(
+                msg_type=TransitionEvent,
+                topic=f"cf{flie.cf_id}/transition_event",
+                callback=lambda event: self._transition_event_callback(
+                    flie.cf_id, event
+                ),
+                qos_profile=10,
+                callback_group=self._transition_event_callback_group,
+            )
         )
         resp = self.add_client.call(self._create_add_request(flie))
         success, msg = self._interpret_add_response(resp)
@@ -133,7 +137,6 @@ class Creator:
 
     def _transition_event_callback(self, cf_id: int, event: TransitionEvent):
         if event.goal_state.id == LifecycleState.TRANSITION_STATE_SHUTTINGDOWN:
-            # self._node.get_logger().info(f"Caught {cf_id} failure. Trying to reconnect.")
             if cf_id in self._transition_event_subscriptions.keys():
                 self._node.destroy_subscription(
                     self._transition_event_subscriptions[cf_id]

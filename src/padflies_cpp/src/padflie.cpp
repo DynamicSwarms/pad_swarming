@@ -74,6 +74,7 @@ public:
     
     if (success)
     {
+      m_force_deactivate = false;
       m_is_configured = true;
       return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     } else {
@@ -88,9 +89,10 @@ public:
     bool success = m_padflie_commander.on_activate(shared_from_this());
     
     if (success) 
+    {
+      m_force_deactivate = false;
       return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
-    else
-      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+    } else return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
   }
 
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn

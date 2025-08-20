@@ -5,7 +5,7 @@
         enHighLevel: 1
       stabilizer:
         estimator: 2 # 1: complementary, 2: ekf
-        controller: 1 # 1: PID, 2: Mellinger
+        controller: 2 # 1: PID, 2: Mellinger
       posCtlPid:
         zKp: 2.0  # from 2.0
         zKi: 0.0 # from 0.5
@@ -16,7 +16,9 @@
       locSrv:
         extPosStdDev: 1e-3
       kalman:
-        resetEstimation: 1
-        mNGyro_yaw: 0.001 # 0.1 default
+        mNGyro_yaw: 0.1 # 0.1 default ## 0.001
+      ctrlMel:
+        mass: 0.0354 # 35.4 g (weighed(350mah batteries))
+
 
       

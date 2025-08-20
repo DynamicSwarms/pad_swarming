@@ -206,13 +206,6 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals("backend", "hardware"),
     )
 
-    gui_state = Node(
-        package="pad_management",
-        executable="gui_state",
-        parameters=[{"setup_yaml": flies_hardware_yaml}],
-        condition=LaunchConfigurationEquals("backend", "hardware"),
-    )
-
     return LaunchDescription(
         [
             backend_arg,
@@ -231,7 +224,6 @@ def generate_launch_description():
             pad_circle,
             pad_circle_tf_webots,
             pad_circle_tf,
-            gui_state,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
                     flies_hardware_yaml,
