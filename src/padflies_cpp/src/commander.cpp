@@ -420,7 +420,17 @@ PadflieCommander::m_handle_send_target_command(
 {
     //RCLCPP_INFO(rclcpp::get_logger("PadflieCommander"), "Send target command received for %s: %d", m_cf_prefix.c_str(), static_cast<int>(m_state));
     if (m_deactivating) return; // Reject any command while deactivating
-    if (m_padflie_actor && m_state == CommanderState::FLYING) {
-        m_padflie_actor->set_target(msg->target, msg->use_yaw);
-    }  
+    if (!m_padflie_actor) return;
+
+    // Accept the target only if we are flying or 
+    // in the transition phase -> smoother takeoff
+    switch (m_state) {
+        case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
+        case CommanderState::TAKEOFF:
+        case CommanderState::FLYING:
+            m_padflie_actor->set_target(msg->target, msg->use_yaw);
+            break;
+        default:
+            break;
+    } 
 }

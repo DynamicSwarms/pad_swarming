@@ -1,24 +1,16 @@
 /**:
   ros__parameters:
     default_firmware_params:
-      commander:
-        enHighLevel: 1
       stabilizer:
         estimator: 2 # 1: complementary, 2: ekf
         controller: 2 # 1: PID, 2: Mellinger
-      posCtlPid:
-        zKp: 2.0  # from 2.0
-        zKi: 0.0 # from 0.5
-        zKd: 0.0  # from 0.0
-        xKp: 2.0 #1.5
-        yKp: 2.0 #1.5
-        thrustBase: 42000 # 40000 # 36000 is standart. We have QI-Deck -> heavy
       locSrv:
         extPosStdDev: 1e-3
-      kalman:
-        mNGyro_yaw: 0.1 # 0.1 default ## 0.001
       ctrlMel:
         mass: 0.0354 # 35.4 g (weighed(350mah batteries))
+        kp_z: 1.00 # from 1.25
+        ki_z: 0.1 # from 0.05
+        kd_z: 0.3 # from 0.4
 
 
       

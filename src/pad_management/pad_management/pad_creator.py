@@ -28,6 +28,8 @@ from .creator import Creator, BackendType
 
 from threading import Lock
 
+MAX_RETRIES = 10
+
 
 class PadCreator(Node):
     """Manages the creation of crazyflies."""
@@ -82,14 +84,30 @@ class PadCreator(Node):
                 "Pad Creator waiting for checkForPoint service. Cannot launch until available."
             )
 
-        self.hardware_creator = Creator(
-            self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback
-        )
-        self.webots_creator = Creator(
-            self, BackendType.WEBOTS, self.on_add_callback, self.on_failure_callback
-        )
+        for flie in flies:
+            if "channel" in flie.keys():
+                self.hardware_creator = Creator(
+                    self,
+                    BackendType.HARDWARE,
+                    self.on_add_callback,
+                    self.on_failure_callback,
+                )
+                break
+        for flie in flies:
+            if "channel" not in flie.keys():
+                self.webots_creator = Creator(
+                    self,
+                    BackendType.WEBOTS,
+                    self.on_add_callback,
+                    self.on_failure_callback,
+                )
+                break
 
         self.added: list[int] = []
+        self.retries: dict[int, int] = {}
+        for flie in flies:
+            self.retries[flie["id"]] = 0
+
         self.added_lock: Lock = Lock()
 
         self.create_timer(
@@ -105,6 +123,13 @@ class PadCreator(Node):
             cf_id = flie["id"]
             if cf_id in self.added:
                 return  # We already try to create.
+
+            if self.retries[cf_id] > MAX_RETRIES:
+                if self.retries[cf_id] == MAX_RETRIES:
+                    self.get_logger().warn(
+                        f"Max retries reached for {cf_id}. Giving up."
+                    )
+                return
 
             pad_position = self._get_pad_position(flie["pad"])
             if pad_position is None:
@@ -125,6 +150,7 @@ class PadCreator(Node):
             else:
                 self.webots_creator.enqueue_creation(cf_id=cf_id)
 
+            self.retries[cf_id] += 1
             self.added.append(cf_id)
 
     def on_add_callback(self, cf_id: int, success: bool, msg: str):

@@ -14,7 +14,7 @@ PadflieActor::PadflieActor(
 , m_target_pose()
 , m_fixed_yaw(false)
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
-, m_position_controller(m_dt, 3.0, 1.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
+, m_position_controller(m_dt, 3.5, 1.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
 , m_collision_avoidance_client(node, std::stoi(cf_prefix.substr(3))) // Extract ID from cf_prefix (/cfID)
 , m_hl_commander(node, cf_prefix)
 , m_ll_commander(node, cf_prefix)
@@ -91,10 +91,11 @@ bool PadflieActor::takeoff_routine(
         4.0,                      // duration in seconds
         true);                    // relative movement
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     // Even though we specified more time for takeoff, this ensures a cleaner transition.
     m_state = ActorState::LOW_LEVEL_COMMANDER;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     return true; // Indicate successful takeoff
 }
 
@@ -272,14 +273,13 @@ void PadflieActor::m_send_target_callback()
 
         m_collision_avoidance_client.get_collision_avoidance_target(position, target_position);
 
-        Eigen::Vector3d safe_target;
-        m_position_controller.safe_command_position(position, target_position, safe_target);
+        m_position_controller.safe_command_position(position, target_position);
         double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
         
         // This is for race conditions and should be removed if possible.
         if (m_state == ActorState::LOW_LEVEL_COMMANDER)
         {
-            m_ll_commander.cmd_position(safe_target, safe_yaw);
+            m_ll_commander.cmd_position(target_position, safe_yaw);
         }
         
         m_current_yaw = safe_yaw; 

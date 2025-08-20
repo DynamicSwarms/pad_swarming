@@ -72,9 +72,9 @@ class Creator:
                 callback_group=MutuallyExclusiveCallbackGroup(),
             )
 
-        if not self.add_client.wait_for_service(timeout_sec=3.0):
+        if not self.add_client.wait_for_service(timeout_sec=0.5):
             self._node.get_logger().info("Gateway not reachable! (ADD)")
-        if not self.remove_client.wait_for_service(timeout_sec=3.0):
+        if not self.remove_client.wait_for_service(timeout_sec=0.5):
             self._node.get_logger().info("Gateway not reachable! (REMOVE)")
 
         self._transition_event_subscriptions: Dict[int, Subscription] = {}
