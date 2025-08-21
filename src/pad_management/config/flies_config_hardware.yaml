@@ -118,31 +118,31 @@ flies:
 # ROW E
 - id: 0xE0
   pad: 0xE0
-  channel: 100
+  channel: 50
 - id: 0xE1
   pad: 0xE1
-  channel: 100
+  channel: 50
 - id: 0xE2
   pad: 0xE2
-  channel: 100
+  channel: 50
 - id: 0xE3
   pad: 0xE3
-  channel: 100
+  channel: 50
 - id: 0xE4
   pad: 0xE4
-  channel: 100
+  channel: 50
 - id: 0xE5
   pad: 0xE5
-  channel: 100
+  channel: 50
 - id: 0xE6
   pad: 0xE6
-  channel: 100
+  channel: 50
 - id: 0xE7
   pad: 0xE7
-  channel: 100
+  channel: 50
 - id: 0xE8
   pad: 0xE8
-  channel: 100
+  channel: 50
 
 # ROW F
 #- id: 0xF0

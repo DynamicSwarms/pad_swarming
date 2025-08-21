@@ -1,7 +1,8 @@
 import rclpy
+from rclpy.node import Node
 import rclpy.duration
 import rclpy.time
-from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 import tf2_py
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -22,6 +23,7 @@ class CfPositionListener:
     def __init__(self, buffer: CfPositionBuffer, node: Node):
         self._buffer = buffer
         self._node = node
+        self._callback_group = MutuallyExclusiveCallbackGroup()
 
         qos = QoSProfile(
             depth=100,
@@ -35,6 +37,7 @@ class CfPositionListener:
             topic="/cf_positions",
             callback=self.callback,
             qos_profile=qos,
+            callback_group=self._callback_group,
         )
 
     def __del__(self) -> None:
@@ -50,7 +53,6 @@ class CfPositionListener:
 
 
 class PadflieTF:
-
     def __init__(
         self,
         node: Node,
@@ -263,7 +265,11 @@ class PadflieTF:
                 time=time,
             )
 
-        except (tf2_py.LookupException, tf2_py.ConnectivityException) as ex:
+        except (
+            tf2_py.LookupException,
+            tf2_py.ConnectivityException,
+            tf2_py.ExtrapolationException,
+        ) as ex:
             # This is most likely a Transform execption, which is expected and therefore None is ok.
             # It is very likely
             return None

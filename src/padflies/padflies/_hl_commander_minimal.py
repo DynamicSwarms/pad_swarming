@@ -44,11 +44,10 @@ class HighLevelCommander:
 
     def destroy_publishers(self):
         if self.has_publishers:
+            self.has_publishers = False
             self._node.destroy_publisher(self._takeoff_publisher)
             self._node.destroy_publisher(self._land_publisher)
             self._node.destroy_publisher(self._goto_publisher)
-
-            self.has_publishers = False
 
     def takeoff(
         self,

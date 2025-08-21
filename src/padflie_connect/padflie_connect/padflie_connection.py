@@ -6,6 +6,7 @@ from geometry_msgs.msg import PoseStamped
 import time
 
 from typing import Optional
+from padflies._padflie_states import PadFlieState
 
 
 class FlieState(Enum):
@@ -28,6 +29,16 @@ class PadflieConnection:
         )
 
         self._node.create_timer(1.0, self.check_battery)
+
+    def get_padflie_state(self) -> Optional[PadFlieState]:
+        return self._commander.get_padflie_state()
+
+    def is_home(self) -> bool:
+        """Returns True if the padflie is home, False if it is not. Returns true if unknwon."""
+        home = self._commander.is_home()
+        if home is None:
+            return True
+        return home
 
     def set_searching(self):
         self._connector.start_search()

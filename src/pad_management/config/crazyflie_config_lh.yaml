@@ -4,8 +4,12 @@
       commander:
         enHighLevel: 1
       stabilizer:
-        estimator: 2
-        controller: 1
+        estimator: 2 # 1: complementary, 2: ekf
+        controller: 2 # 1: PID, 2: Mellinger
       posCtlPid:
         thrustBase: 45000 # 36000 #60000 for 250maH was great
-      
+      ctrlMel: 
+        mass: 0.037 # 37g
+        kp_z: 1.05 # from 1.25
+        ki_z: 0.1 # from 0.05
+        kd_z: 0.3 # from 0.4

@@ -24,9 +24,12 @@ from itertools import cycle
 
 from typing import Optional, Dict
 
-from .creator import Creator, BackendType 
+from .creator import Creator, BackendType
 
 from threading import Lock
+
+MAX_RETRIES = 10
+
 
 class PadCreator(Node):
     """Manages the creation of crazyflies."""
@@ -81,10 +84,30 @@ class PadCreator(Node):
                 "Pad Creator waiting for checkForPoint service. Cannot launch until available."
             )
 
-        self.hardware_creator = Creator(self, BackendType.HARDWARE, self.on_add_callback, self.on_failure_callback)
-        self.webots_creator = Creator(self, BackendType.WEBOTS, self.on_add_callback, self.on_failure_callback)
-        
+        for flie in flies:
+            if "channel" in flie.keys():
+                self.hardware_creator = Creator(
+                    self,
+                    BackendType.HARDWARE,
+                    self.on_add_callback,
+                    self.on_failure_callback,
+                )
+                break
+        for flie in flies:
+            if "channel" not in flie.keys():
+                self.webots_creator = Creator(
+                    self,
+                    BackendType.WEBOTS,
+                    self.on_add_callback,
+                    self.on_failure_callback,
+                )
+                break
+
         self.added: list[int] = []
+        self.retries: dict[int, int] = {}
+        for flie in flies:
+            self.retries[flie["id"]] = 0
+
         self.added_lock: Lock = Lock()
 
         self.create_timer(
@@ -101,6 +124,13 @@ class PadCreator(Node):
             if cf_id in self.added:
                 return  # We already try to create.
 
+            if self.retries[cf_id] > MAX_RETRIES:
+                if self.retries[cf_id] == MAX_RETRIES:
+                    self.get_logger().warn(
+                        f"Max retries reached for {cf_id}. Giving up."
+                    )
+                return
+
             pad_position = self._get_pad_position(flie["pad"])
             if pad_position is None:
                 return  # Was not able to find associated pad
@@ -111,53 +141,32 @@ class PadCreator(Node):
 
             # Add the crazyflie and transition it to Configuring
             if "channel" in flie.keys():
-                self.hardware_creator.enqueue_creation(cf_id=cf_id,cf_channel=flie["channel"], initial_position=pad_position,type="tracked")
+                self.hardware_creator.enqueue_creation(
+                    cf_id=cf_id,
+                    cf_channel=flie["channel"],
+                    initial_position=pad_position,
+                    type="tracked",
+                )
             else:
                 self.webots_creator.enqueue_creation(cf_id=cf_id)
 
+            self.retries[cf_id] += 1
             self.added.append(cf_id)
-    
-    def on_add_callback(self, cf_id: int, success: bool):
-        do_transition = False
+
+    def on_add_callback(self, cf_id: int, success: bool, msg: str):
         with self.added_lock:
-            self.get_logger().info(f"AddCallback:{cf_id}, {success}")
-            if success:
-                do_transition = True
-            else:
+            self.get_logger().debug(
+                f"Pad creator detected add feedback for:{cf_id}, {success}, {msg}"
+            )
+            if not success:
                 if cf_id in self.added:
-                    self.added.remove(cf_id) # Retrry creation
-        if do_transition: 
-            self._transition_padflie(
-                    cf_id=cf_id,
-                    state=LifecycleState.TRANSITION_STATE_CONFIGURING,
-                    label="configure",
-                )
+                    self.added.remove(cf_id)  # Retrry creation
 
     def on_failure_callback(self, cf_id: int):
-        do_transition = False
         with self.added_lock:
-            self.get_logger().info(f"Failure detected: {cf_id}. Trying to reconnect.")
+            self.get_logger().debug(f"Pad creator detected failure for: cf{cf_id}.")
             if cf_id in self.added:
                 self.added.remove(cf_id)
-                do_transition = True
-        if do_transition: 
-            self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_DEACTIVATING, label="deactivate") # Trie this
-            self._transition_padflie(cf_id=cf_id, state=LifecycleState.TRANSITION_STATE_CLEANINGUP, label="cleanup") # But especially return to unconfigured
-            
-    def _transition_padflie(self, cf_id: int, state: LifecycleState, label: str):
-        change_state_client = self.create_client(
-            srv_type=ChangeState,
-            srv_name=f"padflie{cf_id}/change_state",
-            callback_group=self.crazyflies_callback_group,
-        )
-        if not change_state_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f"The Padflie with ID {cf_id} is not available.")
-            return  ## This permanently disables this crazyflie.
-
-        request = ChangeState.Request()
-        request.transition.id = state
-        request.transition.label = label
-        change_state_client.call_async(request)
 
     def _check_point_existance(self, point: "list[float]") -> bool:
         request = PointFinder.Request()
@@ -189,7 +198,18 @@ def main():
     )  # Because we are calling a service inside a timer
     executor.add_node(creator)
     try:
-        executor.spin()
+
+        def spin():
+            try:
+                executor.spin()
+            except rclpy._rclpy_pybind11.InvalidHandle:
+                creator.get_logger().warn(
+                    "Caught: rclpy._rclpy_pybind11.InvalidHandle: cannot use Destroyable because destruction was requested (see #1206 rclpy)"
+                )
+                spin()
+
+        spin()
+
         rclpy.try_shutdown()
     except KeyboardInterrupt:
         quit()

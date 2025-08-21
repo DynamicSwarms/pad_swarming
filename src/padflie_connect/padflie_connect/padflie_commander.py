@@ -7,7 +7,7 @@ from rclpy.subscription import Subscription
 from std_msgs.msg import Empty
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion
 from padflies_interfaces.msg import SendTarget, PadflieInfo
-
+from padflies._padflie_states import PadFlieState
 from typing import Optional, List
 
 
@@ -23,6 +23,7 @@ class PadflieCommander:
         self._pose_world_info: Optional[Pose] = None
         self._is_home_info: Optional[bool] = None
         self._battery_state_info: Optional[int] = None
+        self._padflie_state_info: Optional[PadFlieState] = None
 
         self.__takeoff_pub: Optional[Publisher] = None
         self.__land_pub: Optional[Publisher] = None
@@ -63,8 +64,11 @@ class PadflieCommander:
             self._pose_info.pose.position.z,
         ]
 
-    def is_home(self) -> Optional[List[float]]:
+    def is_home(self) -> Optional[bool]:
         return self._is_home_info
+
+    def get_padflie_state(self) -> Optional[PadFlieState]:
+        return self._padflie_state_info
 
     def battery_is_empty(self) -> bool:
         if self._battery_state_info is None:
@@ -112,10 +116,14 @@ class PadflieCommander:
             self._pose_world_info = info.pose_world
         self._is_home_info = info.is_home
         self._battery_state_info = info.battery
+        self._padflie_state_info = PadFlieState(info.padflie_state)
 
     def disconnect(self):
+        self._pose_info = None
+        self._pose_world_info = None
         self._is_home_info = None
         self._battery_state_info = None
+        self._padflie_state_info = None
         if self.__takeoff_pub is not None:
             self._node.destroy_publisher(self.__takeoff_pub)
             self.__takeoff_pub = None

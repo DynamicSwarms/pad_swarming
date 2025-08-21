@@ -35,10 +35,10 @@ class LowLevelCommander:
 
     def destroy_publishers(self):
         if self.has_publishers:
+            self.has_publishers = False
+
             self._node.destroy_publisher(self._notify_setpoints_stop_publisher)
             self._node.destroy_publisher(self._position_publisher)
-
-            self.has_publishers = False
 
     def notify_setpoints_stop(
         self, remain_valid_milliseconds: int = 100, group_mask: int = 0

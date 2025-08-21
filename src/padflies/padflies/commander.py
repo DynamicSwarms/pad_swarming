@@ -6,7 +6,11 @@ from rclpy.task import Future
 from std_msgs.msg import Empty
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion, Point
 from padflies_interfaces.msg import SendTarget, PadflieInfo
-from pad_management_interfaces.srv import PadRightAcquire, PadRightRelease, PadCircleBehaviour
+from pad_management_interfaces.srv import (
+    PadRightAcquire,
+    PadRightRelease,
+    PadCircleBehaviour,
+)
 
 from ._hl_commander_minimal import HighLevelCommander
 from ._ll_commander_minimal import LowLevelCommander
@@ -22,7 +26,6 @@ from .charge_controller import ChargeController
 
 
 class PadflieCommander:
-
     def __init__(
         self,
         node: Node,
@@ -50,39 +53,41 @@ class PadflieCommander:
             sleep=sleep,
         )  # This actor is allowed to send control commands to the crazyflie
 
-
         self._callback_group = (
             MutuallyExclusiveCallbackGroup()
         )  # All subscriptions can be on the same callbackgroup
-        
+
         self._landing_rights_callback_group = MutuallyExclusiveCallbackGroup()
         self._pad_circle_callback_group = MutuallyExclusiveCallbackGroup()
 
         self._pad_circle_tf_name = "pad_circle"
 
-        self.has_subscriptions = False
+        self.has_publisher = False
+        self.has_padclients = False
 
     def activate(self):
         self._actor.activate()
-
         self._state = PadFlieState.IDLE
-        # self._current_priority_id += 1
 
         self.__pad_circle_client = self._node.create_client(
-            srv_type=PadCircleBehaviour, 
+            srv_type=PadCircleBehaviour,
             srv_name="pad_circle",
-            callback_group=self._pad_circle_callback_group
+            callback_group=self._pad_circle_callback_group,
         )
 
         self.__acquire_pad_rights_client = self._node.create_client(
             srv_type=PadRightAcquire,
             srv_name="acquire_pad_right",
-            callback_group=self._landing_rights_callback_group)
-        
+            callback_group=self._landing_rights_callback_group,
+        )
+
         self.__release_pad_rights_client = self._node.create_client(
             srv_type=PadRightRelease,
             srv_name="release_pad_right",
-            callback_group=self._landing_rights_callback_group)
+            callback_group=self._landing_rights_callback_group,
+        )
+
+        self.has_padclients = True
 
         self.__send_target_sub = self._node.create_subscription(
             SendTarget,
@@ -114,32 +119,31 @@ class PadflieCommander:
             qos_profile=qos_profile_simple,
             callback_group=self._callback_group,
         )
+        self.has_publisher = True
 
         self.__info_timer = self._node.create_timer(0.1, self._info_timer_callback)
 
-
-
-        self.has_subscriptions = True
-
     def deactivate(self):
-        """Deactivating. 
-        
+        """Deactivating.
+
         This closes all subscriptions and lands if neccesarry.
-        Close subscribers first and then do smth about beeing still in the air. 
+        Close subscribers first and then do smth about beeing still in the air.
         This ensures nobody else will mess with us in the meantime.
         """
-        if self.has_subscriptions:
-            self._node.destroy_subscription(self.__send_target_sub)
-            self._node.destroy_subscription(self.__takeoff_sub)
-            self._node.destroy_subscription(self.__land_sub)
+        self._node.destroy_subscription(self.__send_target_sub)
+        self._node.destroy_subscription(self.__takeoff_sub)
+        self._node.destroy_subscription(self.__land_sub)
+
+        if self.has_publisher:
+            self.has_publisher = False
             self._node.destroy_timer(self.__info_timer)
             self._node.destroy_publisher(self.__info_pub)
 
-        wait_timeout = 10.0 # Maximum wait time, before just stopping and deactivatig actor -> fail safe
-        while self._state == PadFlieState.LAND and wait_timeout > 0.0: 
+        wait_timeout = 10.0  # Maximum wait time, before just stopping and deactivatig actor -> fail safe
+        while self._state == PadFlieState.LAND and wait_timeout > 0.0:
             """If we are landing. Wait for Landing to complete."""
             self._sleep(0.1)
-            wait_timeout -= 0.1        
+            wait_timeout -= 0.1
         while self._state == PadFlieState.TAKEOFF and wait_timeout > 0.0:
             """If we are taking off. We need to wait for the takeoff, we are then in target and can land."""
             self._sleep(0.1)
@@ -151,32 +155,34 @@ class PadflieCommander:
         self._state = PadFlieState.DEACTIVATED
         self._actor.deactivate()
 
-        if self.has_subscriptions: 
-            self._release_pad_right() # Maybe we have it. If we dont it is fine.
+        if self.has_padclients:
+            self._release_pad_right()  # Maybe we have it. If we dont it is fine.
+            self.has_padclients = False
 
             self._node.destroy_client(self.__acquire_pad_rights_client)
             self._node.destroy_client(self.__release_pad_rights_client)
             self._node.destroy_client(self.__pad_circle_client)
 
-        self.has_subscriptions = False
-
     def get_state(self) -> PadFlieState:
         return self._state
-    
+
     def _info_timer_callback(self):
         msg = PadflieInfo()
         msg.cf_prefix = self._cf_prefix
         pose_world = self.get_cf_pose_world()
         pose = self.get_cf_pose_stamped()
-        if pose_world is not None: 
+        if pose_world is not None:
             msg.pose_world = pose_world
             msg.pose_world_valid = True
-        if pose is not None: 
+        if pose is not None:
             msg.pose = pose
             msg.pose_valid = True
         msg.is_home = self._state == PadFlieState.IDLE
         msg.battery = self._charge_controller.get_padflie_info_charge_state()
-        self.__info_pub.publish(msg)
+        msg.padflie_state = int(self._state)
+
+        if self.has_publisher:
+            self.__info_pub.publish(msg)
 
     def get_cf_pose_world(self) -> Optional[Pose]:
         position = self._tf_manager.get_cf_position()
@@ -191,7 +197,7 @@ class PadflieCommander:
             pose.orientation.w,
         ) = Rotation.from_euler("z", self._actor.get_yaw()).as_quat()
         return pose
-    
+
     def get_cf_pose_stamped(self) -> Optional[PoseStamped]:
         """Returns pose stamped of frame which send_target was last called with"""
         target_pose = self._actor.get_target_pose()
@@ -205,59 +211,64 @@ class PadflieCommander:
             quat.z,
             quat.w,
         ) = Rotation.from_euler("z", self._actor.get_yaw()).as_quat()
-        return self._tf_manager.get_cf_pose_stamped(frame_id=frame_id,world_quat=quat)
-    
+        return self._tf_manager.get_cf_pose_stamped(frame_id=frame_id, world_quat=quat)
+
     def _acquire_pad_right(self, timeout: float) -> Future:
-        if self.__acquire_pad_rights_client.wait_for_service(timeout_sec=timeout):
+        if (
+            self.__acquire_pad_rights_client.wait_for_service(timeout_sec=timeout)
+            and self.has_padclients
+        ):
             req = PadRightAcquire.Request()
             req.name = self._prefix
             req.timeout = timeout
             return self.__acquire_pad_rights_client.call_async(req)
-        else: 
+        else:
             fut = Future()
             resp = PadRightAcquire.Response()
             resp.success = True
             fut.set_result(resp)
             return fut
-        
+
     def _release_pad_right(self) -> Future:
-        if self.__release_pad_rights_client.wait_for_service(timeout_sec=1.0):
+        if (
+            self.__release_pad_rights_client.wait_for_service(timeout_sec=1.0)
+            and self.has_padclients
+        ):
             req = PadRightRelease.Request()
             req.name = self._prefix
             return self.__release_pad_rights_client.call_async(req)
-        else: 
+        else:
             fut = Future()
             resp = PadRightRelease.Response()
             resp.success = True
             fut.set_result(resp)
             return fut
-    
+
     def _get_pad_circle_target(self) -> PoseStamped:
-        """ Get a position in the pad circle.
+        """Get a position in the pad circle.
         Returns:
             PoseStamped: Needs to respond some valid target with correct stamp. (See get_cf_pose_stamped functionality)
         """
         req = PadCircleBehaviour.Request()
         req.name = self._prefix
 
-
         pose = self.get_cf_pose_stamped()
-        if pose is not None and pose.header.frame_id == self._pad_circle_tf_name: 
+        if pose is not None and pose.header.frame_id == self._pad_circle_tf_name:
             req.position = pose.pose.position
         # Else the point is 0, 0, 0, and in next loop this is probably set
-
-        fut = self.__pad_circle_client.call_async(req)
-        for i in range(10):
-            if fut.done(): break
-            self._sleep(0.01)
-
         pose = PoseStamped()
         pose.header.frame_id = self._pad_circle_tf_name
-        if fut.done():
-            pose.pose.position = fut.result().target
+
+        if self.has_padclients:
+            fut = self.__pad_circle_client.call_async(req)
+            for i in range(10):
+                if fut.done():
+                    break
+                self._sleep(0.01)
+            if fut.done():
+                pose.pose.position = fut.result().target
         return pose
 
-    
     def _set_target_internal(self, target: PoseStamped, use_yaw: bool = False):
         """Set a PoseStamped as the actor target.
 
@@ -283,13 +294,15 @@ class PadflieCommander:
         """
         if self._state is not PadFlieState.IDLE:
             return
-        
+
         def _takeoff(fut: Future):
             success: PadRightAcquire.Response = fut.result()
-            if not success.success: 
-                self._node.get_logger("Did not get takeoff rights. Staying Home.")
+            if not success.success:
+                self._node.get_logger().info(
+                    "Did not get takeoff rights. Staying Home."
+                )
                 return
-            
+
             position = self._tf_manager.get_cf_position()
             if position is None:
                 self._node.get_logger().error(
@@ -302,12 +315,11 @@ class PadflieCommander:
             success = self._actor.takeoff_routine()
             self._state = PadFlieState.TARGET
             self._release_pad_right()
-                
-        fut = self._acquire_pad_right(timeout=60.0) 
+
+        fut = self._acquire_pad_right(timeout=60.0)
         # Up to one minute. Hmm...
         fut.add_done_callback(_takeoff)
 
-        
     def land(self):
         """Execute crazyflie landing. If in target mode.
 
@@ -323,15 +335,17 @@ class PadflieCommander:
         """
         if self._state is not PadFlieState.TARGET:
             return
-    
+
         self._state = PadFlieState.LAND
 
         fut = self._acquire_pad_right(180.0)
         while not fut.done():
-            self._set_target_internal(target=self._get_pad_circle_target(), use_yaw=False)
-            self._sleep(0.1) 
+            self._set_target_internal(
+                target=self._get_pad_circle_target(), use_yaw=False
+            )
+            self._sleep(0.1)
         success: PadRightAcquire.Response = fut.result()
-        if not success.success: 
+        if not success.success:
             self._state = PadFlieState.TARGET
         """
         Phase 1:
@@ -346,12 +360,12 @@ class PadflieCommander:
             Phases 2 and 3 are in the routine.
         """
         self._node.get_logger().info("Land P1")
-        
+
         timeout = 8.0
         while timeout > 0.0:
             target_pose = self._tf_manager.get_pad_pose()
             target_pose.pose.position.z += 0.5
-            #self._node.get_logger().info(f"Setting internal target {target_pose}")     
+            # self._node.get_logger().info(f"Setting internal target {target_pose}")
             self._set_target_internal(target=target_pose, use_yaw=True)
 
             cf_position = self._tf_manager.get_cf_position()
@@ -359,7 +373,9 @@ class PadflieCommander:
                 target_pose
             )
             if cf_position is None or pad_target is None:
-                self._actor._fail_safe("Landing failed. CF Position or Pad position lost.")
+                self._actor._fail_safe(
+                    "Landing failed. CF Position or Pad position lost."
+                )
                 self._state = PadFlieState.DEACTIVATED
                 self._release_pad_right()
                 return
@@ -372,8 +388,8 @@ class PadflieCommander:
 
             timeout -= 0.1
             self._sleep(0.1)
-       
-        self._node.get_logger().info("Land Routine")     
+
+        self._node.get_logger().info("Land Routine")
         self._actor.land_routine()
         self._state = PadFlieState.IDLE
         self._release_pad_right()
@@ -384,7 +400,7 @@ class PadflieCommander:
         Args:
             msg (SendTarget): A Send target message with priority and posestamped as target.
         """
-        #if msg.priority_id >= self._current_priority_id:
+        # if msg.priority_id >= self._current_priority_id:
         self.send_target(msg.target, msg.use_yaw)
 
     def __takeoff_callback(self, msg: Empty):

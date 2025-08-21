@@ -1,4 +1,5 @@
 import rclpy
+import rclpy._rclpy_pybind11
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor, Executor, MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
@@ -57,8 +58,8 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
             descriptor=ParameterDescriptor(read_only=True),
         )
 
-        self.declare_parameter("battery_voltage_empty", 3.2)
-        self.declare_parameter("battery_voltage_charged", 4.12)
+        self.declare_parameter("battery_voltage_empty", 3.44)
+        self.declare_parameter("battery_voltage_charged", 4.14)
 
         self._prefix = "/padflie{}".format(self.cf_id)
         self._cf_prefix = "/cf{}".format(self.cf_id)
@@ -286,8 +287,18 @@ def main():
     SHUTDOWN = FLAG()
     signal.signal(signal.SIGINT, lambda _, __: SHUTDOWN.kill())
 
-    while rclpy.ok() and not SHUTDOWN.stop and not executor._is_shutdown:
-        rclpy.spin_once(padflie, executor=executor, timeout_sec=1.0)
+    def spin():
+        try:
+            while rclpy.ok() and not SHUTDOWN.stop and not executor._is_shutdown:
+                rclpy.spin_once(padflie, executor=executor, timeout_sec=1.0)
+        except rclpy._rclpy_pybind11.InvalidHandle:
+            padflie.get_logger().warn(
+                "Caught: rclpy._rclpy_pybind11.InvalidHandle: cannot use Destroyable because destruction was requested (see #1206 rclpy)"
+            )
+            padflie.get_logger().warn(traceback.format_exc())
+            spin()
+
+    spin()
 
     padflie.shutdown()
     padflie.destroy_node()

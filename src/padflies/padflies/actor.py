@@ -50,7 +50,7 @@ class PadflieActor:
         ### Commanders (non ROS)
         self.max_rotational_speed: float = 0.5  # Dependent on update rate??
         self.max_step_distance_xy: float = 3  # in meters/second
-        self.max_step_distance_z: float = 1  # in meters/second
+        self.max_step_distance_z: float = 1.5  # in meters/second
         self.clipping_box: Optional[List[float]] = None
         self.fixed_yaw_target: float = 0.0
 
@@ -74,9 +74,9 @@ class PadflieActor:
         self.__last_valid_target_position_and_yaw: Optional[
             Tuple[List[float], float]
         ] = None
-        self.__current_yaw: float = (
-            0.0  # We dont get yaw from cf. Assume this gets correctly tracked across flight
-        )
+        self.__current_yaw: float = 0.0  # We dont get yaw from cf. Assume this gets correctly tracked across flight
+
+        self.has_collision_avoidance_client = False
 
     def activate(self):
         self._node.get_logger().info("Creating Publishers")
@@ -94,6 +94,7 @@ class PadflieActor:
             "collision_avoidance",
             callback_group=MutuallyExclusiveCallbackGroup(),
         )
+        self.has_collision_avoidance_client = True
 
         self._state = ActorState.HIGH_LEVEL_COMMANDER
 
@@ -101,8 +102,11 @@ class PadflieActor:
         self._node.destroy_timer(self.__cmd_timer)
         if self._state == ActorState.LOW_LEVEL_COMMANDER:
             self._hl_commander.land(0.0, 5.0)  # Failing semi safe
+
         self._hl_commander.destroy_publishers()
         self._ll_commander.destroy_publishers()
+
+        self.has_collision_avoidance_client = False
         self._node.destroy_client(self._collision_avoidance_client)
 
     def __calculate_collision_avoidance_target(
@@ -112,16 +116,19 @@ class PadflieActor:
         req.id = int(re.search(r"\d+", self._hl_commander._prefix).group())
         req.position.x, req.position.y, req.position.z = position
         req.target.x, req.target.y, req.target.z = target
-        fut = self._collision_avoidance_client.call_async(req)
 
-        for i in range(10):
-            if fut.done():
-                break
-            self._sleep(0.01)
-        if fut.result() is None:
-            return None
-        res = fut.result()
-        return [res.target.x, res.target.y, res.target.z]
+        if self.has_collision_avoidance_client:
+            fut = self._collision_avoidance_client.call_async(req)
+            for i in range(10):
+                if fut.done():
+                    break
+                self._sleep(0.01)
+            if fut.result() is None:
+                return None
+            res = fut.result()
+
+            return [res.target.x, res.target.y, res.target.z]
+        return None
 
     def __send_target(self):
         """Callback to the LOW level commander timer.
@@ -166,9 +173,10 @@ class PadflieActor:
                 # Target not ok.
                 # TODO: Should we hover or should we follow last valid target??
                 if self.__last_valid_target_position_and_yaw is not None:
-                    target_position, target_yaw = (
-                        self.__last_valid_target_position_and_yaw
-                    )
+                    (
+                        target_position,
+                        target_yaw,
+                    ) = self.__last_valid_target_position_and_yaw
                 else:
                     # Lets hover in place. This case is probably rare.
                     target_position = cf_position

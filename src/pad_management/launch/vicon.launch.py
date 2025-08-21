@@ -20,7 +20,7 @@ def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend:
     if not backend == "hardware":
         yamls["webots"] = flies_webots_yaml
     if not backend == "webots":
-        yamls["hardware"] == flies_hardware_yaml
+        yamls["hardware"] = flies_hardware_yaml
 
     for cf_type in yamls.keys():
         with open(yamls[cf_type], "r") as file:
@@ -30,9 +30,9 @@ def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend:
                 id = flie["id"]
                 channel = flie["channel"] if cf_type == "hardware" else 0
                 pad_id = flie["pad"]
-                if cf_type == "webots" or id < 0xE0:
+                if cf_type == "webots" or id < 0xF0:
                     yield Node(
-                        package="padflies",
+                        package="padflies_cpp",
                         executable="padflie",
                         name=f"padflie{id}",
                         parameters=[
@@ -92,7 +92,7 @@ def generate_launch_description():
             "crazyflie_configuration_yaml": get_package_share_directory(
                 "pad_management"
             )
-            + "/config/crazyflie_config_vicon.yaml", # Default params
+            + "/config/crazyflie_config_vicon.yaml",  # Default params
             "radio_channels": "50, 100",  # Could read from hardware config??
         }.items(),
     )
@@ -108,6 +108,7 @@ def generate_launch_description():
                 "hostname": "172.20.37.251",
                 "add_labeled_markers_to_pointcloud": True,
                 "topic_name": "pointCloud2",
+                "latency_threshold": 0.045,  # 45ms
             }
         ],
         condition=start_hardware,
@@ -177,38 +178,32 @@ def generate_launch_description():
     )
 
     collision_avoidance = Node(
-        package="collision_avoidance",
-        executable="collision_avoidance_node"
+        package="collision_avoidance", executable="collision_avoidance_node"
     )
 
     traffic_controller = Node(
-        package="pad_management",
-        executable="pad_traffic_controller"
+        package="pad_management", executable="pad_traffic_controller"
+    )
+
+    # For webots we need ChargingBase in tf
+    pad_circle_tf_webots = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments="0 0 1.0 0 0 0 world pad_circle".split(" "),
+        condition=LaunchConfigurationNotEquals("backend", "hardware"),
+    )
+
+    pad_circle_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments="0.5 0.8 1.0 0 0 0 ChargingBase20 pad_circle".split(" "),
+        condition=LaunchConfigurationEquals("backend", "hardware"),
     )
 
     pad_circle = Node(
         package="pad_management",
         executable="pad_land_circle",
-        parameters = [{"radius": 1.0}]
-    )
-
-    # For webots we need ChargingBase in tf
-    pad_circle_tf_webots = Node(package = "tf2_ros", 
-                executable = "static_transform_publisher",
-                arguments = "0 0 1.0 0 0 0 world pad_circle".split(' '), 
-                condition=LaunchConfigurationNotEquals("backend", "hardware"))
-
-
-    pad_circle_tf = Node(package = "tf2_ros", 
-                executable = "static_transform_publisher",
-                arguments = "0.5 0.8 1.0 0 0 0 ChargingBase20 pad_circle".split(' '),
-                condition=LaunchConfigurationEquals("backend", "hardware"))
-
-    gui_state = Node(
-        package="pad_management",
-        executable="gui_state",
-        parameters=[{"setup_yaml": flies_hardware_yaml}],
-        condition=LaunchConfigurationEquals("backend", "hardware")
+        parameters=[{"radius": 1.45, "tf_frame": "pad_circle"}],
     )
 
     return LaunchDescription(
@@ -224,15 +219,16 @@ def generate_launch_description():
             pad_broadcaster,
             creator,
             point_finder,
-            collision_avoidance, 
+            collision_avoidance,
             traffic_controller,
             pad_circle,
-            pad_circle_tf_webots, 
-            pad_circle_tf, 
-            gui_state,
+            pad_circle_tf_webots,
+            pad_circle_tf,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
-                    flies_hardware_yaml, flies_webots_yaml, LaunchConfiguration("backend").perform(ctxt)
+                    flies_hardware_yaml,
+                    flies_webots_yaml,
+                    LaunchConfiguration("backend").perform(ctxt),
                 )
             ),
         ]

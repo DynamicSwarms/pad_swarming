@@ -23,7 +23,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
             pad_id = flie["pad"]
 
             yield Node(
-                package="padflies",
+                package="padflies_cpp",
                 executable="padflie",
                 name=f"padflie{id}",
                 parameters=[
@@ -32,7 +32,7 @@ def generate_padflies(lighthouse_yaml: str, backend: str):
                         "channel": channel,
                         "pad_id": pad_id,
                         "type": backend,
-                        "battery_voltage_empty": 3.75,
+                        "battery_voltage_empty": 3.38,
                     }
                 ],
             )
@@ -48,8 +48,11 @@ def generate_launch_description():
         description="Select used backend, choose 'webots', 'hardware' or 'both'.",
     )
 
-    lighthouse_yaml = (
-        get_package_share_directory("pad_management") + "/config/lighthouse_config.yaml"
+    setup_yaml_arg = DeclareLaunchArgument(
+        "setup_yaml",
+        default_value=get_package_share_directory("pad_management")
+        + "/config/lighthouse_config.yaml",
+        description="Select a .yaml describing your system setup. (Crazyflie-IDs, Channels, Pads)",
     )
 
     start_hardware = LaunchConfigurationNotEquals("backend", "webots")
@@ -86,18 +89,6 @@ def generate_launch_description():
 
     ## Custom stuff
 
-    creator = Node(
-        package="pad_management",
-        executable="gui_creator",
-        parameters=[{"setup_yaml": lighthouse_yaml}],
-    )
-
-    gui_state = Node(
-        package="pad_management",
-        executable="gui_state",
-        parameters=[{"setup_yaml": lighthouse_yaml}],
-    )
-
     pad_spawner = Node(
         package="pad_management",
         executable="pad_spawner",
@@ -114,32 +105,31 @@ def generate_launch_description():
     pad_circle = Node(
         package="pad_management",
         executable="pad_land_circle",
-        parameters=[{"radius": 0.75}],
+        parameters=[{"radius": 0.3}],
     )
 
-    # For webots we need ChargingBase in tf
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0.3 -0.5 0.5 0 0 0 world pad_circle".split(" "),
+        arguments="-0.5 0.6 0.5 0 0 0 world pad_circle".split(" "),
     )
     return LaunchDescription(
         [
             backend_arg,
+            setup_yaml_arg,
             webots_gateway,
             hardware_gateway,
             position_visualization,
-            creator,
             pad_spawner,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
-                    lighthouse_yaml, LaunchConfiguration("backend")
+                    LaunchConfiguration("setup_yaml").perform(ctxt),
+                    LaunchConfiguration("backend").perform(ctxt),
                 )
             ),
             collision_avoidance,
             traffic_controller,
             pad_circle,
             pad_circle_tf,
-            gui_state,
         ]
     )
