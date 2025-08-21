@@ -33,6 +33,7 @@ private:
     );
 
     void m_fade_target(
+        const Eigen::Vector3d & current_position,
         Eigen::Vector3d & target
     );
 
