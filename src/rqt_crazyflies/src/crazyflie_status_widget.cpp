@@ -117,6 +117,11 @@ CrazyflieStatusWidget::update_state(std::vector<double> state)
         m_isTumbled = bool(int(state[5]));
         emit m_state_updated();
     }
+    if (state.size() == 1) // Webots update
+    {
+        m_voltage = state[0];
+        emit m_state_updated();
+    }
 }
 
 void 
