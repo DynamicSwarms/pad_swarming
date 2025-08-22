@@ -34,15 +34,21 @@ void PositionController::m_clip_box(
 void PositionController::m_clip_velocity(
     const Eigen::Vector3d & position,
     Eigen::Vector3d & target)
-{
+{  
+    auto velocity = (target - position).norm();
     double xy_velocity = (target - position).head<2>().norm();
     double z_velocity = std::abs((target - position).z());
 
     auto direction = (target - position).normalized();
+    
+    
     // Linearly interpolate max_velocity_tick between m_max_xy_velocity_tick and m_max_z_velocity_tick
     double xy_ratio = xy_velocity / (xy_velocity + z_velocity);
     double max_velocity_tick = xy_ratio * m_max_xy_velocity_tick + (1.0 - xy_ratio) * m_max_z_velocity_tick;
-    target = position + direction * max_velocity_tick;
+    if (velocity > max_velocity_tick)
+    {
+        target = position + direction * max_velocity_tick;
+    }
 }
 
 void PositionController::m_fade_target(
