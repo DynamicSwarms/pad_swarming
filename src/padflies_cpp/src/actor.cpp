@@ -13,7 +13,7 @@ PadflieActor::PadflieActor(
 , m_dt(0.1) // Default time step
 , m_target_pose()
 , m_fixed_yaw(false)
-, m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
+, m_yaw_controller(m_dt, 0.5) // Default max rotational velocity
 , m_position_controller(m_dt, 3.5, 1.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
 , m_collision_avoidance_client(node, std::stoi(cf_prefix.substr(3))) // Extract ID from cf_prefix (/cfID)
 , m_hl_commander(node, cf_prefix)
@@ -25,6 +25,12 @@ PadflieActor::PadflieActor(
     if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
         m_callback_groups[cf_prefix] = node->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
+
+    Eigen::Vector3d pad_position;
+    double yaw; 
+    if (m_padflie_tf->get_pad_position_and_yaw(pad_position, yaw)) {
+        m_current_yaw = yaw;
+    }
 
     m_send_target_timer = node->create_wall_timer(
         std::chrono::milliseconds((long int)(m_dt * 1000)),
@@ -58,6 +64,7 @@ bool PadflieActor::takeoff_routine(
 {
     if (m_state == ActorState::ERROR_STATE)
         return false;
+    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Starting takeoff routine for pad: %s", m_padflie_tf->get_pad_name().c_str());
     
     Eigen::Vector3d cf_position;
     if (!m_padflie_tf->get_cf_position(cf_position))
@@ -109,7 +116,7 @@ bool PadflieActor::land_routine()
 {
     if (m_state == ActorState::ERROR_STATE)
         return false;
-    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Starting land routine for %s", m_target_pose.header.frame_id.c_str());
+    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Starting land routine for pad: %s", m_padflie_tf->get_pad_name().c_str());
 
     /** Phase1: 
      *  For at most 8 seconds.
@@ -275,11 +282,11 @@ void PadflieActor::m_send_target_callback()
 
         m_position_controller.safe_command_position(position, target_position);
         double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
-        
+
         // This is for race conditions and should be removed if possible.
         if (m_state == ActorState::LOW_LEVEL_COMMANDER)
         {
-            m_ll_commander.cmd_position(target_position, safe_yaw);
+            m_ll_commander.cmd_position(target_position, safe_yaw * 180.0 / M_PI);
         }
         
         m_current_yaw = safe_yaw; 

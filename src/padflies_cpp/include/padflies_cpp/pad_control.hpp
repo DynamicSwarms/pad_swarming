@@ -17,13 +17,13 @@ public:
 
     PadControl();
 
-    void on_activate(const std::string & prefix,
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
-    
-    void on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+    void set_node(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
-    bool acquire_right(double timeout_seconds);
-    bool release_right();
+    void activate(
+        const std::string & pad_name,
+        const std::string & prefix);
+    
+    void deactivate();
 
     void acquire_right_async(double timeout_seconds, RightCallbackT && callback);
     void release_right_async(RightCallbackT && callback);
@@ -35,6 +35,8 @@ public:
 
 private: 
     std::string m_prefix;
+
+    std::weak_ptr<rclcpp_lifecycle::LifecycleNode> m_node;
 
     rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedPtr m_acquire_client;
     rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedPtr m_release_client;

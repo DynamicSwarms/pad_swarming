@@ -6,6 +6,7 @@
 #include "padflies_cpp/padflie_tf.hpp"
 #include "padflies_cpp/actor.hpp"
 #include "padflies_cpp/pad_control.hpp"
+#include "padflies_cpp/hardware_parameter_controller.hpp"
 
 #include "std_msgs/msg/empty.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -39,6 +40,9 @@ class PadflieCommander{
         );
 
         void m_on_charged_callback();
+
+        // Reset pad control to homepad
+        void m_pad_control_reset();
     
     private: 
         void m_create_subscriptions(
@@ -52,10 +56,12 @@ class PadflieCommander{
         void m_handle_info_timer();
         void m_handle_landing_target_timer();
 
-        void m_trigger_landing();
+        void m_trigger_landing(const std::string & pad_name = "");
         void m_trigger_takeoff();
 
         void m_acquire_pad_right_callback(bool success);
+
+        void m_reset_yaw_if_needed();
 
         void m_handle_takeoff_command(
             const std_msgs::msg::Empty::SharedPtr msg
@@ -64,6 +70,12 @@ class PadflieCommander{
         void m_handle_land_command(
             const std_msgs::msg::Empty::SharedPtr msg
         );
+
+        void m_handle_land_at_command(
+            const std_msgs::msg::String::SharedPtr msg
+        );
+
+        void m_process_land_command(const std::string & pad_name = "");
 
         void m_handle_send_target_command(
             const padflies_interfaces::msg::SendTarget::SharedPtr msg
@@ -98,8 +110,10 @@ class PadflieCommander{
 
         rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_takeoff_sub;
         rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_land_sub;
-        rclcpp::Subscription<padflies_interfaces::msg::SendTarget>::SharedPtr m_send_target_sub;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr m_land_at_sub;
 
+        rclcpp::Subscription<padflies_interfaces::msg::SendTarget>::SharedPtr m_send_target_sub;
+        
         rclcpp::TimerBase::SharedPtr m_info_timer;
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr m_availability_pub;
         rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>::SharedPtr m_padflie_info_pub;
@@ -107,10 +121,16 @@ class PadflieCommander{
         HardwareStateController m_hw_state_controller;
         PadflieTF m_padflie_tf;
         PadControl m_pad_control;
+        PadControl m_secondary_pad_control;
+        PadControl * m_current_pad_control = &m_pad_control;
+
+        HardwareParameterController m_hw_param_controller;
 
         std::unique_ptr<PadflieActor> m_padflie_actor;
     private: 
         uint8_t m_pad_id; 
-        
+
+        std::weak_ptr<rclcpp::node_interfaces::NodeParametersInterface> m_param_iface;
+
         std::string m_logger_name;
 };

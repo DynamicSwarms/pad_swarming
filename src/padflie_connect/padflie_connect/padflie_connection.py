@@ -51,6 +51,9 @@ class PadflieConnection:
 
     def set_stop(self):
         # Also disconnects existing one
+        if self._connector.is_connected():
+            self._commander.land_at("turtlebot")
+            time.sleep(1.0)
         self._connector.stop_search()
 
     def is_connected(self) -> bool:

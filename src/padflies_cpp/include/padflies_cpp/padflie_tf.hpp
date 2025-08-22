@@ -30,7 +30,10 @@ public:
     void set_pad(
         const std::string & pad_name);
     
-    
+        const std::string & get_pad_name() const { return m_pad_name; }
+
+    bool can_transform(const std::string & frame);
+
     /**
      * Get the position of the pad with a timeout.
      * If the pad is not found within the timeout it will raise an exception.

@@ -14,6 +14,8 @@ class TrafficController(Node):
     def __init__(self):
         super().__init__("traffic_controller")
 
+        self.pad_name = self.declare_parameter("pad_name", "megapad").value
+
         self.max_acquire_time = Duration(seconds=20, nanoseconds=0)
 
         self.pad_lock: Lock = Lock()
@@ -22,7 +24,7 @@ class TrafficController(Node):
 
         self.acquire_service = self.create_service(
             srv_type=PadRightAcquire,
-            srv_name="/megapad/pad_right_acquire",
+            srv_name=f"/{self.pad_name}/pad_right_acquire",
             callback=self.acquire_callback,
             callback_group=ReentrantCallbackGroup(),
         )
@@ -31,7 +33,7 @@ class TrafficController(Node):
 
         self.release_service = self.create_service(
             srv_type=PadRightRelease,
-            srv_name="/megapad/pad_right_release",
+            srv_name=f"/{self.pad_name}/pad_right_release",
             callback=self.release_callback,
             callback_group=self.release_group,
         )
@@ -54,8 +56,14 @@ class TrafficController(Node):
             self.locked_name = request.name
             self.locked_time = self.get_clock().now()
             response.success = True
+            self.get_logger().info(
+                f"Pad right acquired: {request.name}, for pad {self.pad_name}"
+            )
             return response
 
+        self.get_logger().info(
+            f"Pad right acquisition failed: {request.name}, for pad {self.pad_name}"
+        )
         response.success = False
         return response
 
@@ -74,8 +82,14 @@ class TrafficController(Node):
         if self.pad_lock.locked() and request.name == self.locked_name:
             self.pad_lock.release()
             response.success = True
+            self.get_logger().info(
+                f"Pad right released: {request.name} for pad {self.pad_name}"
+            )
             return response
 
+        self.get_logger().info(
+            f"Pad right release failed: {request.name} for pad {self.pad_name}"
+        )
         response.success = False
         return response
 

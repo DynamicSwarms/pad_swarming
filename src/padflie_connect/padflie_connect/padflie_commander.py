@@ -4,7 +4,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.publisher import Publisher
 from rclpy.subscription import Subscription
 
-from std_msgs.msg import Empty
+from std_msgs.msg import Empty, String
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion
 from padflies_interfaces.msg import SendTarget, PadflieInfo
 from padflies._padflie_states import PadFlieState
@@ -27,6 +27,7 @@ class PadflieCommander:
 
         self.__takeoff_pub: Optional[Publisher] = None
         self.__land_pub: Optional[Publisher] = None
+        self.__land_at_pub: Optional[Publisher] = None
         self.__send_target_pub: Optional[Publisher] = None
         self.__info_sub: Optional[Subscription] = None
 
@@ -37,6 +38,15 @@ class PadflieCommander:
     def land(self):
         if self.__land_pub is not None:
             self.__land_pub.publish(Empty())
+
+    def land_at(self, name: str):
+        self._node.get_logger().info(
+            f"Landing at {name}, the pub is {self.__land_at_pub}"
+        )
+        if self.__land_at_pub is not None:
+            msg = String()
+            msg.data = name
+            self.__land_at_pub.publish(msg)
 
     def send_target(self, pose_stamped: PoseStamped):
         if self.__send_target_pub is not None:
@@ -94,6 +104,13 @@ class PadflieCommander:
             callback_group=self._callback_group,
         )
 
+        self.__land_at_pub = self._node.create_publisher(
+            msg_type=String,
+            topic=prefix + "/pad_land_at",
+            qos_profile=self._qos_profile,
+            callback_group=self._callback_group,
+        )
+
         self.__send_target_pub = self._node.create_publisher(
             msg_type=SendTarget,
             topic=prefix + "/send_target",
@@ -130,6 +147,9 @@ class PadflieCommander:
         if self.__land_pub is not None:
             self._node.destroy_publisher(self.__land_pub)
             self.__land_pub = None
+        if self.__land_at_pub is not None:
+            self._node.destroy_publisher(self.__land_at_pub)
+            self.__land_at_pub = None
         if self.__send_target_pub is not None:
             self._node.destroy_publisher(self.__send_target_pub)
             self.__send_target_pub = None

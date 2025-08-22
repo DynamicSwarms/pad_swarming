@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
 find_package(padflies_interfaces REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
@@ -39,6 +40,7 @@ set(PADFLIE_DEPS
   src/yaw_controller.cpp
   src/actor.cpp
   src/collision_avoidance_client.cpp
+  src/hardware_parameter_controller.cpp
 )
 
 ament_target_dependencies(padflie
@@ -55,6 +57,7 @@ target_include_directories(padflie_deps PUBLIC
 )
 ament_target_dependencies(padflie_deps 
   rclcpp
+  rcl_interfaces
   crazyflie_interfaces
   padflies_interfaces
   pad_management_interfaces

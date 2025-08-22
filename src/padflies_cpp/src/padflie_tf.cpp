@@ -50,6 +50,15 @@ void PadflieTF::set_pad(const std::string & pad_name)
     m_has_pad = true;
 }
 
+bool PadflieTF::can_transform(const std::string & frame)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(m_world_frame, frame, transform)) {
+        return true;
+    }
+    return false;
+}
+
 bool PadflieTF::get_pad_position_and_yaw_or_timeout(
     rclcpp::Duration & timeout_sec,
     Eigen::Vector3d & position,

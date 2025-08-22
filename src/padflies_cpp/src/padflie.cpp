@@ -27,6 +27,7 @@ public:
         if (!m_padflie_commander.is_healthy()) 
         {
           RCLCPP_ERROR(this->get_logger(), "Padflie Commander is not healthy, deactivating");
+          m_padflie_commander.m_pad_control_reset();
           m_force_deactivate = true;
           this->deactivate();
         }
@@ -47,6 +48,7 @@ public:
     } else if (msg->goal_state.id == lifecycle_msgs::msg::State::TRANSITION_STATE_SHUTTINGDOWN)
     {
       RCLCPP_DEBUG(this->get_logger(), "Crazyflie is shutting down, deactivating commander");
+      m_padflie_commander.m_pad_control_reset();
       if (this->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
       {
         m_force_deactivate = true; // Force deactivation

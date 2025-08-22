@@ -59,7 +59,7 @@ private:
 
     geometry_msgs::msg::PoseStamped m_target_pose;
     bool m_fixed_yaw;
-    double m_fixed_yaw_target;
+    double m_fixed_yaw_target = 0.0;
     
     bool m_last_target_valid;
     Eigen::Vector3d m_last_valid_target_position;
