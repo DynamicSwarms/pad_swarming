@@ -26,7 +26,8 @@ public:
     void deactivate();
 
     void acquire_right_async(double timeout_seconds, RightCallbackT && callback);
-    void release_right_async(RightCallbackT && callback);
+    // takeoff true land false
+    void release_right_async(bool takeoff_land, RightCallbackT && callback);
 
     bool get_pad_circle_target(
         double timeout_seconds,

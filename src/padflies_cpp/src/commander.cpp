@@ -360,6 +360,7 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
 
     // Release rights and only THEN change the state, otherwise use after free issue might occur
     current_pad_control->release_right_async(
+        m_state  == CommanderState::TAKEOFF,
         [this, new_state](bool released)
         {
             (void)released; // We don't care about the result of releasing rights
@@ -385,20 +386,27 @@ PadflieCommander::m_reset_yaw_if_needed()
                 Eigen::Vector3d pad_position; 
                 double yaw; 
                 if (m_padflie_tf.get_pad_position_and_yaw(pad_position, yaw)) {
+                    if (m_padflie_actor) m_padflie_actor->reset_yaw(yaw);
+
+
                     rclcpp::Parameter kalmanInitialX("kalman.initialX", pad_position.x());
                     rclcpp::Parameter kalmanInitialY("kalman.initialY", pad_position.y());
                     rclcpp::Parameter kalmanInitialZ("kalman.initialZ", pad_position.z());
                     rclcpp::Parameter kalmanInitialYaw("kalman.initialYaw", yaw);
-                    rclcpp::Parameter kalmanReset("kalman.resetEstimation", 1);
-             
                     std::vector<rcl_interfaces::msg::Parameter> params;
                     params.push_back(kalmanInitialX.to_parameter_msg());
                     params.push_back(kalmanInitialY.to_parameter_msg());
                     params.push_back(kalmanInitialZ.to_parameter_msg());
                     params.push_back(kalmanInitialYaw.to_parameter_msg());
-                    params.push_back(kalmanReset.to_parameter_msg());
                     m_hw_param_controller.set_parameters(params);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(200)); // Wait for the parameters to be set
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
+
+                    std::vector<rcl_interfaces::msg::Parameter> kalman_params;
+                    rclcpp::Parameter kalmanReset("kalman.resetEstimation", 1);
+                    kalman_params.push_back(kalmanReset.to_parameter_msg());
+                    m_hw_param_controller.set_parameters(kalman_params);
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Wait for the parameters to be set
                 } else {
                     RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Failed to get pad position and yaw cannot reset kalman");
                     return;

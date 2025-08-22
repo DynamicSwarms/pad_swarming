@@ -13,6 +13,11 @@ PositionController::PositionController(
 {
 }   
 
+void PositionController::reset_controller()
+{
+    m_target_history.clear();
+}
+
 void PositionController::safe_command_position(
     const Eigen::Vector3d & current_position,
     Eigen::Vector3d & target_position)

@@ -1,3 +1,4 @@
 string name
+bool takeoff # if taking of true if landing false
 ---
 bool success

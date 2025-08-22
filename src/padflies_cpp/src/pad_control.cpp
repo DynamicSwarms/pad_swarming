@@ -76,12 +76,14 @@ void PadControl::acquire_right_async(double timeout_seconds, RightCallbackT && c
     }
 }
 
-void PadControl::release_right_async(RightCallbackT && callback)
+void PadControl::release_right_async(bool takeoff_land, RightCallbackT && callback)
 {
     RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Requesting pad right release");
     if (m_release_client && m_release_client->wait_for_service(std::chrono::milliseconds(100))) {  
         auto request = std::make_shared<pad_management_interfaces::srv::PadRightRelease::Request>();
         request->name = m_prefix;
+        request->takeoff = takeoff_land; // true for takeoff, false for landing
+
         m_release_client->async_send_request(
             request, 
             [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedFutureWithRequest response_future) {

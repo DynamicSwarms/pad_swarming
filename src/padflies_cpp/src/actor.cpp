@@ -59,6 +59,11 @@ void PadflieActor::get_target_pose(
     target_pose = m_target_pose;
 }
 
+void PadflieActor::reset_yaw(double yaw)
+{
+    m_current_yaw = yaw;
+}
+
 bool PadflieActor::takeoff_routine(
     double takeoff_height)
 {
@@ -101,6 +106,7 @@ bool PadflieActor::takeoff_routine(
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     // Even though we specified more time for takeoff, this ensures a cleaner transition.
+    m_position_controller.reset_controller();
     m_state = ActorState::LOW_LEVEL_COMMANDER;
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     return true; // Indicate successful takeoff

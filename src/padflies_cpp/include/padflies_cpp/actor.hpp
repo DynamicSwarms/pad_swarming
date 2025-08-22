@@ -32,7 +32,9 @@ public:
     void set_target(
         const geometry_msgs::msg::PoseStamped & target_pose,
         bool use_yaw);
-    
+
+    void reset_yaw(double yaw);
+
     bool takeoff_routine(
         double takeoff_height = 1.0);
     

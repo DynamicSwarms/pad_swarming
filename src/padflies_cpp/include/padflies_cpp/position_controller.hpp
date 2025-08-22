@@ -17,6 +17,8 @@ public:
         const std::vector<double> & clipping_box
     );
 
+    void reset_controller();
+
     void safe_command_position(
         const Eigen::Vector3d & current_position,
         Eigen::Vector3d & target_position
