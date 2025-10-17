@@ -3,7 +3,7 @@
     default_firmware_params:
       stabilizer:
         estimator: 2 # 1: complementary, 2: ekf
-        controller: 2 # 1: PID, 2: Mellinger
+        controller: 1 # 1: PID, 2: Mellinger
       locSrv:
         extPosStdDev: 1e-3
       ctrlMel:
