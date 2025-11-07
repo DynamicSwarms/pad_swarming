@@ -120,6 +120,8 @@ bool PadflieActor::land_routine()
     auto start_time = std::chrono::steady_clock::now();
     const double max_duration = 8.0; // seconds
     geometry_msgs::msg::PoseStamped pad_pose;
+
+    bool we_are_close = false;
     while (std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count() < max_duration)
     {
         if (!m_padflie_tf->get_pad_pose_world(pad_pose))
@@ -137,7 +139,10 @@ bool PadflieActor::land_routine()
         {
             Eigen::Vector3d pad_position(pad_pose.pose.position.x, pad_pose.pose.position.y, pad_pose.pose.position.z);
             if ((cf_position - pad_position).norm() < 0.5) // 0.5 meters tolerance -> transition to hl commander
+            {
+                we_are_close = true;
                 break;
+            }   
         } else {
             this->fail_safe("Failed to get current position for landing (Phase1).");
             return false;
@@ -172,12 +177,13 @@ bool PadflieActor::land_routine()
         return false;
     }
 
+    double approach_time = we_are_close ? 2.5 : 4.5;
     m_hl_commander.go_to(
         pad_position + Eigen::Vector3d(0, 0, 0.25),// global position above pad
         pad_yaw,                                   // yaw
-        4.5);                                      // duration in seconds
+        approach_time);                            // duration in seconds
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(4500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(approach_time * 1000)));
 
     // Log landing accuracy
     Eigen::Vector3d cf_position;
@@ -205,9 +211,9 @@ bool PadflieActor::land_routine()
     m_hl_commander.go_to(
         pad_position + Eigen::Vector3d(0, 0, -0.1), // global position in pad
         pad_yaw,                                    // yaw
-        5.0);                                       // duration in seconds
+        3.0);                                       // duration in seconds
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
     /**
      * Phase3:
@@ -224,7 +230,7 @@ bool PadflieActor::land_routine()
         -0.5,       // target height
         2.5,        // duration in seconds
         pad_yaw);   // yaw
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
     return true; // Indicate successful landing
 }
 
