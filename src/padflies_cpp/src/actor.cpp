@@ -14,7 +14,7 @@ PadflieActor::PadflieActor(
 , m_target_pose()
 , m_fixed_yaw(false)
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
-, m_position_controller(m_dt, 3.5, 1.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
+, m_position_controller(m_dt, 5.0, 2.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
 , m_collision_avoidance_client(node, std::stoi(cf_prefix.substr(3))) // Extract ID from cf_prefix (/cfID)
 , m_hl_commander(node, cf_prefix)
 , m_ll_commander(node, cf_prefix)
@@ -67,15 +67,12 @@ bool PadflieActor::takeoff_routine(
     }
     
     m_state = ActorState::HIGH_LEVEL_COMMANDER;
-    geometry_msgs::msg::PoseStamped target_pose;
-    if (!m_padflie_tf->get_pad_pose_world(target_pose))
+    geometry_msgs::msg::PoseStamped pad_pose;
+    if (!m_padflie_tf->get_pad_pose_world(pad_pose))
     {
         RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Aborting takeoff, pad position not available.");
         return false;
     }
-
-    target_pose.pose.position.z += takeoff_height;
-    this->set_target(target_pose, false); // Set target so that after takeoff we will hover.
 
     m_hl_commander.go_to(
         Eigen::Vector3d(0,0,0.1), // relative position to current position
@@ -83,19 +80,24 @@ bool PadflieActor::takeoff_routine(
         1.0,                      // duration in seconds
         true);                    // relative movement
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
  
     m_hl_commander.go_to(
         Eigen::Vector3d(0,0,0.6), // relative position to current position
         0.0,                      // yaw
-        4.0,                      // duration in seconds
+        1.5,                      // duration in seconds
         true);                    // relative movement
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     // Even though we specified more time for takeoff, this ensures a cleaner transition.
+    pad_pose.pose.position.z += takeoff_height;
+    this->set_target(pad_pose, false); // Set target so that after takeoff we will hover.
+    Eigen::Vector3d target_position(pad_pose.pose.position.x, pad_pose.pose.position.y, pad_pose.pose.position.z);
+    m_position_controller.initialize_target_history(target_position);
+    
     m_state = ActorState::LOW_LEVEL_COMMANDER;
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1250)); // Wait before releasing pad_rights
     return true; // Indicate successful takeoff
 }
 
@@ -118,7 +120,7 @@ bool PadflieActor::land_routine()
         During this we need to update the pad position, maybe it moves.
     */
     auto start_time = std::chrono::steady_clock::now();
-    const double max_duration = 8.0; // seconds
+    const double max_duration = 10.0; // seconds
     geometry_msgs::msg::PoseStamped pad_pose;
 
     bool we_are_close = false;
@@ -153,7 +155,7 @@ bool PadflieActor::land_routine()
 
 
 
-    m_ll_commander.notify_setpoints_stop(200);
+    m_ll_commander.notify_setpoints_stop(50);
     m_state = ActorState::HIGH_LEVEL_COMMANDER;
 
     /**
@@ -161,7 +163,7 @@ bool PadflieActor::land_routine()
      *  We are now only using HighLevelCommander
      *  Use GoTos to properly land. 
      *  We were 0.5 meters above the pad. 
-     *  First Step: lower to 0.2 m above pad. This is because Phase1 probably overshoots
+     *  First Step: lower to 0.25 m above pad. This is because Phase1 probably overshoots
      *  Second Step: Fly straight down into the pad. For a good seating.
      *
      *  During this phase a moving pad is bad but we need the clean high level command routines for safe flight. 
@@ -177,7 +179,7 @@ bool PadflieActor::land_routine()
         return false;
     }
 
-    double approach_time = we_are_close ? 2.5 : 4.5;
+    double approach_time = we_are_close ? 1.25 : 4.5;
     m_hl_commander.go_to(
         pad_position + Eigen::Vector3d(0, 0, 0.25),// global position above pad
         pad_yaw,                                   // yaw
@@ -213,7 +215,7 @@ bool PadflieActor::land_routine()
         pad_yaw,                                    // yaw
         3.0);                                       // duration in seconds
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     /**
      * Phase3:
@@ -227,10 +229,10 @@ bool PadflieActor::land_routine()
     }
 
     m_hl_commander.land(
-        -0.5,       // target height
-        2.5,        // duration in seconds
-        pad_yaw);   // yaw
-    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        pad_position.z() - 0.5,       // target height
+        3.0,                          // duration in seconds
+        pad_yaw);                     // yaw
+
     return true; // Indicate successful landing
 }
 
@@ -277,9 +279,10 @@ void PadflieActor::m_send_target_callback()
         }
         if (m_fixed_yaw) target_yaw = m_fixed_yaw_target;
 
-        m_collision_avoidance_client.get_collision_avoidance_target(position, target_position);
+        bool collision = false;
+        m_collision_avoidance_client.get_collision_avoidance_target(position, target_position, collision);
 
-        m_position_controller.safe_command_position(position, target_position);
+        m_position_controller.safe_command_position(position, target_position, collision);
         double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
         
         // This is for race conditions and should be removed if possible.

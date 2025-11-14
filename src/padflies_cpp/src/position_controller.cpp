@@ -9,17 +9,26 @@ PositionController::PositionController(
 : m_dt(dt)
 , m_max_xy_velocity_tick(m_dt * max_xy_velocity)
 , m_max_z_velocity_tick(m_dt * max_z_velocity)
+, m_collision_slowdown_factor(0.70) // Slow down to 70% speed in case of crowding
 , m_clipping_box(clipping_box)
+, m_target_history_size(12)
 {
 }   
 
 void PositionController::safe_command_position(
     const Eigen::Vector3d & current_position,
-    Eigen::Vector3d & target_position)
+    Eigen::Vector3d & target_position,
+    bool collision)
 {
-    m_clip_velocity(current_position, target_position);
+m_clip_velocity(current_position, target_position, collision);
     m_fade_target(current_position, target_position);
     m_clip_box(target_position);
+}
+
+void PositionController::initialize_target_history(const Eigen::Vector3d & target)
+{
+    m_target_history.clear();
+    m_target_history.push_back(target);
 }
 
 void PositionController::m_clip_box(
@@ -33,18 +42,21 @@ void PositionController::m_clip_box(
 
 void PositionController::m_clip_velocity(
     const Eigen::Vector3d & position,
-    Eigen::Vector3d & target)
+    Eigen::Vector3d & target,
+    bool collision)
 {  
     auto velocity = (target - position).norm();
     double xy_velocity = (target - position).head<2>().norm();
     double z_velocity = std::abs((target - position).z());
 
     auto direction = (target - position).normalized();
-    
+
+    double max_xy_velocity_tick = collision ? m_max_xy_velocity_tick * m_collision_slowdown_factor : m_max_xy_velocity_tick;
+    double max_z_velocity_tick = collision ? m_max_z_velocity_tick * m_collision_slowdown_factor : m_max_z_velocity_tick;
     
     // Linearly interpolate max_velocity_tick between m_max_xy_velocity_tick and m_max_z_velocity_tick
     double xy_ratio = xy_velocity / (xy_velocity + z_velocity);
-    double max_velocity_tick = xy_ratio * m_max_xy_velocity_tick + (1.0 - xy_ratio) * m_max_z_velocity_tick;
+    double max_velocity_tick = xy_ratio * max_xy_velocity_tick + (1.0 - xy_ratio) * max_z_velocity_tick;
     if (velocity > max_velocity_tick)
     {
         target = position + direction * max_velocity_tick;

@@ -29,7 +29,8 @@ CollisionAvoidanceClient::~CollisionAvoidanceClient()
 
 void CollisionAvoidanceClient::get_collision_avoidance_target(
     const Eigen::Vector3d & position,
-    Eigen::Vector3d & target)
+    Eigen::Vector3d & target,
+    bool & collision)
 {
     if (!m_client) return;
 
@@ -51,5 +52,6 @@ void CollisionAvoidanceClient::get_collision_avoidance_target(
         target.x() = response->target.x;
         target.y() = response->target.y;
         target.z() = response->target.z;
+        collision = response->collision;
     }
 }

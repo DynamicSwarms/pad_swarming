@@ -18,7 +18,8 @@ public:
 
     void get_collision_avoidance_target(
         const Eigen::Vector3d & position,
-        Eigen::Vector3d & target);
+        Eigen::Vector3d & target,
+        bool & collision);
 
 private: 
     uint8_t m_cf_id;

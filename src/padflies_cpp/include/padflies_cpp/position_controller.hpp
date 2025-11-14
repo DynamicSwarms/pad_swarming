@@ -19,8 +19,11 @@ public:
 
     void safe_command_position(
         const Eigen::Vector3d & current_position,
-        Eigen::Vector3d & target_position
+        Eigen::Vector3d & target_position,
+        bool collision
     );
+
+    void initialize_target_history(const Eigen::Vector3d & target);
 
 private: 
     void m_clip_box(
@@ -29,7 +32,8 @@ private:
 
     void m_clip_velocity(
         const Eigen::Vector3d & position,
-        Eigen::Vector3d & target
+        Eigen::Vector3d & target,
+        bool collision
     );
 
     void m_fade_target(
@@ -41,9 +45,10 @@ private:
     double m_dt; // Time step in seconds
     double m_max_xy_velocity_tick; // Maximum XY velocity per tick (tick is m_dt seconds)
     double m_max_z_velocity_tick; // Maximum Z velocity per tick (tick is m_dt seconds)
+    double m_collision_slowdown_factor; // Factor to slow down in case of collision
     std::vector<double> m_clipping_box; // Clipping box for the position
 
-    size_t m_target_history_size = 20; // Size of the target history for fading
+    size_t m_target_history_size; // Size of the target history for fading
     std::vector<Eigen::Vector3d> m_target_history; // History of target positions for fading
 };
 
