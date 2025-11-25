@@ -78,7 +78,7 @@ class Creator:
             self._node.get_logger().info("Gateway not reachable! (REMOVE)")
 
         self._transition_event_subscriptions: Dict[int, Subscription] = {}
-        self._transition_event_callback_group = MutuallyExclusiveCallbackGroup()
+        self._transition_event_callback_group = ReentrantCallbackGroup()
 
         self.add_queue: "list[CreationFlie]" = []
         self.add_queue_lock: Lock = Lock()
