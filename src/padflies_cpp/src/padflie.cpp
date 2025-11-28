@@ -2,6 +2,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "lifecycle_msgs/msg/transition_event.hpp"
+#include "lifecycle_msgs/srv/get_state.hpp"
+
 
 #include "padflies_cpp/commander.hpp"
 
@@ -32,6 +34,9 @@ public:
         }
       });
 
+    m_get_state_callback_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    m_cf_get_state_client = this->create_client<lifecycle_msgs::srv::GetState>(m_cf_prefix + "/get_state", rmw_qos_profile_services_default, m_get_state_callback_group);
+    m_cf_state_check_timer = this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Padflie::m_cf_state_check_callback, this));
     m_cf_transition_event_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
       m_cf_prefix + "/transition_event", 10,
       std::bind(&Padflie::m_cf_transition_event_callback, this, _1));
@@ -53,6 +58,33 @@ public:
         this->deactivate();
       }      
     }
+  }
+
+  // There are possibilities where thetransitionevent callback is not called because the graph update is delayed and therefore no connection between cf and padflie exists during the transition.
+  // If transition event would be latching this would not be a problem, but it is not.
+  void m_cf_state_check_callback()
+  {
+    if (m_is_configured) return; // No need to check if already configured
+    
+    if (!m_cf_get_state_client->wait_for_service(std::chrono::milliseconds(10)))
+    {
+      return;
+    }
+
+    auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
+    auto future = m_cf_get_state_client->async_send_request(request);
+
+    // Wait for the result.
+    auto status = future.wait_for(std::chrono::milliseconds(50));
+    if (status == std::future_status::ready)
+    {
+      auto response = future.get();
+      if (response->current_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE && !m_is_configured)
+      {
+        RCLCPP_INFO(this->get_logger(), "Crazyflie started, activating commander. We missed the transition event?");
+        this->configure();
+      }
+    } 
   }
 
 
@@ -134,6 +166,9 @@ private:
 
   PadflieCommander m_padflie_commander;
 
+  std::shared_ptr<rclcpp::CallbackGroup> m_get_state_callback_group;
+  std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::GetState>> m_cf_get_state_client;
+  std::shared_ptr<rclcpp::TimerBase> m_cf_state_check_timer;
   std::shared_ptr<rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>> m_cf_transition_event_sub;
   std::shared_ptr<rclcpp::TimerBase> m_commander_health_check_timer;
 
