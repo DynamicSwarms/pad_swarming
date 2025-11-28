@@ -97,8 +97,8 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
 
         try:
             pad_position, yaw = self._tf_manager.get_pad_position_or_timeout(
-                timeout_sec=1.0
-            )  # might raise TimeoutError
+                timeout_sec=1.0,
+            ) # might raise TimeoutError
 
             # if tracked ??
             self.set_initial_yaw()
@@ -117,7 +117,9 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
         self._tf_manager.deactivate()
 
     def set_initial_yaw(self):
-        p_y = self._tf_manager.get_pad_position_and_yaw()
+        p_y = self._tf_manager.get_pad_position_and_yaw() #todo: hier muss noch flexibel werden
+       
+        
         if p_y is None:
             return
         _, yaw = p_y
@@ -153,7 +155,7 @@ class PadFlie(Node, LifecycleNodeMixin, Crazyflie):
     @property
     def pad_name(self) -> str:
         id: int = self.get_parameter("pad_id").get_parameter_value().integer_value
-        return f"pad_{id}"
+        return  f"pad_{id}" #  //fliegen bei dosconnnect zu diesem pad"/Extern_Pad_150"#
 
     @property
     def cf_type(self) -> CrazyflieType:

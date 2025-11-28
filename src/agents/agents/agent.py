@@ -71,8 +71,9 @@ class Agent(Node):
         Either because we landed and triggered it or there was an error in padflie.
         We disconnect the commander module and are ready to be connected again.        
         """
+        print("In-flight disconnect – waiting for safe landing")
         self._commander.disconnect()
-        if self._state == AgentState.FLYING:
+        if self._state == AgentState.FLYING :
             # We are flying. Get swapped for a new one.
             return
         else:  

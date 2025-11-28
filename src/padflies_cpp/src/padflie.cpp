@@ -14,7 +14,17 @@ class Padflie : public rclcpp_lifecycle::LifecycleNode
 {
 public:
   Padflie(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
-  : rclcpp_lifecycle::LifecycleNode("padflie", options)
+  : rclcpp_lifecycle::LifecycleNode(
+      options.arguments().empty() ? "padflie" : // fallback
+      // prüfe ob --ros-args --node-name XYZ in args enthalten ist:
+      [] (const std::vector<std::string>& args) -> std::string {
+        for (size_t i = 0; i + 1 < args.size(); ++i) {
+          if (args[i] == "--node-name") {
+            return args[i + 1];
+          }
+        }
+        return "padflie";
+      }(options.arguments()), options)
   , m_cf_id(declare_parameter("id", rclcpp::ParameterValue(0xE7), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
   , m_prefix("/padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))

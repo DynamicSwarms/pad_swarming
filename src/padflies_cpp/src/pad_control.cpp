@@ -57,6 +57,7 @@ void PadControl::deactivate()
 
 void PadControl::acquire_right_async(double timeout_seconds, RightCallbackT && callback)
 {
+    //try to get the pad rights
     RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Requesting pad right acquisition");
     if (m_acquire_client && m_acquire_client->wait_for_service(std::chrono::milliseconds(100))) {
         auto request = std::make_shared<pad_management_interfaces::srv::PadRightAcquire::Request>();
@@ -78,6 +79,7 @@ void PadControl::acquire_right_async(double timeout_seconds, RightCallbackT && c
 
 void PadControl::release_right_async(bool takeoff_land, RightCallbackT && callback)
 {
+    //return the padrights
     RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Requesting pad right release");
     if (m_release_client && m_release_client->wait_for_service(std::chrono::milliseconds(100))) {  
         auto request = std::make_shared<pad_management_interfaces::srv::PadRightRelease::Request>();
@@ -102,6 +104,7 @@ bool PadControl::get_pad_circle_target(
     const geometry_msgs::msg::PoseStamped & position, 
     geometry_msgs::msg::PoseStamped & target_position)
 {
+    //try to get an idle target from the pad
     if (!m_pad_idle_target_client) return false;
 
     if (!m_pad_idle_target_client->wait_for_service(std::chrono::milliseconds((long int)(timeout_seconds * 1000)))) {

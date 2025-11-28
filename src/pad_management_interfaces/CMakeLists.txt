@@ -18,6 +18,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PadRightRelease.srv"
   "srv/PadIdleTarget.srv"
   "srv/PadPositionReset.srv"
+  "msg/LandingInterest.msg"
+  "msg/AirspaceLock.msg"
+  "srv/LandingPadInformation.srv"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

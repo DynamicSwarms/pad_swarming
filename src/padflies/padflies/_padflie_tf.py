@@ -82,7 +82,7 @@ class PadflieTF:
         del self._cf_listener
 
     def get_pad_position_or_timeout(
-        self, timeout_sec: float
+        self, timeout_sec: float, 
     ) -> Tuple[List[float], float]:
         """Retrieves the pad position or timess out after given time.
 
@@ -95,11 +95,12 @@ class PadflieTF:
         Returns:
             Tuple[List[float], float]: The position and yaw of the pad in world coordinates.
         """
+        
         pad_position_and_yaw = self.get_pad_position_and_yaw()
         while pad_position_and_yaw is None and timeout_sec > 0.0:
             self._sleep(0.1)
             timeout_sec -= 0.1
-            pad_position_and_yaw = self.get_pad_position_and_yaw()
+            pad_position_and_yaw = self.get_pad_position_and_yaw()  
         if pad_position_and_yaw is None:
             raise TimeoutError(f"Pad with name: {self._pad_name}, could not be found")
         return pad_position_and_yaw
@@ -110,6 +111,7 @@ class PadflieTF:
         Returns:
             Optional[Tuple[List[float], float]]: None if not possible. Otherwise position and yaw of pad in world coords.
         """
+        
 
         t = self.get_transform(
             target_frame=self._world,
@@ -129,6 +131,7 @@ class PadflieTF:
             t.transform.rotation.z,
             t.transform.rotation.w,
         )
+        
         _roll, _pitch, yaw = tf_transformations.euler_from_quaternion(quaternion)
         return (position, yaw)
 

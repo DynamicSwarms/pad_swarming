@@ -2,6 +2,9 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 
+
+
+
 #include "padflies_cpp/hardware_state_controller.hpp"
 #include "padflies_cpp/padflie_tf.hpp"
 #include "padflies_cpp/actor.hpp"
@@ -12,8 +15,14 @@
 #include "std_msgs/msg/string.hpp"
 #include "padflies_interfaces/msg/send_target.hpp"
 #include "padflies_interfaces/msg/padflie_info.hpp"
+#include "pad_management_interfaces/msg/landing_interest.hpp"
+#include "pad_management_interfaces/srv/landing_pad_information.hpp"
 
+struct PendingRequest{
+    std::shared_ptr<pad_management_interfaces::srv::LandingPadInformation::Request>request;
+    std::shared_ptr<pad_management_interfaces::srv::LandingPadInformation::Response> response;
 
+};
 
 
 class PadflieCommander{
@@ -58,7 +67,7 @@ class PadflieCommander{
 
         void m_trigger_landing(const std::string & pad_name = "");
         void m_trigger_takeoff();
-
+        void process_pending_requests(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
         void m_acquire_pad_right_callback(bool success);
 
         void m_reset_yaw_if_needed();
@@ -75,17 +84,33 @@ class PadflieCommander{
             const std_msgs::msg::String::SharedPtr msg
         );
 
+        void check_disconnect();
+
         void m_process_land_command(const std::string & pad_name = "");
 
         void m_handle_send_target_command(
             const padflies_interfaces::msg::SendTarget::SharedPtr msg
         );
+        void handle_need_pad_information_service(const std::shared_ptr<pad_management_interfaces::srv::LandingPadInformation::Request> request,
+            std::shared_ptr<pad_management_interfaces::srv::LandingPadInformation::Response> response,std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+        void handle_landing_pad_information_service(
+            const std::shared_ptr<pad_management_interfaces::srv::LandingPadInformation::Request> request,
+            std::shared_ptr<pad_management_interfaces::srv::LandingPadInformation::Response> response
+        );
+        void handle_need_pad_information_timeout();
+        void has_reached_target();
 
+        void handle_landing_pad_information_timeout();
 
+        void fly_home();
+
+        bool isNodeRunning(const std::shared_ptr<rclcpp_lifecycle::LifecycleNode>& node, const std::string& target_name);
     private: 
+        std::string new_pad_name;
         bool m_deactivating = false;
         bool m_commander_is_healthy = true;
-
+        bool accepting_offer=false;
+        geometry_msgs::msg::PoseStamped new_pad_target;
         enum class CommanderState {
             UNCONFIGURED,
             CONFIGURED,
@@ -104,17 +129,28 @@ class PadflieCommander{
         std::string m_prefix;
         std::string m_cf_prefix;
 
+        std::vector<PendingRequest> pending_requests_;
+        
+        rclcpp::Service<pad_management_interfaces::srv::LandingPadInformation>::SharedPtr landing_information_service;
+        rclcpp::Service<pad_management_interfaces::srv::LandingPadInformation>::SharedPtr need_pad_information_service;
         rclcpp::CallbackGroup::SharedPtr m_callback_group;
-
+        rclcpp::CallbackGroup::SharedPtr group_process_timer;
+        rclcpp::CallbackGroup::SharedPtr group_landing_pad_information;
+        rclcpp::TimerBase::SharedPtr need_pad_information_timeout;
+        rclcpp::TimerBase::SharedPtr disconnect_timer;
         rclcpp::TimerBase::SharedPtr m_landing_target_timer;
-
+        rclcpp::TimerBase::SharedPtr process_timer;
+        rclcpp::TimerBase::SharedPtr landing_pad_information_timeout;
         rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_takeoff_sub;
         rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr m_land_sub;
         rclcpp::Subscription<std_msgs::msg::String>::SharedPtr m_land_at_sub;
+        rclcpp::Publisher<pad_management_interfaces::msg::LandingInterest>::SharedPtr publish_Landing_interest;
 
+        rclcpp::Publisher<pad_management_interfaces::msg::LandingInterest>::SharedPtr publish_need_pad;
         rclcpp::Subscription<padflies_interfaces::msg::SendTarget>::SharedPtr m_send_target_sub;
         
         rclcpp::TimerBase::SharedPtr m_info_timer;
+        rclcpp::TimerBase::SharedPtr check_target_timer;
         rclcpp::Publisher<std_msgs::msg::String>::SharedPtr m_availability_pub;
         rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>::SharedPtr m_padflie_info_pub;
 

@@ -1,0 +1,5 @@
+geometry_msgs/PoseStamped position
+string padname
+---
+geometry_msgs/PoseStamped waitingposition
+bool save

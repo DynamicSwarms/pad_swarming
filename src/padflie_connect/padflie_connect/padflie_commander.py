@@ -7,15 +7,19 @@ from rclpy.subscription import Subscription
 from std_msgs.msg import Empty, String
 from geometry_msgs.msg import PoseStamped, Pose, Quaternion
 from padflies_interfaces.msg import SendTarget, PadflieInfo
+from pad_management_interfaces.msg import LandingInterest
+
+from pad_management_interfaces.srv import LandingPadInformation
 from padflies._padflie_states import PadFlieState
 from typing import Optional, List
+from rclpy.service import Service
 
 
 class PadflieCommander:
 
     def __init__(self, node: Node):
         self._node = node
-
+        self._name = ''
         self._qos_profile = 10
         self._callback_group = MutuallyExclusiveCallbackGroup()
 
@@ -31,6 +35,19 @@ class PadflieCommander:
         self.__send_target_pub: Optional[Publisher] = None
         self.__info_sub: Optional[Subscription] = None
 
+        self.landing_pad_information_service:Optional[Service] = None
+
+        self.__landing_interest_pub : Optional[Publisher] = None
+        self.landing_interest_timer = None
+    
+    def _timer_callback(self):
+        if self.landing_interest_timer is not None:
+            self.landing_interest_timer.cancel()
+            self.landing_interest_timer = None
+        self._node.get_logger().info("Landing Interest Timer ausgelöst – jetzt wird gelandet.")
+        self.land()
+
+
     def takeoff(self):
         if self.__takeoff_pub is not None:
             self.__takeoff_pub.publish(Empty())
@@ -38,8 +55,14 @@ class PadflieCommander:
     def land(self):
         if self.__land_pub is not None:
             self.__land_pub.publish(Empty())
+        
+
+    def handle_landing_pad_information_service(self, request, response):
+        response.success = True
+        return response
 
     def land_at(self, name: str):
+
         self._node.get_logger().info(
             f"Landing at {name}, the pub is {self.__land_at_pub}"
         )
@@ -55,7 +78,7 @@ class PadflieCommander:
             msg.use_yaw = True
             self.__send_target_pub.publish(msg)
 
-    def get_world_positon(self) -> Optional[List[float]]:
+    def get_world_position(self) -> Optional[List[float]]:
         if self._pose_world_info is None:
             return None
 
@@ -88,13 +111,28 @@ class PadflieCommander:
             return self._battery_state_info <= PadflieInfo.BATTERY_STATE_LOW
 
     def connect(self, prefix: str):
+        self._name=prefix
         self._pose_info = None
         self._pose_world_info = None
+
         self.__takeoff_pub = self._node.create_publisher(
-            msg_type=Empty,
-            topic=prefix + "/pad_takeoff",
+            msg_type = Empty,
+            topic = prefix + "/pad_takeoff",
+            qos_profile = self._qos_profile,
+            callback_group = self._callback_group,
+        )
+    
+        self._landing_interest_pub = self._node.create_publisher(
+            msg_type = LandingInterest ,
+            topic="/landing_interest_topic" ,
             qos_profile=self._qos_profile,
             callback_group=self._callback_group,
+        )
+
+        self.landing_pad_information_service = self._node.create_service(
+            LandingPadInformation,
+            'landing_pad_information_' + prefix,
+            self.handle_landing_pad_information_service
         )
 
         self.__land_pub = self._node.create_publisher(

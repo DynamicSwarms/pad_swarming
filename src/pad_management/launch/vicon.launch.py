@@ -16,11 +16,15 @@ import yaml
 
 
 def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend: str):
+    print(f"generate_padflies aufgerufen mit backend={backend}")
+
     yamls = {}
     if not backend == "hardware":
         yamls["webots"] = flies_webots_yaml
     if not backend == "webots":
         yamls["hardware"] = flies_hardware_yaml
+
+
 
     for cf_type in yamls.keys():
         with open(yamls[cf_type], "r") as file:
