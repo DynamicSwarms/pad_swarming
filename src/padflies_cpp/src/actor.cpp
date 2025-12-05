@@ -80,7 +80,7 @@ bool PadflieActor::takeoff_routine(
         1.0,                      // duration in seconds
         true);                    // relative movement
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    sleep_for_rossafe(std::chrono::milliseconds(250));
  
     m_hl_commander.go_to(
         Eigen::Vector3d(0,0,0.6), // relative position to current position
@@ -88,7 +88,7 @@ bool PadflieActor::takeoff_routine(
         1.5,                      // duration in seconds
         true);                    // relative movement
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    sleep_for_rossafe(std::chrono::milliseconds(250));
 
     // Even though we specified more time for takeoff, this ensures a cleaner transition.
     pad_pose.pose.position.z += takeoff_height;
@@ -97,7 +97,7 @@ bool PadflieActor::takeoff_routine(
     m_position_controller.initialize_target_history(target_position);
     
     m_state = ActorState::LOW_LEVEL_COMMANDER;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1250)); // Wait before releasing pad_rights
+    sleep_for_rossafe(std::chrono::milliseconds(1250)); // Wait before releasing pad_rights
     return true; // Indicate successful takeoff
 }
 
@@ -150,7 +150,7 @@ bool PadflieActor::land_routine()
             return false;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        sleep_for_rossafe(std::chrono::milliseconds(100));
     }
 
 
@@ -185,7 +185,7 @@ bool PadflieActor::land_routine()
         pad_yaw,                                   // yaw
         approach_time);                            // duration in seconds
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(approach_time * 1000)));
+    sleep_for_rossafe(std::chrono::milliseconds(static_cast<int>(approach_time * 1000)));
 
     // Log landing accuracy
     Eigen::Vector3d cf_position;
@@ -215,7 +215,7 @@ bool PadflieActor::land_routine()
         pad_yaw,                                    // yaw
         3.0);                                       // duration in seconds
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    sleep_for_rossafe(std::chrono::milliseconds(1000));
 
     /**
      * Phase3:

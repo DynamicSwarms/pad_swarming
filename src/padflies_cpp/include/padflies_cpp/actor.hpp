@@ -48,6 +48,16 @@ public:
 
     void fail_safe(std::string reason);
 
+    void sleep_for_rossafe(std::chrono::milliseconds duration)
+    {
+        std::chrono::milliseconds elapsed(0);
+        while (rclcpp::ok() && elapsed < duration) 
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            elapsed += std::chrono::milliseconds(10);
+        };        
+    }
+
 
 private: 
     void m_send_target_callback();
