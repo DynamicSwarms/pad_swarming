@@ -150,25 +150,25 @@ flies:
 #  channel: 100
 - id: 0xF1
   pad: 0xF1
-  channel: 100
+  channel: 50
 - id: 0xF2
   pad: 0xF2
-  channel: 100
+  channel: 50
 - id: 0xF3
   pad: 0xF3
-  channel: 100
+  channel: 50
 - id: 0xF4
   pad: 0xF4
-  channel: 100
+  channel: 50
 - id: 0xF5
   pad: 0xF5
-  channel: 100
+  channel: 50
 - id: 0xF6
   pad: 0xF6
-  channel: 100
+  channel: 50
 - id: 0xF7
   pad: 0xF7
-  channel: 100
+  channel: 50
 #- id: 0xF8
 #  pad: 0xF8
 #  channel: 100

@@ -30,20 +30,19 @@ def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend:
                 id = flie["id"]
                 channel = flie["channel"] if cf_type == "hardware" else 0
                 pad_id = flie["pad"]
-                if cf_type == "webots" or id < 0xF0:
-                    yield Node(
-                        package="padflies_cpp",
-                        executable="padflie",
-                        name=f"padflie{id}",
-                        parameters=[
-                            {
-                                "id": id,
-                                "channel": channel,
-                                "pad_id": pad_id,
-                                "type": cf_type,
-                            }
-                        ],
-                    )
+                yield Node(
+                    package="padflies_cpp",
+                    executable="padflie",
+                    name=f"padflie{id}",
+                    parameters=[
+                        {
+                            "id": id,
+                            "channel": channel,
+                            "pad_id": pad_id,
+                            "type": cf_type,
+                        }
+                    ],
+                )
 
 
 def generate_launch_description():
