@@ -1,1 +1,0 @@
-<!--rqt --force-discover --standalone rqt_mypkg-->
