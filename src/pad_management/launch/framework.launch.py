@@ -11,9 +11,6 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    package_dir = get_package_share_directory("crazyflies")
-
-    webots_dir = get_package_share_directory("crazyflie_webots_gateway")
     hardware_dir = get_package_share_directory("crazyflie_hardware_gateway")
 
     backend_arg = DeclareLaunchArgument(
@@ -26,10 +23,19 @@ def generate_launch_description():
     start_webots = LaunchConfigurationNotEquals("backend", "hardware")
     # This doesnt look too clean. In Jazzy we can use Substitions with Equals and Or
 
-    webots_gateway = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([webots_dir, "/launch/gateway.launch.py"]),
+    webots_gateway = Node(
         condition=start_webots,
-        launch_arguments={}.items(),
+        package="crazyflie_webots_gateway",
+        executable="gateway",
+        name="crazyflie_webots_gateway",
+        output="screen",
+        parameters=[
+            {
+                "webots_port": 1234,
+                "webots_use_tcp": False,
+                "webots_tcp_ip": "127.0.0.1",
+            }
+        ],
     )
 
     hardware_gateway = IncludeLaunchDescription(
