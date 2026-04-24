@@ -30,7 +30,8 @@ PadflieActor::PadflieActor(
     node->get_node_logging_interface(),
     cf_prefix)
 , m_padflie_tf(padflie_tf)
-, m_logger_name(node->get_name())
+, m_clock(node->get_node_clock_interface()->get_clock())
+, m_logger(node->get_logger())
 {
     m_target_pose.header.frame_id = "world";
     if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
@@ -47,7 +48,7 @@ PadflieActor::PadflieActor(
 PadflieActor::~PadflieActor()
 {
     //m_send_target_timer.reset(); // Reset the timer to stop it
-    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "PadflieActor destructor called for ");
+    RCLCPP_DEBUG(m_logger, "PadflieActor destructor called.");
 }
 
 void PadflieActor::set_target(
@@ -73,7 +74,7 @@ bool PadflieActor::takeoff_routine(
     Eigen::Vector3d cf_position;
     if (!m_padflie_tf->get_cf_position(cf_position))
     {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Aborting takeoff, cf position not available.");
+        RCLCPP_ERROR(m_logger, "Aborting takeoff, cf position not available.");
         return false;
     }
     
@@ -81,7 +82,7 @@ bool PadflieActor::takeoff_routine(
     geometry_msgs::msg::PoseStamped pad_pose;
     if (!m_padflie_tf->get_pad_pose_world(pad_pose))
     {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Aborting takeoff, pad position not available.");
+        RCLCPP_ERROR(m_logger, "Aborting takeoff, pad position not available.");
         return false;
     }
 
@@ -108,7 +109,7 @@ bool PadflieActor::takeoff_routine(
     m_position_controller.initialize_target_history(target_position);
     
     m_state = ActorState::LOW_LEVEL_COMMANDER;
-    sleep_for_rossafe(std::chrono::milliseconds(1250)); // Wait before releasing pad_rights
+    m_clock->sleep_for(std::chrono::milliseconds(1250)); 
     return true; // Indicate successful takeoff
 }
 
@@ -122,7 +123,7 @@ bool PadflieActor::land_routine()
 {
     if (m_state == ActorState::ERROR_STATE)
         return false;
-    RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Starting land routine for %s", m_target_pose.header.frame_id.c_str());
+    RCLCPP_INFO(m_logger, "Starting land routine for %s", m_target_pose.header.frame_id.c_str());
 
     /** Phase1: 
      *  For at most 8 seconds.
@@ -130,12 +131,12 @@ bool PadflieActor::land_routine()
         If position is reached continue with Phase2.
         During this we need to update the pad position, maybe it moves.
     */
-    auto start_time = std::chrono::steady_clock::now();
+    auto start_time = m_clock->now();
     const double max_duration = 10.0; // seconds
     geometry_msgs::msg::PoseStamped pad_pose;
 
     bool we_are_close = false;
-    while (std::chrono::duration<double>(std::chrono::steady_clock::now() - start_time).count() < max_duration)
+    while ((m_clock->now() - start_time).seconds() < max_duration)
     {
         if (!m_padflie_tf->get_pad_pose_world(pad_pose))
         {
@@ -161,7 +162,7 @@ bool PadflieActor::land_routine()
             return false;
         }
 
-        sleep_for_rossafe(std::chrono::milliseconds(100));
+        m_clock->sleep_for(std::chrono::milliseconds(100));
     }
 
 
@@ -196,13 +197,12 @@ bool PadflieActor::land_routine()
         pad_yaw,                                   // yaw
         approach_time);                            // duration in seconds
 
-    sleep_for_rossafe(std::chrono::milliseconds(static_cast<int>(approach_time * 1000)));
+    m_clock->sleep_for(std::chrono::milliseconds(static_cast<int>(approach_time * 1000)));
 
     // Log landing accuracy
     Eigen::Vector3d cf_position;
     if (m_padflie_tf->get_cf_position(cf_position)) {
-        RCLCPP_INFO(
-            rclcpp::get_logger(m_logger_name),
+        RCLCPP_INFO(m_logger,
             "Landing accuracy (XY): pad_position=(%.3f, %.3f, %.3f), cf_position=(%.3f, %.3f, %.3f), xy_distance=%.3f",
             pad_position.x(), pad_position.y(), pad_position.z(),
             cf_position.x(), cf_position.y(), cf_position.z(),
@@ -210,7 +210,7 @@ bool PadflieActor::land_routine()
         );
     } else {
         RCLCPP_WARN(
-            rclcpp::get_logger(m_logger_name),
+            m_logger,
             "Could not get cf position for landing accuracy log."
         );
     }
@@ -226,7 +226,7 @@ bool PadflieActor::land_routine()
         pad_yaw,                                    // yaw
         3.0);                                       // duration in seconds
     
-    sleep_for_rossafe(std::chrono::milliseconds(1000));
+    m_clock->sleep_for(std::chrono::milliseconds(1000));
 
     /**
      * Phase3:
@@ -285,7 +285,7 @@ void PadflieActor::m_send_target_callback()
                 target_position = position; // Use current position as target
                 target_yaw = m_fixed_yaw_target; // Use current yaw
             }
-            RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Target pose not valid, using last valid target: (%f, %f, %f), yaw: %f",
+            RCLCPP_INFO(m_logger, "Target pose not valid, using last valid target: (%f, %f, %f), yaw: %f",
                         target_position.x(), target_position.y(), target_position.z(), target_yaw);
         }
         if (m_fixed_yaw) target_yaw = m_fixed_yaw_target;
@@ -313,5 +313,5 @@ void PadflieActor::fail_safe(std::string reason)
         -0.5,       // target height
         4.0,        // duration in seconds
         0.0);       // yaw
-    RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Fail-safe triggered! Landing in place. %s", reason.c_str());
+    RCLCPP_ERROR(m_logger, "Fail-safe triggered! Landing in place. %s", reason.c_str());
 }

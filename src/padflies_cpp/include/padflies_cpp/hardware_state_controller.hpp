@@ -12,12 +12,13 @@ class HardwareStateController
             rclcpp::node_interfaces::NodeParametersInterface::SharedPtr param_iface
         );
 
-        void on_configure(    
+        void connect(    
             const std::string & cf_prefix,
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
         );
 
         void set_on_charged_callback(std::function<void()> callback);
+        void set_on_state_callback(std::function<void()> callback);
         bool is_charged() const;
         bool is_empty() const;
         bool is_critical() const;
@@ -52,4 +53,5 @@ class HardwareStateController
         rclcpp::Subscription<crazyflie_interfaces::msg::LogDataGeneric>::SharedPtr m_battery_sub;
         
         std::function<void()> m_on_charged_callback;
+        std::function<void()> m_on_state_callback;
 };

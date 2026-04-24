@@ -11,7 +11,7 @@ HardwareStateController::HardwareStateController(
 }
 
 void 
-HardwareStateController::on_configure(
+HardwareStateController::connect(
     const std::string & cf_prefix,
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
@@ -32,6 +32,12 @@ void
 HardwareStateController::set_on_charged_callback(std::function<void()> callback)
 {
     m_on_charged_callback = std::move(callback);
+}
+
+void
+HardwareStateController::set_on_state_callback(std::function<void()> callback)
+{
+    m_on_state_callback = std::move(callback);
 }
 
 
@@ -113,6 +119,9 @@ HardwareStateController::m_on_state_data(
     
     if (this->is_charged() && m_on_charged_callback) {
         m_on_charged_callback();
+    }
+    if (m_on_state_callback) {
+        m_on_state_callback();
     }
 }
 

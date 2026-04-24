@@ -20,9 +20,8 @@ public:
   , m_cf_id(declare_parameter("id", rclcpp::ParameterValue(0xE7), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
   , m_prefix("/padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
-  , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_parameters_interface())
+  , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_base_interface(), this->get_node_parameters_interface(), this->get_node_clock_interface(), this->get_node_logging_interface())
   {
-
     m_commander_health_check_timer = this->create_wall_timer(
       std::chrono::milliseconds(200),
       [this]() {
@@ -102,7 +101,13 @@ public:
     {
       success = true; // Maybe inform the commander??
     } else {
-      success = m_padflie_commander.on_configure(shared_from_this());
+      try {
+        m_padflie_commander.on_configure(shared_from_this());
+        success = true;
+      } catch (const CommanderException & e) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to configure PadflieCommander: %s", e.what());
+        success = false;
+      }
     }
     
     if (success)
@@ -119,7 +124,14 @@ public:
   on_activate(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Activating Padflie with prefix: %s", m_prefix.c_str());
-    bool success = m_padflie_commander.on_activate(shared_from_this());
+    bool success = false;
+    try {
+      m_padflie_commander.on_activate(shared_from_this());
+      success = true;
+    } catch (const CommanderException & e) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to activate PadflieCommander: %s", e.what());
+      success = false;
+    }
     
     if (success) 
     {
@@ -132,7 +144,14 @@ public:
   on_deactivate(const rclcpp_lifecycle::State &) 
   {
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
-    m_padflie_commander.on_deactivate(shared_from_this(), m_force_deactivate);
+    try {
+      m_padflie_commander.on_deactivate(shared_from_this(), m_force_deactivate);
+    } catch (const CommanderException & e) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to deactivate PadflieCommander: %s", e.what());
+      //return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+    }
+   
+   
     m_force_deactivate = false; // Reset the force deactivate flag
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }

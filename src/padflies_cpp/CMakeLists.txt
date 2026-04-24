@@ -35,6 +35,7 @@ set(PADFLIE_DEPS
   src/ll_commander_minimal.cpp
   src/hardware_state_controller.cpp
   src/commander.cpp
+  src/commander_base.cpp
   src/pad_control.cpp
   src/position_controller.cpp
   src/yaw_controller.cpp

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -17,10 +19,10 @@ public:
 
     PadControl();
 
-    void on_activate(const std::string & prefix,
+    void create_connection(const std::string & prefix,
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
     
-    void on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+    void destroy_connection(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
     bool acquire_right(double timeout_seconds);
     bool release_right();

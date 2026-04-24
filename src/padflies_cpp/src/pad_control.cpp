@@ -9,7 +9,7 @@ PadControl::PadControl()
 {
 }
 
-void PadControl::on_activate(const std::string & prefix,
+void PadControl::create_connection(const std::string & prefix,
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
     m_prefix = prefix;
@@ -33,7 +33,7 @@ void PadControl::on_activate(const std::string & prefix,
     m_logger_name = node->get_name();
 }
 
-void PadControl::on_deactivate(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+void PadControl::destroy_connection(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
     m_acquire_client.reset();
     m_release_client.reset();

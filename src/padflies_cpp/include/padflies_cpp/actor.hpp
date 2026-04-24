@@ -1,3 +1,5 @@
+#pragma once
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -86,5 +88,7 @@ private:
     PadflieTF * m_padflie_tf;
 
     rclcpp::TimerBase::SharedPtr m_send_target_timer;
-    std::string m_logger_name;
+
+    std::shared_ptr<rclcpp::Clock> m_clock;
+    rclcpp::Logger m_logger;
 };

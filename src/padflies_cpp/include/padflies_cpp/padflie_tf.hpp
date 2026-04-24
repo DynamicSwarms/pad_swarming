@@ -20,11 +20,13 @@ public:
 
     PadflieTF(
         const std::string & cf_name,
-        const std::string & world_frame = "world");
+        const std::string & world_frame,
+        std::shared_ptr<rclcpp::Clock> clock,
+        rclcpp::Logger logger);
 
     ~PadflieTF();
     
-    void on_configure(
+    void start_listening(
         std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
     void set_pad(
@@ -118,8 +120,8 @@ private:
     std::unique_ptr<tf2_ros::Buffer> m_tf_buffer;
 
 private:
-
-    std::weak_ptr<rclcpp_lifecycle::LifecycleNode> m_node;
+    std::shared_ptr<rclcpp::Clock> m_clock;
+    rclcpp::Logger m_logger;
 
     std::unique_ptr<tf2_ros::TransformListener> m_tf_listener;
 
@@ -128,5 +130,4 @@ private:
 
 private:
     std::string m_pad_name;
-    std::string m_logger_name;
 };
