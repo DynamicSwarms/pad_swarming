@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
 find_package(padflies_interfaces REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
@@ -45,7 +46,8 @@ ament_target_dependencies(padflie
   rclcpp
   rclcpp_components
   rclcpp_lifecycle
-  lifecycle_msgs)
+  lifecycle_msgs
+  std_srvs)
 
 add_library(padflie_deps ${PADFLIE_DEPS})
 target_compile_features(padflie_deps PUBLIC cxx_std_17)
@@ -62,7 +64,8 @@ ament_target_dependencies(padflie_deps
   tf2
   tf2_ros
   tf2_geometry_msgs
-  collision_avoidance_interfaces)
+  collision_avoidance_interfaces
+  std_srvs)
 
 target_link_libraries(padflie
   padflie_deps)

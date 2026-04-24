@@ -2,7 +2,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 #include "padflies_interfaces/msg/padflie_info.hpp"
-#include "crazyflie_interfaces/msg/generic_log_data.hpp"
+#include "crazyflie_interfaces/msg/log_data_generic.hpp"
 using std::placeholders::_1;
 
 class HardwareStateController
@@ -31,7 +31,7 @@ class HardwareStateController
 
     private:
         void m_on_state_data(
-            const crazyflie_interfaces::msg::GenericLogData::SharedPtr msg
+            const crazyflie_interfaces::msg::LogDataGeneric::SharedPtr msg
         );
 
         double m_get_battery_voltage_charged() const;
@@ -49,7 +49,7 @@ class HardwareStateController
         rclcpp::node_interfaces::NodeParametersInterface::SharedPtr m_param_iface;
 
         rclcpp::CallbackGroup::SharedPtr m_callback_group;
-        rclcpp::Subscription<crazyflie_interfaces::msg::GenericLogData>::SharedPtr m_battery_sub;
+        rclcpp::Subscription<crazyflie_interfaces::msg::LogDataGeneric>::SharedPtr m_battery_sub;
         
         std::function<void()> m_on_charged_callback;
 };

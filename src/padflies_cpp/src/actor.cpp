@@ -16,8 +16,19 @@ PadflieActor::PadflieActor(
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
 , m_position_controller(m_dt, 5.0, 2.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
 , m_collision_avoidance_client(node, std::stoi(cf_prefix.substr(3))) // Extract ID from cf_prefix (/cfID)
-, m_hl_commander(node, cf_prefix)
-, m_ll_commander(node, cf_prefix)
+, m_hl_commander(
+    node->get_node_base_interface(),
+    node->get_node_graph_interface(),
+    node->get_node_services_interface(),
+    node->get_node_logging_interface(),
+    cf_prefix)
+, m_ll_commander(
+    node->get_node_base_interface(),
+    node->get_node_topics_interface(),
+    node->get_node_graph_interface(),
+    node->get_node_services_interface(),
+    node->get_node_logging_interface(),
+    cf_prefix)
 , m_padflie_tf(padflie_tf)
 , m_logger_name(node->get_name())
 {

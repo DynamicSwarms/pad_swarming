@@ -21,7 +21,7 @@ HardwareStateController::on_configure(
     auto sub_opt = rclcpp::SubscriptionOptions();
     sub_opt.callback_group = m_callback_group;
 
-    m_battery_sub = node->create_subscription<crazyflie_interfaces::msg::GenericLogData>(
+    m_battery_sub = node->create_subscription<crazyflie_interfaces::msg::LogDataGeneric>(
         cf_prefix + "/state",
         10,
         std::bind(&HardwareStateController::m_on_state_data, this, std::placeholders::_1),
@@ -88,7 +88,7 @@ HardwareStateController::reset_state()
 
 void 
 HardwareStateController::m_on_state_data(
-    const crazyflie_interfaces::msg::GenericLogData::SharedPtr msg)
+    const crazyflie_interfaces::msg::LogDataGeneric::SharedPtr msg)
 {
     // Variables: "pm.vbat", "pm.chargeCurrent", "pm.state", "sys.canfly", "sys.isFlying", "sys.isTumbled"
     if (msg->values.size() == 6) { // Full state data

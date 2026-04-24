@@ -6,69 +6,81 @@ static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callb
 // As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
 
 HighLevelCommanderMinimal::HighLevelCommanderMinimal(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,
     const std::string & cf_prefix)
 : m_cf_prefix(cf_prefix)
-, m_logger_name(node->get_name())
+, m_logger(node_logging_interface->get_logger())
 {
      if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
-        m_callback_groups[cf_prefix] = node->create_callback_group(
+        m_callback_groups[cf_prefix] = node_base_interface->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
 
-    auto pub_options = rclcpp::PublisherOptions();
-    pub_options.callback_group = m_callback_groups[cf_prefix];
+    m_takeoff_client = rclcpp::create_client<crazyflie_interfaces::srv::Takeoff>(
+        node_base_interface, 
+        node_graph_interface, 
+        node_services_interface, 
+        cf_prefix + "/takeoff",
+        rmw_qos_profile_services_default,
+        m_callback_groups[cf_prefix]);
 
-    m_takeoff_pub = node->create_publisher<crazyflie_interfaces::msg::Takeoff>(
-        m_cf_prefix + "/takeoff", 10, pub_options);
+    m_land_client = rclcpp::create_client<crazyflie_interfaces::srv::Land>(
+        node_base_interface, 
+        node_graph_interface, 
+        node_services_interface, 
+        cf_prefix + "/land",
+        rmw_qos_profile_services_default,
+        m_callback_groups[cf_prefix]);
 
-    m_land_pub = node->create_publisher<crazyflie_interfaces::msg::Land>(
-        m_cf_prefix + "/land", 10, pub_options);
+    m_go_to_client = rclcpp::create_client<crazyflie_interfaces::srv::GoTo>(
+        node_base_interface, 
+        node_graph_interface, 
+        node_services_interface, 
+        cf_prefix + "/go_to",
+        rmw_qos_profile_services_default,
+        m_callback_groups[cf_prefix]);
 
-    m_go_to_pub = node->create_publisher<crazyflie_interfaces::msg::GoTo>(
-        m_cf_prefix + "/go_to", 10, pub_options);
 }
 
 HighLevelCommanderMinimal::~HighLevelCommanderMinimal()
 {
-    m_takeoff_pub.reset();
-    m_land_pub.reset();
-    m_go_to_pub.reset();
+    m_takeoff_client.reset();
+    m_land_client.reset();
+    m_go_to_client.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
-    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
+    RCLCPP_DEBUG(m_logger, "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 
 void HighLevelCommanderMinimal::takeoff(
     double height,
     double duration_seconds,
     double yaw,
-    bool use_current_yaw,
     double group_mask)
 {
-    auto msg = crazyflie_interfaces::msg::Takeoff();
-    msg.height = height;
-    msg.duration = rclcpp::Duration::from_seconds(duration_seconds);
-    msg.yaw = yaw;
-    msg.use_current_yaw = use_current_yaw;
-    msg.group_mask = group_mask;
+    auto req = std::make_shared<crazyflie_interfaces::srv::Takeoff::Request>();
+    req->height = height;
+    req->duration = rclcpp::Duration::from_seconds(duration_seconds);
+    req->yaw = yaw;
+    req->group_mask = group_mask;
 
-    m_takeoff_pub->publish(msg);
+    m_takeoff_client->async_send_request(req);
 }
 
 void HighLevelCommanderMinimal::land(
     double target_height,
     double duration_seconds,
     double yaw,
-    bool use_current_yaw,
     double group_mask)
 {
-    auto msg = crazyflie_interfaces::msg::Land();
-    msg.height = target_height;
-    msg.duration = rclcpp::Duration::from_seconds(duration_seconds);
-    msg.yaw = yaw;
-    msg.use_current_yaw = use_current_yaw;
-    msg.group_mask = group_mask;
+    auto req = std::make_shared<crazyflie_interfaces::srv::Land::Request>();
+    req->height = target_height;
+    req->duration = rclcpp::Duration::from_seconds(duration_seconds);
+    req->yaw = yaw;
+    req->group_mask = group_mask;
 
-    m_land_pub->publish(msg);
+    m_land_client->async_send_request(req);
 }
 
 void HighLevelCommanderMinimal::go_to(
@@ -76,18 +88,16 @@ void HighLevelCommanderMinimal::go_to(
     double yaw,
     double duration_seconds,
     bool relative,
-    bool linear,
     double group_mask)
 {
-    auto msg = crazyflie_interfaces::msg::GoTo();
-    msg.goal.x = position.x();
-    msg.goal.y = position.y();
-    msg.goal.z = position.z();
-    msg.yaw = yaw;
-    msg.duration = rclcpp::Duration::from_seconds(duration_seconds);
-    msg.relative = relative;
-    msg.linear = linear;
-    msg.group_mask = group_mask;
+    auto req = std::make_shared<crazyflie_interfaces::srv::GoTo::Request>();
+    req->goal.x = position.x();
+    req->goal.y = position.y();
+    req->goal.z = position.z();
+    req->yaw = yaw;
+    req->duration = rclcpp::Duration::from_seconds(duration_seconds);
+    req->relative = relative;
+    req->group_mask = group_mask;
 
-    m_go_to_pub->publish(msg);
+    m_go_to_client->async_send_request(req);
 }

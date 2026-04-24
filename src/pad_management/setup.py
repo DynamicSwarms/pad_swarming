@@ -7,27 +7,28 @@ data_files.append(
     ("share/ament_index/resource_index/packages", ["resource/" + package_name])
 )
 
-data_files.append(("share/" + package_name + "/launch", ["launch/pad.launch.py"]))
-data_files.append(("share/" + package_name + "/launch", ["launch/vicon.launch.py"]))
-data_files.append(
-    ("share/" + package_name + "/launch", ["launch/lighthouse.launch.py"])
-)
+launch_files = [
+    "launch/pad.launch.py",
+    "launch/vicon.launch.py",
+    "launch/lighthouse.launch.py",
+    "launch/sim.launch.py",
+]
+for launch_file in launch_files:
+    data_files.append(("share/" + package_name + "/launch", [launch_file]))
 
+config_files = [
+    "config/crazyflie_config_lighthouse.yaml",
+    "config/crazyflie_config_vicon.yaml",
+    "config/flies_config_lighthouse.yaml",
+    "config/flies_config_vicon.yaml",
+    "config/pads_config_sim.yaml",
+    "config/pads_config_vicon.yaml",
+    "config/tracker_config.yaml",
+    "config/webots_config.yaml",
+]
+for config_file in config_files:
+    data_files.append(("share/" + package_name + "/config", [config_file]))
 
-data_files.append(
-    ("share/" + package_name + "/config", ["config/flies_config_hardware.yaml"])
-)
-data_files.append(
-    ("share/" + package_name + "/config", ["config/pads_config_hardware.yaml"])
-)
-data_files.append(("share/" + package_name + "/config", ["config/tracker_config.yaml"]))
-data_files.append(("share/" + package_name + "/config", ["config/webots_config.yaml"]))
-
-data_files.append(
-    ("share/" + package_name + "/config", ["config/lighthouse_config.yaml"])
-)
-data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_lh.yaml"]))
-data_files.append((f"share/{package_name}/config", ["config/crazyflie_config_vicon.yaml"]))
 
 
 setup(

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "crazyflie_interfaces/msg/takeoff.hpp"
-#include "crazyflie_interfaces/msg/land.hpp"
-#include "crazyflie_interfaces/msg/go_to.hpp"
+
+
+#include "crazyflie_interfaces/srv/takeoff.hpp"
+#include "crazyflie_interfaces/srv/land.hpp"
+#include "crazyflie_interfaces/srv/go_to.hpp"
 
 #include <Eigen/Dense>
 
@@ -15,7 +16,10 @@ class HighLevelCommanderMinimal
 {
 public:
     HighLevelCommanderMinimal(
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,
         const std::string & cf_prefix);
 
     ~HighLevelCommanderMinimal();
@@ -24,7 +28,6 @@ public:
         double height,
         double duration_seconds,
         double yaw,
-        bool use_current_yaw = false, 
         double group_mask = 0
     );
 
@@ -33,7 +36,6 @@ public:
         double target_height,
         double duration_seconds,
         double yaw,
-        bool use_current_yaw = false,
         double group_mask = 0
     );
 
@@ -42,16 +44,14 @@ public:
         double yaw,
         double duration_seconds,
         bool relative = false,
-        bool linear = false,
         double group_mask = 0
     );
 
 private: 
     std::string m_cf_prefix;
-    
-    rclcpp::Publisher<crazyflie_interfaces::msg::Takeoff>::SharedPtr m_takeoff_pub;
-    rclcpp::Publisher<crazyflie_interfaces::msg::Land>::SharedPtr m_land_pub;
-    rclcpp::Publisher<crazyflie_interfaces::msg::GoTo>::SharedPtr m_go_to_pub;
+    rclcpp::Logger m_logger;
 
-    std::string m_logger_name;
+    std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::Takeoff>> m_takeoff_client;
+    std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::Land>> m_land_client;
+    std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::GoTo>> m_go_to_client;
 };  

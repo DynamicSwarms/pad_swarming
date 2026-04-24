@@ -183,15 +183,13 @@ void PadflieCommander::m_create_subscriptions(
     auto sub_options = rclcpp::SubscriptionOptions();
     sub_options.callback_group = m_callback_group;
 
-    m_takeoff_sub = node->create_subscription<std_msgs::msg::Empty>(
-        m_prefix + "/pad_takeoff", 10,
-        std::bind(&PadflieCommander::m_handle_takeoff_command, this, std::placeholders::_1),
-        sub_options);
+    m_takeoff_service = node->create_service<std_srvs::srv::Trigger>(
+        m_prefix + "/takeoff", 
+        std::bind(&PadflieCommander::m_handle_takeoff_command, this, std::placeholders::_1, std::placeholders::_2));
 
-    m_land_sub = node->create_subscription<std_msgs::msg::Empty>(
-        m_prefix + "/pad_land", 10,
-        std::bind(&PadflieCommander::m_handle_land_command, this, std::placeholders::_1),
-        sub_options);
+    m_land_service = node->create_service<std_srvs::srv::Trigger>(
+        m_prefix + "/land", 
+        std::bind(&PadflieCommander::m_handle_land_command, this, std::placeholders::_1, std::placeholders::_2));
 
     m_send_target_sub = node->create_subscription<padflies_interfaces::msg::SendTarget>(
         m_prefix + "/send_target", 10,
@@ -203,8 +201,8 @@ void PadflieCommander::m_remove_subscriptions(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
 {
     (void)node;
-    m_takeoff_sub.reset();
-    m_land_sub.reset();
+    m_takeoff_service.reset();
+    m_land_service.reset();
     m_send_target_sub.reset();
 }
 
@@ -358,9 +356,10 @@ PadflieCommander::m_trigger_takeoff()
 
 void 
 PadflieCommander::m_handle_takeoff_command(
-    const std_msgs::msg::Empty::SharedPtr msg)
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> res)
 {
-    (void)msg; 
+    (void)req;
     RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Takeoff command received for %s", m_cf_prefix.c_str());
     if (m_deactivating) return; // Reject any command while deactivating
     switch (m_state) {
@@ -372,13 +371,17 @@ PadflieCommander::m_handle_takeoff_command(
             RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Cannot take off in current state: %d", static_cast<int>(m_state));
             break;
     }
+
+    res->success = true;
+    res->message = "Takeoff command processed";
 }
 
 void 
 PadflieCommander::m_handle_land_command(
-    const std_msgs::msg::Empty::SharedPtr msg)
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> res)
 {
-    (void)msg;
+    (void)req;
     RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Land command received for %s", m_cf_prefix.c_str());
     if (m_deactivating) return; // Reject any command while deactivating
 
@@ -397,7 +400,9 @@ PadflieCommander::m_handle_land_command(
             RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Cannot land in current state: %d", static_cast<int>(m_state));
             break;
     }
-    
+
+    res->success = true;
+    res->message = "Land command processed";    
 }
 
 void 

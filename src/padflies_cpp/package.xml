@@ -15,6 +15,7 @@
   <depend>padflies_interfaces</depend>
   <depend>pad_management_interfaces</depend>
   <depend>collision_avoidance_interfaces</depend>
+  <depend>std_srvs</depend>
 
 
 

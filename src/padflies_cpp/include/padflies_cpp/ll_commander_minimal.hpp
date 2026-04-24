@@ -1,8 +1,8 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "crazyflie_interfaces/msg/notify_setpoints_stop.hpp"
+
+#include "crazyflie_interfaces/srv/notify_setpoints_stop.hpp"
 #include "crazyflie_interfaces/msg/position.hpp"
 
 #include <Eigen/Dense>
@@ -14,7 +14,11 @@ class LowLevelCommanderMinimal
 {
 public:
     LowLevelCommanderMinimal(
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,        
         const std::string & cf_prefix);
 
     ~LowLevelCommanderMinimal();
@@ -32,9 +36,9 @@ public:
 
 private: 
     std::string m_cf_prefix;
+    rclcpp::Logger m_logger;
 
-    rclcpp::Publisher<crazyflie_interfaces::msg::NotifySetpointsStop>::SharedPtr m_notify_setpoints_stop_pub;
-    rclcpp::Publisher<crazyflie_interfaces::msg::Position>::SharedPtr m_cmd_position_pub;
 
-    std::string m_logger_name;
+    std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::NotifySetpointsStop>> m_notify_setpoints_stop_client;
+    std::shared_ptr<rclcpp::Publisher<crazyflie_interfaces::msg::Position>> m_cmd_position_pub;
 };
