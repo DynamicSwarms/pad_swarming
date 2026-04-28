@@ -1,10 +1,10 @@
 #include "padflies_cpp/commander.hpp"
 
 
-#include "actor_behaviors.cpp"
-#include "eigen_behaviors.cpp"
-#include "timing_behaviors.cpp"
-#include "pad_behaviors.cpp"
+#include "behaviors/actor_behaviors.cpp"
+#include "behaviors/eigen_behaviors.cpp"
+#include "behaviors/timing_behaviors.cpp"
+#include "behaviors/pad_behaviors.cpp"
 
 PadflieCommander::PadflieCommander(
     const std::string & prefix,

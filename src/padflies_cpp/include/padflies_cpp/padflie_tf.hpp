@@ -31,6 +31,10 @@ public:
 
     void set_pad(
         const std::string & pad_name);
+
+    bool get_world_affine3d(
+        const std::string & frame_id,
+        Eigen::Affine3d & affine);
     
     
     /**
