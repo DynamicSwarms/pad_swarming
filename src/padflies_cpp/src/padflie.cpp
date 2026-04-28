@@ -196,7 +196,24 @@ private:
   bool m_force_deactivate = false; // Used to force deactivation when the Crazyflie is shutting down
 };
 
+
+#include "bt.cpp"
+
 int main(int argc, char ** argv)
+{
+  BehaviorTreeFactory factory;
+
+  factory.registerNodeType<SaySomething>("SaySomething");
+  factory.registerNodeType<ThinkWhatToSay>("ThinkWhatToSay");
+
+  auto tree = factory.createTreeFromText(xml_text);
+
+  tree.tickWhileRunning();
+
+  return 0;
+}
+
+int _main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   rclcpp::executors::MultiThreadedExecutor executor;
