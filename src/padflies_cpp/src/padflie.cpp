@@ -20,7 +20,14 @@ public:
   , m_cf_id(declare_parameter("id", rclcpp::ParameterValue(0xE7), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
   , m_prefix("/padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
-  , m_padflie_commander(m_prefix, m_cf_prefix, this->get_node_base_interface(), this->get_node_parameters_interface(), this->get_node_clock_interface(), this->get_node_logging_interface())
+  , m_padflie_commander(
+      m_prefix, 
+      m_cf_prefix, 
+      this->get_node_base_interface(), 
+      this->get_node_parameters_interface(), 
+      this->get_node_timers_interface(),
+      this->get_node_clock_interface(), 
+      this->get_node_logging_interface())
   {
     m_commander_health_check_timer = this->create_wall_timer(
       std::chrono::milliseconds(200),
@@ -196,24 +203,7 @@ private:
   bool m_force_deactivate = false; // Used to force deactivation when the Crazyflie is shutting down
 };
 
-
-#include "bt.cpp"
-
 int main(int argc, char ** argv)
-{
-  BehaviorTreeFactory factory;
-
-  factory.registerNodeType<SaySomething>("SaySomething");
-  factory.registerNodeType<ThinkWhatToSay>("ThinkWhatToSay");
-
-  auto tree = factory.createTreeFromText(xml_text);
-
-  tree.tickWhileRunning();
-
-  return 0;
-}
-
-int _main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   rclcpp::executors::MultiThreadedExecutor executor;

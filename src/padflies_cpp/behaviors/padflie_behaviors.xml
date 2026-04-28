@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="Land">
+    <Sequence>
+      <ReactiveSequence>
+        <PrintStuff2/>
+        <ReactiveSequence>
+          <PrintStuff/>
+          <AcquirePadRight/>
+        </ReactiveSequence>
+      </ReactiveSequence>
+      <SubTree ID="LandRoutine"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="LandRoutine">
+    <Sequence>
+      <CalculateAbovePadTarget target="{target}"
+                               height="0.25"/>
+      <HLCommandGoTo target="{target}"
+                     duration="4.5"
+                     relative="false"/>
+      <WaitFor duration="4.5"/>
+      <CalculateAbovePadTarget target="{target}"
+                               height="-0.1"/>
+      <HLCommandGoTo target="{target}"
+                     duration="3.0"
+                     relative="false"/>
+      <WaitFor duration="1.0"/>
+      <CalculateAbovePadTarget target="{target}"
+                               height="-0.4"/>
+      <ExtractHeight pose="{target}"
+                     height="{height}"/>
+      <ExtractYawDeg pose="{target}"
+                     yaw="{yaw}"/>
+      <HLCommandLand height="{height}"
+                     duration="1.0"
+                     yaw="{yaw}"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="Takeoff">
+    <AlwaysSuccess/>
+  </BehaviorTree>
+
+  <!-- Description of Node Models (used by Groot) -->
+  <TreeNodesModel>
+    <Action ID="AcquirePadRight"
+            editable="true"/>
+    <Action ID="CalculateAbovePadTarget"
+            editable="true">
+      <output_port name="target"
+                   type="Eigen::Affine3d"/>
+      <input_port name="height"
+                  type="double"/>
+    </Action>
+    <Action ID="ExtractHeight"
+            editable="true">
+      <input_port name="pose"
+                  type="Eigen::Affine3d"/>
+      <output_port name="height"
+                   type="double"/>
+    </Action>
+    <Action ID="ExtractYawDeg"
+            editable="true">
+      <input_port name="pose"
+                  type="Eigen::Affine3d"/>
+      <output_port name="yaw"
+                   type="double"/>
+    </Action>
+    <Action ID="HLCommandGoTo"
+            editable="true">
+      <input_port name="target"
+                  type="Eigen::Affine3d"/>
+      <input_port name="duration"
+                  type="double"/>
+      <input_port name="relative"
+                  type="bool"/>
+    </Action>
+    <Action ID="HLCommandLand"
+            editable="true">
+      <input_port name="height"
+                  type="double"/>
+      <input_port name="duration"
+                  type="double"/>
+      <input_port name="yaw"
+                  default="0.0"
+                  type="double">In degrees</input_port>
+    </Action>
+    <Action ID="PrintStuff"
+            editable="true"/>
+    <Action ID="PrintStuff2"
+            editable="true"/>
+    <Action ID="WaitFor"
+            editable="true">
+      <input_port name="duration"
+                  type="double"/>
+    </Action>
+  </TreeNodesModel>
+
+</root>

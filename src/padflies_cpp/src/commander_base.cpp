@@ -17,6 +17,7 @@ PadflieCommanderBase::PadflieCommanderBase(
 , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
 , m_initial_pad(node_param_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>())
 , m_param_callback_handle(node_param_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
+, m_node_clock_interface(node_clock_interface)
 , m_logger(node_logging_interface->get_logger())
 {
     if (!m_initial_pad.empty()) {
@@ -64,11 +65,12 @@ PadflieCommanderBase::on_activate(
 
     m_activate_commander(node);
 
-    m_padflie_actor = std::make_unique<PadflieActor>(node, m_cf_prefix, &m_padflie_tf);
+    m_padflie_actor = std::make_shared<PadflieActor>(node, m_cf_prefix, &m_padflie_tf);
 
     m_remove_availability_interface(node);
     m_create_control_interface(node);
 
+    m_on_commander_activated();
     m_base_state = CommanderBaseState::ACTIVATED;
     RCLCPP_INFO(node->get_logger(), "Padflie Commander activated for %s", m_cf_prefix.c_str());
 }

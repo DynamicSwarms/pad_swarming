@@ -77,6 +77,10 @@ target_link_libraries(padflie
 install(TARGETS padflie
   DESTINATION lib/${PROJECT_NAME})
 
+# Install behavior files so they are available at runtime
+install(DIRECTORY behaviors
+  DESTINATION share/${PROJECT_NAME})
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

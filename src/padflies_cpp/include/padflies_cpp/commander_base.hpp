@@ -132,6 +132,7 @@ class PadflieCommanderBase{
         std::string m_initial_pad;        
         std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle; 
     protected:
+        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> m_node_clock_interface;
         rclcpp::Logger m_logger;
     private: 
         std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> m_takeoff_service;
@@ -143,7 +144,7 @@ class PadflieCommanderBase{
         std::shared_ptr<rclcpp::TimerBase> m_padflie_info_timer;
         std::shared_ptr<rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>> m_padflie_info_pub;   
     protected:
-        std::unique_ptr<PadflieActor> m_padflie_actor;
+        std::shared_ptr<PadflieActor> m_padflie_actor;
 
     private: 
         enum class CommanderBaseState {

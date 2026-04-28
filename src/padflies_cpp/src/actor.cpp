@@ -65,6 +65,50 @@ void PadflieActor::get_target_pose(
     target_pose = m_target_pose;
 }
 
+void PadflieActor::go_to(
+    const Eigen::Affine3d & target_pose,
+    double duration,
+    bool relative)
+{
+    const double yaw_deg =
+        std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0)) * 180.0 / M_PI;
+    m_hl_commander.go_to(
+        target_pose.translation(), 
+        yaw_deg,                   
+        duration,                   
+        relative);
+}
+
+void PadflieActor::land(double height, double yaw, double duration)
+{
+    m_hl_commander.land(height, duration, yaw);
+}
+
+bool PadflieActor::get_pad_pose(Eigen::Affine3d & pad_pose) const
+{
+    geometry_msgs::msg::PoseStamped pad_pose_msg;
+    if (m_padflie_tf->get_pad_pose_world(pad_pose_msg))
+    {
+        pad_pose = Eigen::Affine3d::Identity();
+        pad_pose.translation() = Eigen::Vector3d(
+            pad_pose_msg.pose.position.x,
+            pad_pose_msg.pose.position.y,
+            pad_pose_msg.pose.position.z);
+        Eigen::Quaterniond q(
+            pad_pose_msg.pose.orientation.w,
+            pad_pose_msg.pose.orientation.x,
+            pad_pose_msg.pose.orientation.y,
+            pad_pose_msg.pose.orientation.z);
+        pad_pose.linear() = q.toRotationMatrix();
+        return true;
+    }
+    else
+    {
+        RCLCPP_ERROR(m_logger, "Failed to get pad pose.");
+        return false; // Return false if we can't get the pose
+    }
+}
+
 bool PadflieActor::takeoff_routine(
     double takeoff_height)
 {
@@ -305,6 +349,7 @@ void PadflieActor::m_send_target_callback()
         m_current_yaw = safe_yaw; 
     }
 }
+
 
 void PadflieActor::fail_safe(std::string reason)
 {

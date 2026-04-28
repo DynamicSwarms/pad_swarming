@@ -34,6 +34,16 @@ public:
     void set_target(
         const geometry_msgs::msg::PoseStamped & target_pose,
         bool use_yaw);
+
+    void go_to(
+        const Eigen::Affine3d & target_pose,
+        double duration,
+        bool relative);
+
+    void land(double height, double yaw, double duration);
+
+    bool get_pad_pose(Eigen::Affine3d & pad_pose) const;
+
     
     bool takeoff_routine(
         double takeoff_height = 1.0);
@@ -80,7 +90,6 @@ private:
     YawController m_yaw_controller;
     PositionController m_position_controller;
     CollisionAvoidanceClient m_collision_avoidance_client;
-
 
     HighLevelCommanderMinimal m_hl_commander;
     LowLevelCommanderMinimal m_ll_commander;

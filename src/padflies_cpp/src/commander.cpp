@@ -1,17 +1,56 @@
 #include "padflies_cpp/commander.hpp"
 
+
+#include "actor_behaviors.cpp"
+#include "eigen_behaviors.cpp"
+#include "timing_behaviors.cpp"
+#include "pad_behaviors.cpp"
+
 PadflieCommander::PadflieCommander(
     const std::string & prefix,
     const std::string & cf_prefix,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
 : PadflieCommanderBase(prefix, cf_prefix, node_base_interface, node_param_interface, node_clock_interface, node_logging_interface)
 , m_pad_control()
 , m_clock(node_clock_interface->get_clock())
+, m_bt_factory()
 {
+    m_tree_ticker_timer = rclcpp::create_timer(
+        node_base_interface,
+        node_timers_interface,
+        node_clock_interface->get_clock(),
+        std::chrono::milliseconds(100), // 10 Hz
+        std::bind(&PadflieCommander::m_tick_tree_timer, this),
+        m_callback_group
+    );
 }
+
+void
+PadflieCommander::m_tick_tree_timer()
+{
+    if (m_tree_is_running) {
+        BT::NodeStatus status = m_behavior_tree.tickOnce();
+
+
+        if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE) {
+            m_tree_is_running = false;
+            RCLCPP_INFO(m_logger, "Behavior tree finished with status: %s", toStr(status).c_str());
+            auto now = std::chrono::steady_clock::now();
+            auto duration_since_takeoff_command = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_takeoff_command_time).count();
+            RCLCPP_INFO(m_logger, "Time since takeoff command: %ld milliseconds", duration_since_takeoff_command);
+
+        } else{
+            // RCLCPP_INFO(m_logger, "Behavior tree ticked with status: %s", toStr(status).c_str());
+
+        }
+    }    
+}
+
+
 
 bool 
 PadflieCommander::is_healthy() const  {
@@ -57,6 +96,17 @@ PadflieCommander::m_activate_commander(
 }
 void PadflieCommander::m_on_commander_activated() 
 {
+    createBehaviorTree();
+        
+    m_behavior_tree = m_bt_factory.createTree("Land");
+    m_bt_groot_publisher = std::make_unique<BT::Groot2Publisher>(m_behavior_tree, 5555);
+    m_tree_is_running = true;
+
+    m_takeoff_command_time = std::chrono::steady_clock::now();
+    RCLCPP_INFO(m_logger, "Takeoff command issued, starting behavior tree execution.");
+
+    RCLCPP_INFO(m_logger, m_padflie_actor ? "PadflieActor initialized successfully." : "Failed to initialize PadflieActor.");
+
     m_state = m_hw_state_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
 }
 
@@ -279,4 +329,25 @@ PadflieCommander::m_handle_send_target_command(
         default:
             break;
     } 
+}
+
+
+void PadflieCommander::createBehaviorTree()
+{
+  m_bt_factory.registerNodeType<HLCommandGoTo>("HLCommandGoTo", m_padflie_actor);
+  m_bt_factory.registerNodeType<HLCommandLand>("HLCommandLand", m_padflie_actor);
+  m_bt_factory.registerNodeType<CalculateAbovePadTargetAction>("CalculateAbovePadTarget", m_padflie_actor);
+  m_bt_factory.registerNodeType<WaitFor>("WaitFor", m_node_clock_interface);
+  m_bt_factory.registerNodeType<ExtractYawDeg>("ExtractYawDeg");
+  m_bt_factory.registerNodeType<ExtractHeight>("ExtractHeight");
+  m_bt_factory.registerNodeType<AcquirePadRight>("AcquirePadRight");
+  m_bt_factory.registerSimpleAction("PrintStuff", [&](BT::TreeNode& self){
+    RCLCPP_INFO(m_logger, "Hello from PrintStuff node!");
+    return BT::NodeStatus::SUCCESS;
+  });
+   m_bt_factory.registerSimpleAction("PrintStuff2", [&](BT::TreeNode& self){
+    RCLCPP_INFO(m_logger, "Hello from PrintStuff2 node!");
+    return BT::NodeStatus::SUCCESS;
+  });
+  m_bt_factory.registerBehaviorTreeFromFile("/home/winni/2ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/padflie_behaviors.xml");
 }
