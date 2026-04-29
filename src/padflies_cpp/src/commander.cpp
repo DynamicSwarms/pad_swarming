@@ -13,9 +13,19 @@ PadflieCommander::PadflieCommander(
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
 : PadflieCommanderBase(prefix, cf_prefix, node_base_interface, node_param_interface, node_clock_interface, node_logging_interface)
-, m_pad_control()
+, m_pad_control(std::make_shared<PadControl>(
+    prefix,
+    node_base_interface,
+    node_graph_interface,
+    node_services_interface,
+    node_waitables_interface,
+    node_logging_interface)
+)
 , m_clock(node_clock_interface->get_clock())
 , m_bt_factory()
 {
@@ -92,7 +102,7 @@ PadflieCommander::m_activate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
     m_commander_is_healthy = true;
-    m_pad_control.create_connection(m_prefix, node);
+    m_pad_control->create_connection("megapad");
 }
 void PadflieCommander::m_on_commander_activated() 
 {
@@ -162,7 +172,7 @@ PadflieCommander::m_deactivate_commander(
         RCLCPP_DEBUG(node->get_logger(), "PadflieCommander waiting for READY_TO_DEACTIVATE state!");
     while (m_state != CommanderState::READY_TO_DEACTIVATE) m_clock->sleep_for(std::chrono::milliseconds(10));
        
-    m_pad_control.destroy_connection(node);
+    m_pad_control->destroy_connection(node);
     m_deactivating = false;
     m_commander_is_healthy = true;
 }
@@ -187,7 +197,7 @@ PadflieCommander::m_handle_landing_target_timer()
         geometry_msgs::msg::PoseStamped target_pose;
         
         if (m_padflie_tf.get_cf_pose_stamped("world", current_pose) &&
-            m_pad_control.get_pad_circle_target(0.1, current_pose, target_pose))
+            m_pad_control->get_pad_circle_target(0.1, current_pose, target_pose))
         {
             m_padflie_actor->set_target(target_pose, false);        
         }
@@ -249,7 +259,7 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
     }    
 
     // Release rights and only THEN change the state, otherwise use after free issue might occur
-    m_pad_control.release_right_async(
+    m_pad_control->release_right_async(
         [this, new_state](bool released)
         {
             (void)released; // We don't care about the result of releasing rights
@@ -266,7 +276,7 @@ PadflieCommander::m_process_takeoff_command()
     switch (m_state) {
         case CommanderState::CHARGED:
             m_state = CommanderState::WAITING_FOR_TAKEOFF_RIGHTS;
-            m_pad_control.acquire_right_async(
+            m_pad_control->acquire_right_async(
                 60.0, // Timeout for acquiring rights
                 std::bind(&PadflieCommander::m_acquire_pad_right_callback, this, std::placeholders::_1));         
             break;
@@ -282,7 +292,7 @@ PadflieCommander::m_trigger_landing()
 {
     m_landing_target_timer->reset(); // Start sending landing targets
 
-    m_pad_control.acquire_right_async(
+    m_pad_control->acquire_right_async(
         180.0, // Timeout for acquiring rights
         std::bind(&PadflieCommander::m_acquire_pad_right_callback, this, std::placeholders::_1)); 
 }
@@ -340,7 +350,7 @@ void PadflieCommander::createBehaviorTree()
   m_bt_factory.registerNodeType<WaitFor>("WaitFor", m_node_clock_interface);
   m_bt_factory.registerNodeType<ExtractYawDeg>("ExtractYawDeg");
   m_bt_factory.registerNodeType<ExtractHeight>("ExtractHeight");
-  m_bt_factory.registerNodeType<AcquirePadRight>("AcquirePadRight");
+  m_bt_factory.registerNodeType<AcquirePadRight>("AcquirePadRight", m_pad_control);
   m_bt_factory.registerSimpleAction("PrintStuff", [&](BT::TreeNode& self){
     RCLCPP_INFO(m_logger, "Hello from PrintStuff node!");
     return BT::NodeStatus::SUCCESS;

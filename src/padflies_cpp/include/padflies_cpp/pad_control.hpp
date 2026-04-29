@@ -17,11 +17,16 @@ public:
     using RightCallbackT = std::function<void(bool)>;
     
 
-    PadControl();
+    PadControl(
+        const std::string &  prefix, 
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface
+    );
 
-    void create_connection(const std::string & prefix,
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
-    
+    void create_connection(const std::string & pad_name);
     void destroy_connection(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
     bool acquire_right(double timeout_seconds);
@@ -38,9 +43,15 @@ public:
 private: 
     std::string m_prefix;
 
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> m_node_graph_interface;
+    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> m_node_services_interface;
+    std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> m_node_waitables_interface;
+    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> m_node_logging_interface;
+    rclcpp::Logger m_logger;
+
+
     rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedPtr m_acquire_client;
     rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedPtr m_release_client;
     rclcpp::Client<pad_management_interfaces::srv::PadIdleTarget>::SharedPtr m_pad_idle_target_client;
-
-    std::string m_logger_name;
 };

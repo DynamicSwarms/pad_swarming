@@ -4,33 +4,50 @@ static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callb
 // https://github.com/ros2/rclcpp/pull/2683/commits/86d831375e8a7acdc55272866e04f4c214002414
 // As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
 
-PadControl::PadControl()
-: m_logger_name("PadControlNoNode")
+PadControl::PadControl(
+    const std::string & prefix,
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
+: m_prefix(prefix)
+, m_node_base_interface(node_base_interface)
+, m_node_graph_interface(node_graph_interface)
+, m_node_services_interface(node_services_interface)
+, m_node_waitables_interface(node_waitables_interface)
+, m_node_logging_interface(node_logging_interface)
+, m_logger(node_logging_interface->get_logger())
 {
+    if (m_callback_groups.find(prefix) == m_callback_groups.end())
+        m_callback_groups[prefix] = node_base_interface->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
 }
 
-void PadControl::create_connection(const std::string & prefix,
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+void PadControl::create_connection(const std::string & pad_name)
 {
-    m_prefix = prefix;
-    if (m_callback_groups.find(prefix) == m_callback_groups.end())
-        m_callback_groups[prefix] = node->create_callback_group(
-            rclcpp::CallbackGroupType::MutuallyExclusive);
-
-    m_acquire_client = node->create_client<pad_management_interfaces::srv::PadRightAcquire>(
-        "/megapad/pad_right_acquire",
+    
+    m_acquire_client = rclcpp::create_client<pad_management_interfaces::srv::PadRightAcquire>(
+        m_node_base_interface, 
+        m_node_graph_interface,
+        m_node_services_interface,
+        "/" + pad_name + "/pad_right_acquire",
         rclcpp::QoS(10).get_rmw_qos_profile(),
-        m_callback_groups[prefix]);
-    m_release_client = node->create_client<pad_management_interfaces::srv::PadRightRelease>(
-        "/megapad/pad_right_release", 
+        m_callback_groups[m_prefix]);
+    m_release_client = rclcpp::create_client<pad_management_interfaces::srv::PadRightRelease>(
+        m_node_base_interface,
+        m_node_graph_interface,
+        m_node_services_interface,
+        "/" + pad_name + "/pad_right_release",
         rclcpp::QoS(10).get_rmw_qos_profile(),
-        m_callback_groups[prefix]);
-    m_pad_idle_target_client = node->create_client<pad_management_interfaces::srv::PadIdleTarget>(
-        "/megapad/pad_idle_target",
+        m_callback_groups[m_prefix]);
+    m_pad_idle_target_client = rclcpp::create_client<pad_management_interfaces::srv::PadIdleTarget>(
+        m_node_base_interface,
+        m_node_graph_interface,
+        m_node_services_interface,
+        "/" + pad_name + "/pad_idle_target",
         rclcpp::QoS(10).get_rmw_qos_profile(),
-        m_callback_groups[prefix]);
-
-    m_logger_name = node->get_name();
+        m_callback_groups[m_prefix]);
 }
 
 void PadControl::destroy_connection(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
@@ -46,7 +63,7 @@ bool PadControl::acquire_right(double timeout_seconds)
     if (!m_acquire_client) return false;
 
     if (!m_acquire_client->wait_for_service(std::chrono::seconds(static_cast<int>(timeout_seconds)))) {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for acquiring pad right");
+        RCLCPP_ERROR(m_logger, "Service not available for acquiring pad right");
         return false;
     }
 
@@ -71,7 +88,7 @@ bool PadControl::release_right()
     if (!m_release_client) return false;
 
     if (!m_release_client->wait_for_service(std::chrono::seconds(1))) {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for releasing pad right");
+        RCLCPP_ERROR(m_logger, "Service not available for releasing pad right");
         return false;
     }
 
@@ -101,11 +118,11 @@ void PadControl::acquire_right_async(double timeout_seconds, RightCallbackT && c
             request, 
             [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightAcquire>::SharedFutureWithRequest response_future) {
                 auto response = response_future.get().second;
-                RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Pad right acquired: %s", response->success ? "true" : "false");
+                RCLCPP_INFO(m_logger, "Pad right acquired: %s", response->success ? "true" : "false");
                 callback(response->success);
             });
     } else {      
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for acquiring pad right");
+        RCLCPP_ERROR(m_logger, "Service not available for acquiring pad right");
         callback(false);
     }
 }
@@ -119,11 +136,11 @@ void PadControl::release_right_async(RightCallbackT && callback)
             request, 
             [this, callback](rclcpp::Client<pad_management_interfaces::srv::PadRightRelease>::SharedFutureWithRequest response_future) {
                 auto response = response_future.get().second;
-                RCLCPP_INFO(rclcpp::get_logger(m_logger_name), "Pad right released: %s", response->success ? "true" : "false");
+                RCLCPP_INFO(m_logger, "Pad right released: %s", response->success ? "true" : "false");
                 callback(response->success);
             });
     }  else {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for releasing pad right");
+        RCLCPP_ERROR(m_logger, "Service not available for releasing pad right");
         callback(false);
     }    
 }
@@ -136,7 +153,7 @@ bool PadControl::get_pad_circle_target(
     if (!m_pad_idle_target_client) return false;
 
     if (!m_pad_idle_target_client->wait_for_service(std::chrono::milliseconds((long int)(timeout_seconds * 1000)))) {
-        RCLCPP_ERROR(rclcpp::get_logger(m_logger_name), "Service not available for getting pad circle target");
+        RCLCPP_ERROR(m_logger, "Service not available for getting pad circle target");
         return false;
     }
 

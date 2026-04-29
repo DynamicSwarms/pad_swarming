@@ -27,6 +27,9 @@ public:
       this->get_node_parameters_interface(), 
       this->get_node_timers_interface(),
       this->get_node_clock_interface(), 
+      this->get_node_waitables_interface(),
+      this->get_node_graph_interface(),
+      this->get_node_services_interface(),
       this->get_node_logging_interface())
   {
     m_commander_health_check_timer = this->create_wall_timer(

@@ -14,7 +14,13 @@ public:
   , m_pad_control(std::make_unique<PadControl>())
   , m_padflie_tf(std::make_shared<PadflieTF>())
   {
-      m_pad_control->create_connection(prefix, node);
+      m_pad_control->create_connection("megapad");
+  }
+
+  void choose_a_pad()
+  {
+
+
   }
 
   bool get_pose_world(Eigen::Affine3d & pose)

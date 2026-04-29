@@ -12,6 +12,9 @@ class PadflieCommander : public PadflieCommanderBase {
             std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
             std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
             std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
+            std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
+            std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+            std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
             std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface
         );
 
@@ -60,7 +63,7 @@ class PadflieCommander : public PadflieCommanderBase {
 
 
     private: 
-        PadControl m_pad_control;
+        std::shared_ptr<PadControl> m_pad_control;
         std::shared_ptr<rclcpp::Clock> m_clock;
 
 

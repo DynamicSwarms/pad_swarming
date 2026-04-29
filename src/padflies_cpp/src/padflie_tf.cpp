@@ -58,9 +58,14 @@ bool PadflieTF::get_world_affine3d(
 {
     geometry_msgs::msg::TransformStamped transform;
     if (lookup_transform(frame_id, m_world_frame, transform)) {
-        tf2::Transform tf_transform;
-        tf2::fromMsg(transform.transform, tf_transform);
-        affine = Eigen::Affine3d(tf_transform);
+        Eigen::Translation3d translation(transform.transform.translation.x,
+                                        transform.transform.translation.y,
+                                        transform.transform.translation.z);
+        Eigen::Quaterniond rotation(transform.transform.rotation.w,
+                                    transform.transform.rotation.x,
+                                    transform.transform.rotation.y,
+                                    transform.transform.rotation.z);
+        affine = translation * rotation;
         return true;
     }
     return false;
