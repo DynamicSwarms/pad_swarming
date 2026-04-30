@@ -8,7 +8,9 @@ from pad_management_interfaces.action import PadRightControl
 class PadRightActionClient(Node):
     def __init__(self):
         super().__init__("pad_right_action_client")
-        self._action_client = ActionClient(self, PadRightControl, "pad_right_control")
+        self._action_client = ActionClient(
+            self, PadRightControl, "pad_right_action_server/pad_right_control"
+        )
 
         self._id = self.declare_parameter("id", 0).get_parameter_value().integer_value
         self._hold_time = (

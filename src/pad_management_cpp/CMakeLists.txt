@@ -12,7 +12,11 @@ find_package(rclcpp_action REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
 
 
-add_executable(pad_right_provider src/pad_right_provider.cpp)
+add_executable(pad_right_provider 
+  src/pad_right_provider.cpp
+  src/request.cpp
+  src/request_map.cpp
+  src/pad_right_server.cpp)
 target_include_directories(pad_right_provider PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

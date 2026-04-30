@@ -2,6 +2,7 @@ string name
 float32 max_wait_time # in seconds, time to wait for right acquisition before giving up
 float32 usage_time #  in seconds, expected time to use the right after acquisition 
 ---
+string reason
 bool success # true if canceled by client, false if lock timeouted etc.
 ---
 uint8 status
