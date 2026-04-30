@@ -16,7 +16,7 @@ add_executable(pad_right_provider src/pad_right_provider.cpp)
 target_include_directories(pad_right_provider PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(pad_right_provider PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(pad_right_provider PUBLIC c_std_99 cxx_std_20)  # Require C99 and C++20
 
 ament_target_dependencies(pad_right_provider
   rclcpp
