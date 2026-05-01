@@ -1,20 +1,27 @@
 #include "pad_management_cpp/pad_right_server.hpp"
 
-
 PadRightServer::PadRightServer(
+    IPadRightLock & pad_right_lock,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface, 
     std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
-:   m_max_requests(node_param_interface->declare_parameter(
+:   m_node_base_interface(node_base_interface),
+    m_node_timers_interface(node_timers_interface),
+    m_node_logging_interface(node_logging_interface),
+    m_node_graph_interface(node_graph_interface),
+    m_node_waitables_interface(node_waitables_interface),
+    m_max_requests(node_param_interface->declare_parameter(
         "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>()),
     m_max_hold_time(duration_from_seconds(node_param_interface->declare_parameter(
         "max_hold_time", rclcpp::ParameterValue(40.0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<double>())),
     m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)),
     m_logger(node_logging_interface->get_logger()),
     m_request_map(std::make_unique<RequestMap>(
+        pad_right_lock,
         m_max_requests, 
         m_max_hold_time,
         node_clock_interface,
@@ -48,7 +55,21 @@ PadRightServer::PadRightServer(
 void 
 PadRightServer::manage_requests()
 {
-    m_request_map->manage_requests();
+    if (m_request_map->manage_requests()) {
+        // Do something if a new owner is selected
+        //std::string current_holder = m_request_map->get_current_holder();
+        //m_pad_execute_client = std::make_shared<PadExecuteClient>(
+        //    current_holder,
+        //    m_node_base_interface,
+        //    m_node_graph_interface,
+        //    m_node_logging_interface,
+        //    m_node_waitables_interface,
+        //    m_callback_group
+        //);
+
+        //m_pad_execute_client->send_goal(current_holder, pad_management_interfaces::action::PadExecute::Goal::ACTION_TAKEOFF); 
+
+    }
 }
 
 rclcpp_action::GoalResponse PadRightServer::handle_goal(

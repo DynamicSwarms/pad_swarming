@@ -4,26 +4,31 @@
 #include <memory>
 
 #include "pad_management_cpp/pad_right_server.hpp"
+#include "pad_management_cpp/pad_right_lock_base.hpp"
 
 class PadRightActionServerNode : public rclcpp::Node
 {
 public:
   PadRightActionServerNode()
-  : Node("pad_right_action_server"),
-    m_pad_right_server(std::make_shared<PadRightServer>(
+  : Node("pad_right_action_server")
+  , m_pad_right_lock()
+  , m_pad_right_server(std::make_shared<PadRightServer>(
+      m_pad_right_lock,
       this->get_node_base_interface(),
       this->get_node_parameters_interface(),
       this->get_node_timers_interface(),
+      this->get_node_graph_interface(),
       this->get_node_clock_interface(),
       this->get_node_waitables_interface(),
       this->get_node_logging_interface()
     ))
-  {
+  {}
 
-  }
+  
 
 private: 
   std::shared_ptr<PadRightServer> m_pad_right_server;
+  PadRightLockBase m_pad_right_lock;
 };
 
 int main(int argc, char ** argv)

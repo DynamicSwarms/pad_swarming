@@ -16,7 +16,7 @@ Request::Request(
     rclcpp::Logger logger,
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr node_clock_interface,
     const std::shared_ptr<GoalHandleT> & goal_handle,
-    std::mutex & pad_mutex)
+    IPadRightLock & pad_right_lock)
 :   m_logger(logger.get_child("[" + goal_handle->get_goal()->name + "]")),
     m_clock(node_clock_interface->get_clock()),
     m_name(goal_handle->get_goal()->name),
@@ -24,7 +24,7 @@ Request::Request(
     m_max_wait_time(duration_from_seconds(goal_handle->get_goal()->max_wait_time)),
     m_usage_time(duration_from_seconds(goal_handle->get_goal()->usage_time)),
     m_goal_handle(goal_handle),
-    m_pad_lock(pad_mutex, std::defer_lock),
+    m_pad_lock(pad_right_lock, std::defer_lock),
     m_acquire_time(m_clock->now())
 {
 }

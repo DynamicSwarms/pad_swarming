@@ -1,12 +1,15 @@
 #include "pad_management_cpp/request_map.hpp"
 #include "pad_management_cpp/request.hpp"
+#include "pad_management_cpp/pad_right_lock_base.hpp"
 
 RequestMap::RequestMap(
+    IPadRightLock & pad_right_lock,
     int max_requests,
     rclcpp::Duration max_hold_time,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> clock_interface,
     rclcpp::Logger logger)
-    : m_max_requests(max_requests)
+    : m_pad_right_lock(pad_right_lock)
+    , m_max_requests(max_requests)
     , m_max_hold_time(max_hold_time)
     , m_node_clock_interface(clock_interface)
     , m_logger(logger)
@@ -33,7 +36,7 @@ void RequestMap::add_request(
         m_logger,
         m_node_clock_interface,
         goal_handle, 
-        m_pad_mutex);
+        m_pad_right_lock);
 
     std::lock_guard<std::mutex> lock(m_request_mutex);
     m_request_map.emplace(uuid, std::move(request));
@@ -41,15 +44,17 @@ void RequestMap::add_request(
     m_publish_feedback();
 }
 
-void RequestMap::manage_requests()
+bool RequestMap::manage_requests()
 {
     std::lock_guard<std::mutex> lock(m_request_mutex);
     m_check_cancelations();
     m_check_timeouts();
 
-    if (m_select_new_owner()) {
+    bool new_owner_selected = false;
+    if (new_owner_selected = m_select_new_owner()) {
         m_publish_feedback();
     }
+    return new_owner_selected;
 }
 
 bool RequestMap::m_select_new_owner()

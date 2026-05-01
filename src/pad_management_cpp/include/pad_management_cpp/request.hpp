@@ -8,6 +8,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "pad_management_interfaces/action/pad_right_control.hpp"
+#include "pad_management_cpp/I_pad_right_lock.hpp"
 
 rclcpp::Duration duration_from_seconds(float seconds);
 
@@ -21,7 +22,7 @@ public:
         rclcpp::Logger logger,
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
         const std::shared_ptr<GoalHandleT> & goal_handle,
-        std::mutex & pad_mutex);
+        IPadRightLock & pad_right_lock);
 
     const std::string & name() const;
     bool owns_lock() const;
@@ -49,6 +50,6 @@ private:
     rclcpp::Duration m_max_wait_time;
     rclcpp::Duration m_usage_time;
     std::shared_ptr<GoalHandleT> m_goal_handle;
-    std::unique_lock<std::mutex> m_pad_lock;
+    std::unique_lock<IPadRightLock> m_pad_lock;
     rclcpp::Time m_acquire_time;
 };

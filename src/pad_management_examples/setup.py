@@ -29,7 +29,8 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "pad_right_test = pad_management_examples.pad_right_test:main"
+            "pad_right_test = pad_management_examples.pad_right_test:main",
+            "pad_action_test = pad_management_examples.pad_action_test:main",
         ],
     },
 )

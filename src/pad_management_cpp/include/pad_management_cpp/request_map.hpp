@@ -25,6 +25,7 @@ public:
     using RequestStore = std::unordered_map<GoalUUID, Request>;
 
     explicit RequestMap(
+        IPadRightLock & pad_right_lock,
         int max_requests,
         rclcpp::Duration max_hold_time,
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
@@ -32,11 +33,22 @@ public:
     );
     virtual ~RequestMap() = default;
 
+    std::string get_current_holder()
+    {
+        std::lock_guard<std::mutex> lock(m_request_mutex);
+        for (const auto & pair : m_request_map) {
+            if (pair.second.owns_lock()) {
+                return pair.second.name();
+            }
+        }
+        return "";
+    }
+
     bool fits_more_requests() const { return m_request_map.size() < static_cast<size_t>(m_max_requests); }
 
     bool has_name(const std::string & name);
     void add_request(const GoalHandlePtr goal_handle);
-    void manage_requests();
+    bool manage_requests();
 
 protected:
     virtual std::vector<rclcpp_action::GoalUUID> m_order_request_map(const RequestStore & request_map);
@@ -51,6 +63,7 @@ private:
     void m_check_cancelations();
     void m_check_timeouts();
 
+    IPadRightLock & m_pad_right_lock;
     int m_max_requests;
     rclcpp::Duration m_max_hold_time; 
 
@@ -61,5 +74,4 @@ private:
     std::mutex m_request_mutex;
     RequestStore m_request_map;
 
-    std::mutex m_pad_mutex;
 };

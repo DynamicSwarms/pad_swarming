@@ -1,0 +1,14 @@
+string pad_name
+uint8 action 
+
+uint8 ACTION_LAND = 0
+uint8 ACTION_TAKEOFF = 1
+---
+uint8 status
+string reason
+
+uint8 STATUS_ON_PAD = 0
+uint8 STATUS_NOT_ON_PAD = 1
+---
+uint8 status
+geometry_msgs/PoseStamped current_pose

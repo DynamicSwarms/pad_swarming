@@ -16,7 +16,11 @@ add_executable(pad_right_provider
   src/pad_right_provider.cpp
   src/request.cpp
   src/request_map.cpp
-  src/pad_right_server.cpp)
+  src/pad_right_server.cpp
+  src/pad_execute_client.cpp
+  src/pad_right_lock_base.cpp
+  )
+
 target_include_directories(pad_right_provider PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
