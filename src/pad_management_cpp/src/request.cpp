@@ -16,7 +16,7 @@ Request::Request(
     rclcpp::Logger logger,
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr node_clock_interface,
     const std::shared_ptr<GoalHandleT> & goal_handle,
-    IPadRightLock & pad_right_lock)
+    IPadResourceManager & pad_resource_manager)
 :   m_logger(logger.get_child("[" + goal_handle->get_goal()->name + "]")),
     m_clock(node_clock_interface->get_clock()),
     m_name(goal_handle->get_goal()->name),
@@ -24,9 +24,14 @@ Request::Request(
     m_max_wait_time(duration_from_seconds(goal_handle->get_goal()->max_wait_time)),
     m_usage_time(duration_from_seconds(goal_handle->get_goal()->usage_time)),
     m_goal_handle(goal_handle),
-    m_pad_lock(pad_right_lock, std::defer_lock),
-    m_acquire_time(m_clock->now())
+    m_resource_manager(pad_resource_manager)
 {
+}
+
+Request::~Request()
+{
+    RCLCPP_INFO(m_logger, "Destroying request object.");
+    if (m_executing) m_resource_manager.release(m_name);
 }
 
 const std::string & Request::name() const
@@ -56,14 +61,14 @@ Request::check_cancel()
 bool 
 Request::owns_lock() const
 {
-    return m_pad_lock.owns_lock();
+    return m_executing;
 }
 
 bool 
 Request::try_acquire()
 {
-    if (!m_pad_lock.owns_lock() && m_pad_lock.try_lock()) {
-
+    if (!m_executing && m_resource_manager.can_do_stuff(m_name)) {
+        m_executing = true;
         m_acquire_time = m_clock->now();
         RCLCPP_INFO(m_logger, "Acquired lock.");
         return true;
@@ -71,9 +76,10 @@ Request::try_acquire()
     return false;
 }
 
-bool Request::hold_time_exceeded(const rclcpp::Duration & max_hold_time) const
+bool 
+Request::hold_time_exceeded(const rclcpp::Duration & max_hold_time) const
 {
-    if (m_pad_lock.owns_lock() && ((m_clock->now() - m_acquire_time) >= max_hold_time)) {
+    if (m_executing && ((m_clock->now() - m_acquire_time) >= max_hold_time)) {
         auto result = std::make_shared<ActionT::Result>();
         result->success = false;
         result->reason = "Hold time exceeded";

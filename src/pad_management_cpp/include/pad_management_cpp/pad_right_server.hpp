@@ -8,7 +8,7 @@ class PadRightServer
 {
 public:
   PadRightServer(
-    IPadRightLock & pad_right_lock,
+    IPadResourceManager & pad_resource_manager,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,

@@ -18,7 +18,7 @@ add_executable(pad_right_provider
   src/request_map.cpp
   src/pad_right_server.cpp
   src/pad_execute_client.cpp
-  src/pad_right_lock_base.cpp
+  src/pad_resource_manager.cpp
   )
 
 target_include_directories(pad_right_provider PUBLIC

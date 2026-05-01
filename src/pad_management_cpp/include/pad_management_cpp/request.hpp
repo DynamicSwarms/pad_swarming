@@ -8,7 +8,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "pad_management_interfaces/action/pad_right_control.hpp"
-#include "pad_management_cpp/I_pad_right_lock.hpp"
+#include "pad_management_cpp/I_pad_resource_manager.hpp"
+#include "pad_management_cpp/pad_execute_client.hpp"
 
 rclcpp::Duration duration_from_seconds(float seconds);
 
@@ -22,7 +23,9 @@ public:
         rclcpp::Logger logger,
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
         const std::shared_ptr<GoalHandleT> & goal_handle,
-        IPadRightLock & pad_right_lock);
+        IPadResourceManager & pad_resource_manager);
+
+    ~Request();
 
     const std::string & name() const;
     bool owns_lock() const;
@@ -50,6 +53,10 @@ private:
     rclcpp::Duration m_max_wait_time;
     rclcpp::Duration m_usage_time;
     std::shared_ptr<GoalHandleT> m_goal_handle;
-    std::unique_lock<IPadRightLock> m_pad_lock;
     rclcpp::Time m_acquire_time;
+    
+    IPadResourceManager & m_resource_manager;
+    std::shared_ptr<PadExecuteClient> m_pad_execute_client;
+
+    bool m_executing = false;
 };

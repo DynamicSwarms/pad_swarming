@@ -1,7 +1,7 @@
 #include "pad_management_cpp/pad_right_server.hpp"
 
 PadRightServer::PadRightServer(
-    IPadRightLock & pad_right_lock,
+    IPadResourceManager & pad_resource_manager,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
@@ -21,7 +21,7 @@ PadRightServer::PadRightServer(
     m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)),
     m_logger(node_logging_interface->get_logger()),
     m_request_map(std::make_unique<RequestMap>(
-        pad_right_lock,
+        pad_resource_manager,
         m_max_requests, 
         m_max_hold_time,
         node_clock_interface,

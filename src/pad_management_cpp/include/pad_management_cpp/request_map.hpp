@@ -25,7 +25,7 @@ public:
     using RequestStore = std::unordered_map<GoalUUID, Request>;
 
     explicit RequestMap(
-        IPadRightLock & pad_right_lock,
+        IPadResourceManager & pad_resource_manager,
         int max_requests,
         rclcpp::Duration max_hold_time,
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
@@ -63,7 +63,7 @@ private:
     void m_check_cancelations();
     void m_check_timeouts();
 
-    IPadRightLock & m_pad_right_lock;
+    IPadResourceManager & m_pad_resource_manager;
     int m_max_requests;
     rclcpp::Duration m_max_hold_time; 
 

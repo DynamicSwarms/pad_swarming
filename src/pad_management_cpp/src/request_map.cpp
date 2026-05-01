@@ -1,14 +1,14 @@
 #include "pad_management_cpp/request_map.hpp"
 #include "pad_management_cpp/request.hpp"
-#include "pad_management_cpp/pad_right_lock_base.hpp"
+#include "pad_management_cpp/pad_resource_manager.hpp"
 
 RequestMap::RequestMap(
-    IPadRightLock & pad_right_lock,
+    IPadResourceManager & pad_resource_manager,
     int max_requests,
     rclcpp::Duration max_hold_time,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> clock_interface,
     rclcpp::Logger logger)
-    : m_pad_right_lock(pad_right_lock)
+    : m_pad_resource_manager(pad_resource_manager)
     , m_max_requests(max_requests)
     , m_max_hold_time(max_hold_time)
     , m_node_clock_interface(clock_interface)
@@ -30,17 +30,22 @@ bool RequestMap::has_name(const std::string & name)
 void RequestMap::add_request(
     const GoalHandlePtr goal_handle)
 {
+    RCLCPP_INFO(m_logger, "Adding request with name %s", goal_handle->get_goal()->name.c_str());
     const auto uuid = goal_handle->get_goal_id();
 
-    Request request(
-        m_logger,
-        m_node_clock_interface,
-        goal_handle, 
-        m_pad_right_lock);
 
     std::lock_guard<std::mutex> lock(m_request_mutex);
-    m_request_map.emplace(uuid, std::move(request));
 
+    m_request_map.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(uuid),
+        std::forward_as_tuple(
+            m_logger,
+            m_node_clock_interface,
+            goal_handle,
+            m_pad_resource_manager
+        )
+    );
     m_publish_feedback();
 }
 
@@ -81,6 +86,8 @@ void RequestMap::m_publish_feedback()
         request.publish_feedback(wait_times[i], m_max_hold_time);
     }
 
+    RCLCPP_INFO(m_logger, "Published feedback for %lu requests.", ordered_uuids.size());
+
 }
 
 void RequestMap::m_check_cancelations()
@@ -88,6 +95,7 @@ void RequestMap::m_check_cancelations()
   for (auto it = m_request_map.begin(); it != m_request_map.end();) {
     auto & request = it->second;
     if (request.check_cancel()) {
+        RCLCPP_INFO(m_logger, "Request canceled with name %s, removing from map.", request.name().c_str());
       it = m_request_map.erase(it);
     } else {
       ++it;
@@ -102,6 +110,8 @@ void RequestMap::m_check_timeouts()
     for (auto it = m_request_map.begin(); it != m_request_map.end();) {
         auto & request = it->second;
         if (request.hold_time_exceeded(m_max_hold_time)) {
+                    RCLCPP_INFO(m_logger, "Request timeout with name %s, removing from map.", request.name().c_str());
+
             it = m_request_map.erase(it);
         } else {
             ++it;
