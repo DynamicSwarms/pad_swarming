@@ -269,12 +269,29 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
     );
 }
 
+void PadflieCommander::m_on_takeoff_finished(bool success) 
+{
+  RCLCPP_INFO(m_logger, "Takeoff routine finished with success: %s", success ? "true" : "false");
+  m_routine.reset(); 
+}
+
+void PadflieCommander::m_on_land_finished(bool success) 
+{
+  RCLCPP_INFO(m_logger, "Land routine finished with success: %s", success ? "true" : "false");
+  m_routine.reset();
+}
 
 bool 
 PadflieCommander::m_process_takeoff_command() 
 {
-
+    if (m_routine) 
+    {
+        RCLCPP_WARN(m_logger, "Takeoff command received but a routine is already running.");
+        m_routine->halt(); // Stop the currently running routine before starting a new one
+        return false;
+    }
     m_routine = m_routine_factory->create_routine("TakeoffSimple");
+    m_routine->set_on_finished_callback(std::bind(&PadflieCommander::m_on_takeoff_finished, this, std::placeholders::_1));
     m_routine->start();
 
     return true;
@@ -307,7 +324,15 @@ PadflieCommander::m_trigger_landing()
 bool 
 PadflieCommander::m_process_land_command() 
 {
+    if (m_routine) 
+    {
+        RCLCPP_WARN(m_logger, "Land command received but a routine is already running.");
+        m_routine->halt(); // Stop the currently running routine before starting a new one
+        return false;
+    }
+
     m_routine = m_routine_factory->create_routine("LandSimple");
+    m_routine->set_on_finished_callback(std::bind(&PadflieCommander::m_on_land_finished, this, std::placeholders::_1));
     m_routine->start();
     return true;
     if (m_deactivating) return false; // Reject any command while deactivating

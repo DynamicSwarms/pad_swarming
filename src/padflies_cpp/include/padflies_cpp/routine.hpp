@@ -13,13 +13,26 @@ class Routine {
     rclcpp::Logger logger
   );
 
-  void m_timer_callback();
 
   void start();
 
+  void halt();
+
   bool is_running();
 
+  void set_on_finished_callback(std::function<void(bool success)> callback) 
+  {
+    m_on_finished_callback = std::move(callback);
+  }
+  
+private: 
+  void m_timer_callback();
+
+
 private:
+  std::function<void(bool success)> m_on_finished_callback;
+
+
   bool m_tree_is_running = false;
   BT::Tree m_behavior_tree;
 

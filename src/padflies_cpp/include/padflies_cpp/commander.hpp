@@ -58,6 +58,9 @@ class PadflieCommander : public PadflieCommanderBase {
         bool m_process_takeoff_command() override;
         bool m_process_land_command() override;
 
+        void m_on_takeoff_finished(bool success);
+        void m_on_land_finished(bool success);
+
         void m_handle_send_target_command(
             const padflies_interfaces::msg::SendTarget::SharedPtr msg
         ) override;

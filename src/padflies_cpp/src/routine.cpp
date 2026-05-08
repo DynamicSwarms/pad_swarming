@@ -21,20 +21,30 @@ Routine::Routine(
   }
 
   void 
+  Routine::halt() 
+  {
+    m_tree_is_running = false;
+    m_behavior_tree.haltTree();
+    if (m_on_finished_callback) {
+      m_on_finished_callback(false); // Consider halting as a failure
+    }
+  }
+
+  void 
   Routine::m_timer_callback()
   {
     if (m_tree_is_running) {
-          BT::NodeStatus status = m_behavior_tree.tickOnce();
-
-
-          if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE) {
-              m_tree_is_running = false;
-              RCLCPP_INFO(m_logger, "Behavior tree finished with status: %s", toStr(status).c_str());
-          } else{
-              // RCLCPP_INFO(m_logger, "Behavior tree ticked with status: %s", toStr(status).c_str());
-
+      BT::NodeStatus status = m_behavior_tree.tickOnce();
+      if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE || status == BT::NodeStatus::SKIPPED) {
+          m_tree_is_running = false;
+          RCLCPP_INFO(m_logger, "Behavior tree finished with status: %s", toStr(status).c_str());
+          if (m_on_finished_callback) {
+            m_on_finished_callback(status == BT::NodeStatus::SUCCESS);
           }
-      }    
+      } else{
+          // RCLCPP_INFO(m_logger, "Behavior tree ticked with status: %s", toStr(status).c_str());
+      }
+    }    
   }
 
   void 
