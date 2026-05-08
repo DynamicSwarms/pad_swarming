@@ -11,8 +11,11 @@ class CollisionAvoidanceClient
 {
 public:
     CollisionAvoidanceClient(
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
-        uint8_t cf_id);
+        uint8_t cf_id,
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+        rclcpp::Logger logger);
 
     ~CollisionAvoidanceClient();
 
@@ -23,6 +26,6 @@ public:
 
 private: 
     uint8_t m_cf_id;
-    rclcpp::Client<collision_avoidance_interfaces::srv::CollisionAvoidance>::SharedPtr m_client;
-    std::string m_logger_name;
+    std::shared_ptr<rclcpp::Client<collision_avoidance_interfaces::srv::CollisionAvoidance>> m_client;
+    rclcpp::Logger m_logger;
 };

@@ -40,8 +40,10 @@ set(PADFLIE_DEPS
   src/pad_control.cpp
   src/position_controller.cpp
   src/yaw_controller.cpp
-  src/actor.cpp
+  src/hardware_actor.cpp
   src/collision_avoidance_client.cpp
+  src/routine.cpp
+  src/routine_factory.cpp
 )
 
 ament_target_dependencies(padflie

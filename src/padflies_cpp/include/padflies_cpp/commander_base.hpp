@@ -6,7 +6,7 @@
 
 #include "padflies_cpp/hardware_state_controller.hpp"
 #include "padflies_cpp/padflie_tf.hpp"
-#include "padflies_cpp/actor.hpp"
+#include "padflies_cpp/hardware_actor.hpp"
 #include "padflies_cpp/pad_control.hpp"
 
 #include "std_msgs/msg/empty.hpp"
@@ -144,7 +144,7 @@ class PadflieCommanderBase{
         std::shared_ptr<rclcpp::TimerBase> m_padflie_info_timer;
         std::shared_ptr<rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>> m_padflie_info_pub;   
     protected:
-        std::shared_ptr<PadflieActor> m_padflie_actor;
+        std::shared_ptr<HardwareActor> m_hardware_actor;
 
     private: 
         enum class CommanderBaseState {

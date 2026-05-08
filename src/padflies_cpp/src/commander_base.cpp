@@ -65,7 +65,16 @@ PadflieCommanderBase::on_activate(
 
     m_activate_commander(node);
 
-    m_padflie_actor = std::make_shared<PadflieActor>(node, m_cf_prefix, &m_padflie_tf);
+    m_hardware_actor = std::make_shared<HardwareActor>(
+        node->get_node_base_interface(),
+        node->get_node_topics_interface(),
+        node->get_node_graph_interface(),
+        node->get_node_services_interface(),
+        node->get_node_timers_interface(),
+        node->get_node_clock_interface(),
+        node->get_node_logging_interface(),
+        m_cf_prefix,
+        &m_padflie_tf);
 
     m_remove_availability_interface(node);
     m_create_control_interface(node);
@@ -86,7 +95,7 @@ PadflieCommanderBase::on_deactivate(
 
     m_deactivate_commander(node, force);
     
-    m_padflie_actor.reset(); // Reset the actor to clean up resources
+    m_hardware_actor.reset(); // Reset the actor to clean up resources
     
     m_hw_state_controller.reset_state();
     m_base_state = CommanderBaseState::CONFIGURED;
@@ -112,8 +121,8 @@ PadflieCommanderBase::m_handle_info_timer()
 {
     padflies_interfaces::msg::PadflieInfo info_msg;
     info_msg.cf_prefix = m_cf_prefix;
-    if (m_padflie_tf.get_cf_pose_stamped(m_padflie_actor->get_current_target_frame(), info_msg.pose)) 
-        info_msg.pose_valid = true;
+    // if (m_padflie_tf.get_cf_pose_stamped(m_hardware_actor->get_current_target_frame(), info_msg.pose)) 
+    //     info_msg.pose_valid = true;
     Eigen::Vector3d position;
     if (m_padflie_tf.get_cf_position(position))
     {    

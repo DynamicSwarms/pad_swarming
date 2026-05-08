@@ -5,16 +5,22 @@ static std::unordered_map<uint8_t, rclcpp::CallbackGroup::SharedPtr> m_callback_
 // As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
 
 CollisionAvoidanceClient::CollisionAvoidanceClient(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
-    uint8_t cf_id)
+    uint8_t cf_id,
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+    rclcpp::Logger logger)
 : m_cf_id(cf_id)
-, m_logger_name(node->get_name())
+, m_logger(logger.get_child("CollisionAvoidanceClient"))
 {
     if (m_callback_groups.find(cf_id) == m_callback_groups.end())
-        m_callback_groups[cf_id] = node->create_callback_group(
+        m_callback_groups[cf_id] = node_base_interface->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
     
-    m_client = node->create_client<collision_avoidance_interfaces::srv::CollisionAvoidance>(
+    m_client = rclcpp::create_client<collision_avoidance_interfaces::srv::CollisionAvoidance>(
+        node_base_interface,
+        node_graph_interface,
+        node_services_interface,
         "collision_avoidance",
         rclcpp::QoS(10).get_rmw_qos_profile(),
         m_callback_groups[cf_id]);
@@ -24,7 +30,7 @@ CollisionAvoidanceClient::~CollisionAvoidanceClient()
 {
     m_client.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
-    RCLCPP_DEBUG(rclcpp::get_logger(m_logger_name), "CollisionAvoidanceClient destructor called");
+    RCLCPP_DEBUG(m_logger, "CollisionAvoidanceClient destructor called");
 }
 
 void CollisionAvoidanceClient::get_collision_avoidance_target(

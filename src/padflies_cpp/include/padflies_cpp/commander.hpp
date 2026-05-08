@@ -1,8 +1,12 @@
 #include "padflies_cpp/commander_base.hpp"
 #include "padflies_cpp/pad_control.hpp"
+#include "padflies_cpp/routine.hpp"
+#include "padflies_cpp/routine_factory.hpp"
 
 #include "behaviortree_cpp/bt_factory.h"
 #include <behaviortree_cpp/loggers/groot2_publisher.h>
+
+
 class PadflieCommander : public PadflieCommanderBase {
     public: 
         PadflieCommander(
@@ -63,8 +67,14 @@ class PadflieCommander : public PadflieCommanderBase {
 
 
     private: 
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
+        std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> m_node_timers_interface;
+        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> m_node_clock_interface;
+
         std::shared_ptr<PadControl> m_pad_control;
         std::shared_ptr<rclcpp::Clock> m_clock;
+
+        std::shared_ptr<RoutineFactory> m_routine_factory;
 
 
         bool m_deactivating = false;
@@ -89,6 +99,8 @@ class PadflieCommander : public PadflieCommanderBase {
         std::shared_ptr<rclcpp::TimerBase> m_landing_target_timer;
         
         
+        std::shared_ptr<Routine> m_routine;
+
         std::shared_ptr<rclcpp::TimerBase> m_tree_ticker_timer;
         bool m_tree_is_running = false;
         BT::BehaviorTreeFactory m_bt_factory;

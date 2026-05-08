@@ -1,11 +1,6 @@
 #include "padflies_cpp/commander.hpp"
 
 
-#include "behaviors/actor_behaviors.cpp"
-#include "behaviors/eigen_behaviors.cpp"
-#include "behaviors/timing_behaviors.cpp"
-#include "behaviors/pad_behaviors.cpp"
-
 PadflieCommander::PadflieCommander(
     const std::string & prefix,
     const std::string & cf_prefix,
@@ -18,6 +13,9 @@ PadflieCommander::PadflieCommander(
     std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
 : PadflieCommanderBase(prefix, cf_prefix, node_base_interface, node_param_interface, node_clock_interface, node_logging_interface)
+, m_node_base_interface(node_base_interface)
+, m_node_timers_interface(node_timers_interface)
+, m_node_clock_interface(node_clock_interface)
 , m_pad_control(std::make_shared<PadControl>(
     prefix,
     node_base_interface,
@@ -104,18 +102,19 @@ PadflieCommander::m_activate_commander(
     m_commander_is_healthy = true;
     m_pad_control->create_connection("megapad");
 }
+
 void PadflieCommander::m_on_commander_activated() 
 {
-    createBehaviorTree();
-        
-    m_behavior_tree = m_bt_factory.createTree("Land");
-    m_bt_groot_publisher = std::make_unique<BT::Groot2Publisher>(m_behavior_tree, 5555);
-    m_tree_is_running = true;
+    m_routine_factory = std::make_shared<RoutineFactory>(
+        m_hardware_actor, 
+        m_pad_control,
+        m_node_base_interface,
+        m_node_timers_interface,
+        m_node_clock_interface, 
+        m_logger);
+    
 
-    m_takeoff_command_time = std::chrono::steady_clock::now();
-    RCLCPP_INFO(m_logger, "Takeoff command issued, starting behavior tree execution.");
-
-    RCLCPP_INFO(m_logger, m_padflie_actor ? "PadflieActor initialized successfully." : "Failed to initialize PadflieActor.");
+    RCLCPP_INFO(m_logger, "Starting behavior tree... TakeoffSimple");
 
     m_state = m_hw_state_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
 }
@@ -192,14 +191,14 @@ PadflieCommander::m_on_charged_callback()
 void 
 PadflieCommander::m_handle_landing_target_timer()
 {
-    if (m_state == CommanderState::WAITING_FOR_LAND_RIGHTS && m_padflie_actor ) {       
+    if (m_state == CommanderState::WAITING_FOR_LAND_RIGHTS && m_hardware_actor ) {       
         geometry_msgs::msg::PoseStamped current_pose;
         geometry_msgs::msg::PoseStamped target_pose;
         
         if (m_padflie_tf.get_cf_pose_stamped("world", current_pose) &&
             m_pad_control->get_pad_circle_target(0.1, current_pose, target_pose))
         {
-            m_padflie_actor->set_target(target_pose, false);        
+            // m_padflie_actor->set_target(target_pose, false);        
         }
     }        
 }
@@ -216,7 +215,9 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
                 new_state = CommanderState::READY_TO_DEACTIVATE;
             } else if  (success) {
                 m_state = CommanderState::TAKEOFF;
-                bool takeoff_success = m_padflie_actor->takeoff_routine(); // Blocking call, might take some time so in meantime m_deactivating might be set to true
+                //bool takeoff_success = m_padflie_actor->takeoff_routine(); // Blocking call, might take some time so in meantime m_deactivating might be set to true
+                
+                bool takeoff_success = true; // TODO: Implement proper takeoff routine and get the result here
                 if (!takeoff_success || !m_hw_state_controller.is_flying())
                 {
                     RCLCPP_ERROR(m_logger, "Failed to takeoff");
@@ -227,7 +228,7 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
                 if (m_deactivating || m_state == CommanderState::LANDING) 
                 {
                     if (m_state == CommanderState::LANDING) RCLCPP_INFO(m_logger, "Weird transtion from TAKEOFF to LANDING");
-                    m_padflie_actor->land_routine();
+                    //m_padflie_actor->land_routine();
                     if (m_deactivating) new_state = CommanderState::READY_TO_DEACTIVATE;
                     else new_state = CommanderState::CHARGING; // After landing, we are in charging state
                 }
@@ -241,7 +242,7 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
             {
                 m_state = CommanderState::LANDING;
                 m_landing_target_timer->cancel(); 
-                m_padflie_actor->land_routine();
+                //m_padflie_actor->land_routine();
                 if (m_deactivating) new_state = CommanderState::READY_TO_DEACTIVATE;
                 else new_state = CommanderState::CHARGING; // After landing, we are in charging state
             } 
@@ -272,6 +273,12 @@ PadflieCommander::m_acquire_pad_right_callback(bool success)
 bool 
 PadflieCommander::m_process_takeoff_command() 
 {
+
+    m_routine = m_routine_factory->create_routine("TakeoffSimple");
+    m_routine->start();
+
+    return true;
+
     if (m_deactivating) return false; // Reject any command while deactivating
     switch (m_state) {
         case CommanderState::CHARGED:
@@ -300,6 +307,9 @@ PadflieCommander::m_trigger_landing()
 bool 
 PadflieCommander::m_process_land_command() 
 {
+    m_routine = m_routine_factory->create_routine("LandSimple");
+    m_routine->start();
+    return true;
     if (m_deactivating) return false; // Reject any command while deactivating
 
     switch (m_state) {
@@ -326,7 +336,7 @@ PadflieCommander::m_handle_send_target_command(
     const padflies_interfaces::msg::SendTarget::SharedPtr msg) 
 {
     if (m_deactivating) return; // Reject any command while deactivating
-    if (!m_padflie_actor) return;
+    if (!m_hardware_actor) return;
 
     // Accept the target only if we are flying or 
     // in the transition phase -> smoother takeoff
@@ -334,30 +344,10 @@ PadflieCommander::m_handle_send_target_command(
         case CommanderState::WAITING_FOR_TAKEOFF_RIGHTS:
         case CommanderState::TAKEOFF:
         case CommanderState::FLYING:
-            m_padflie_actor->set_target(msg->target, msg->use_yaw);
+            //m_padflie_actor->set_target(msg->target, msg->use_yaw);
             break;
         default:
             break;
     } 
 }
 
-
-void PadflieCommander::createBehaviorTree()
-{
-  m_bt_factory.registerNodeType<HLCommandGoTo>("HLCommandGoTo", m_padflie_actor);
-  m_bt_factory.registerNodeType<HLCommandLand>("HLCommandLand", m_padflie_actor);
-  m_bt_factory.registerNodeType<CalculateAbovePadTargetAction>("CalculateAbovePadTarget", m_padflie_actor);
-  m_bt_factory.registerNodeType<WaitFor>("WaitFor", m_node_clock_interface);
-  m_bt_factory.registerNodeType<ExtractYawDeg>("ExtractYawDeg");
-  m_bt_factory.registerNodeType<ExtractHeight>("ExtractHeight");
-  m_bt_factory.registerNodeType<AcquirePadRight>("AcquirePadRight", m_pad_control);
-  m_bt_factory.registerSimpleAction("PrintStuff", [&](BT::TreeNode& self){
-    RCLCPP_INFO(m_logger, "Hello from PrintStuff node!");
-    return BT::NodeStatus::SUCCESS;
-  });
-   m_bt_factory.registerSimpleAction("PrintStuff2", [&](BT::TreeNode& self){
-    RCLCPP_INFO(m_logger, "Hello from PrintStuff2 node!");
-    return BT::NodeStatus::SUCCESS;
-  });
-  m_bt_factory.registerBehaviorTreeFromFile("/home/winni/2ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/padflie_behaviors.xml");
-}

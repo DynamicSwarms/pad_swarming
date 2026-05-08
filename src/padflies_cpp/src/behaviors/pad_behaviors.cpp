@@ -66,3 +66,57 @@ private:
   std::chrono::steady_clock::time_point m_start_time;
 
 };
+
+
+class CalculateAbovePadTargetAction : public BT::SyncActionNode
+{
+  public: 
+  CalculateAbovePadTargetAction(
+    const std::string& name,
+    const BT::NodeConfig& config,
+    rclcpp::Logger logger)
+  : BT::SyncActionNode(name, config)
+  , m_logger(logger.get_child(name))
+  {}
+
+  static BT::PortsList providedPorts()
+  {
+    return { 
+      BT::InputPort<double>("height"),
+      BT::OutputPort<Eigen::Affine3d>("target") };
+  }
+
+  BT::NodeStatus tick() override
+  {
+    //if (!m_padflie_actor) {
+    //  std::cerr << "PadflieActor not initialized!" << std::endl;
+    //  return BT::NodeStatus::FAILURE;
+    //}
+//
+    //BT::Expected<double> height_exp = getInput<double>("height");
+    //if (!height_exp)    {
+    //  std::cerr << "Error getting height offset: " << height_exp.error() << std::endl;
+    //  return BT::NodeStatus::FAILURE;
+    //}
+    //double height = height_exp.value();
+    //std::cout << "Calculating target with height: " << height << std::endl;
+//
+    //Eigen::Affine3d pad_pose;
+    //if (!m_padflie_actor->get_pad_pose(pad_pose)) {
+    //  std::cerr << "Error getting pad pose!" << std::endl;
+    //  return BT::NodeStatus::FAILURE;
+    //}
+//
+    double height = 0.5; // For testing, use a fixed height
+    Eigen::Affine3d pad_pose = Eigen::Affine3d::Identity(); // For testing, use identity pose
+    Eigen::Affine3d target_pose = Eigen::Translation3d(0.0, 0.0, height) * pad_pose;
+    setOutput("target", target_pose);
+
+
+    return BT::NodeStatus::SUCCESS;
+
+  }
+private:
+  rclcpp::Logger m_logger;
+};
+

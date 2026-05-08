@@ -39,8 +39,22 @@
     </Sequence>
   </BehaviorTree>
 
+  <BehaviorTree ID="LandSimple">
+    <Sequence>
+      <HLCommandLand yaw="0.0"/>
+      <WaitFor duration="2.0"/>
+    </Sequence>
+  </BehaviorTree>
+
   <BehaviorTree ID="Takeoff">
     <AlwaysSuccess/>
+  </BehaviorTree>
+
+  <BehaviorTree ID="TakeoffSimple">
+    <Sequence>
+      <HLCommandTakeoff yaw="0.0"/>
+      <WaitFor duration="2.0"/>
+    </Sequence>
   </BehaviorTree>
 
   <!-- Description of Node Models (used by Groot) -->
@@ -80,12 +94,26 @@
     <Action ID="HLCommandLand"
             editable="true">
       <input_port name="height"
+                  default="0.0"
                   type="double"/>
       <input_port name="duration"
+                  default="4.0"
                   type="double"/>
       <input_port name="yaw"
                   default="0.0"
                   type="double">In degrees</input_port>
+    </Action>
+    <Action ID="HLCommandTakeoff"
+            editable="true">
+      <input_port name="heigth"
+                  default="1.0"
+                  type="double"/>
+      <input_port name="duration"
+                  default="4.0"
+                  type="double"/>
+      <input_port name="yaw"
+                  default="0.0"
+                  type="double"/>
     </Action>
     <Action ID="PrintStuff"
             editable="true"/>
