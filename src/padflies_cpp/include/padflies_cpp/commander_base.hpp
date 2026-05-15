@@ -72,8 +72,18 @@ class PadflieCommanderBase{
 
         virtual void m_on_charged_callback() {};
         
-        virtual bool m_process_takeoff_command() = 0;
-        virtual bool m_process_land_command() = 0;
+    
+        virtual void m_handle_takeoff_command(
+            const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
+            const std::shared_ptr<rmw_request_id_t> request_id,
+            const std::shared_ptr<std_srvs::srv::Trigger::Request> req
+        ) = 0;
+
+        virtual void m_handle_land_command(
+            const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
+            const std::shared_ptr<rmw_request_id_t> request_id,
+            const std::shared_ptr<std_srvs::srv::Trigger::Request> req
+        ) = 0;
 
         virtual bool get_home_state() const = 0;
           
@@ -103,15 +113,6 @@ class PadflieCommanderBase{
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
         );    
     
-        void m_handle_takeoff_command(
-            const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
-            std::shared_ptr<std_srvs::srv::Trigger::Response> res
-        );
-
-        void m_handle_land_command(
-            const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
-            std::shared_ptr<std_srvs::srv::Trigger::Response> res
-        );
 
         rcl_interfaces::msg::SetParametersResult 
         m_set_parameters_callback(const std::vector<rclcpp::Parameter> & parameters);

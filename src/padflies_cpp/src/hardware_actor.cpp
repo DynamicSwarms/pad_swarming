@@ -125,6 +125,7 @@ HardwareActor::go_to(
 
     const double yaw_deg =
         std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0)) * 180.0 / M_PI;
+
     m_hl_commander.go_to(
         target_pose.translation(), 
         yaw_deg,                   

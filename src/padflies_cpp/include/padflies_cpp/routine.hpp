@@ -20,6 +20,14 @@ class Routine {
 
   bool is_running();
 
+  bool is_finished() const {
+    return m_finished;
+  };
+
+  bool has_been_started() const {
+    return m_has_been_started;
+  }
+
   void set_on_finished_callback(std::function<void(bool success)> callback) 
   {
     m_on_finished_callback = std::move(callback);
@@ -32,7 +40,8 @@ private:
 private:
   std::function<void(bool success)> m_on_finished_callback;
 
-
+  bool m_has_been_started = false;
+  bool m_finished = false;
   bool m_tree_is_running = false;
   BT::Tree m_behavior_tree;
 

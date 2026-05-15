@@ -27,8 +27,8 @@ RoutineFactory::RoutineFactory(
     m_bt_factory.registerNodeType<LLCommanderSendTarget>("LLCommanderSendTarget", hardware_actor, logger);
     m_bt_factory.registerNodeType<CalculateAbovePadTargetAction>("CalculateAbovePadTarget", logger);
     m_bt_factory.registerNodeType<WaitFor>("WaitFor", node_clock_interface, logger);
-    m_bt_factory.registerNodeType<ExtractYawDeg>("ExtractYawDeg");
-    m_bt_factory.registerNodeType<ExtractHeight>("ExtractHeight");
+
+    m_bt_factory.registerNodeType<SplitPose>("SplitPose");
     m_bt_factory.registerNodeType<AcquirePadRight>("AcquirePadRight", pad_control);
     m_bt_factory.registerSimpleAction("PrintStuff", [&](BT::TreeNode& self){
       RCLCPP_INFO(rclcpp::get_logger("PrintStuff"), "Hello from PrintStuff node!");

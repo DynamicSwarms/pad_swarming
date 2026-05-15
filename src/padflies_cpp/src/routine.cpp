@@ -28,6 +28,7 @@ Routine::Routine(
     if (m_on_finished_callback) {
       m_on_finished_callback(false); // Consider halting as a failure
     }
+    m_finished = true;
   }
 
   void 
@@ -38,9 +39,12 @@ Routine::Routine(
       if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE || status == BT::NodeStatus::SKIPPED) {
           m_tree_is_running = false;
           RCLCPP_INFO(m_logger, "Behavior tree finished with status: %s", toStr(status).c_str());
+          
           if (m_on_finished_callback) {
             m_on_finished_callback(status == BT::NodeStatus::SUCCESS);
           }
+          m_finished = true;
+
       } else{
           // RCLCPP_INFO(m_logger, "Behavior tree ticked with status: %s", toStr(status).c_str());
       }
@@ -50,6 +54,7 @@ Routine::Routine(
   void 
   Routine::start()
   {
+    m_has_been_started = true;
     m_tree_is_running = true;
   }
 

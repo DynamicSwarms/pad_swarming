@@ -174,11 +174,11 @@ void PadflieCommanderBase::m_create_control_interface(
 
     m_takeoff_service = node->create_service<std_srvs::srv::Trigger>(
         m_prefix + "/takeoff", 
-        std::bind(&PadflieCommanderBase::m_handle_takeoff_command, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&PadflieCommanderBase::m_handle_takeoff_command, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
     m_land_service = node->create_service<std_srvs::srv::Trigger>(
         m_prefix + "/land", 
-        std::bind(&PadflieCommanderBase::m_handle_land_command, this, std::placeholders::_1, std::placeholders::_2));
+        std::bind(&PadflieCommanderBase::m_handle_land_command, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
     m_send_target_sub = node->create_subscription<padflies_interfaces::msg::SendTarget>(
         m_prefix + "/send_target", 10,
@@ -210,31 +210,6 @@ void PadflieCommanderBase::m_remove_control_interface(
     m_padflie_info_timer.reset();
     m_padflie_info_pub.reset();
 }
-
-
-void 
-PadflieCommanderBase::m_handle_takeoff_command(
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
-    std::shared_ptr<std_srvs::srv::Trigger::Response> res)
-{
-    (void)req;
-    RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
-    res->success = m_process_takeoff_command();
-    res->message = "Takeoff command processed";
-}
-
-void 
-PadflieCommanderBase::m_handle_land_command(
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
-    std::shared_ptr<std_srvs::srv::Trigger::Response> res)
-{
-    (void)req;
-    RCLCPP_INFO(m_logger, "Land command received for %s", m_cf_prefix.c_str());
-    
-    res->success = m_process_land_command();
-    res->message = "Land command processed";    
-}
-
 
 rcl_interfaces::msg::SetParametersResult 
 PadflieCommanderBase::m_set_parameters_callback(const std::vector<rclcpp::Parameter> &parameters)

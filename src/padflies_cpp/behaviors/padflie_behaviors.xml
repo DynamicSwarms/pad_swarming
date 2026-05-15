@@ -29,10 +29,11 @@
       <WaitFor duration="1.0"/>
       <CalculateAbovePadTarget target="{target}"
                                height="-0.4"/>
-      <ExtractHeight pose="{target}"
-                     height="{height}"/>
-      <ExtractYawDeg pose="{target}"
-                     yaw="{yaw}"/>
+      <SplitPose pose="{target}"
+                 x="{x}"
+                 y="{_}"
+                 z="{height}"
+                 yaw="{yaw}"/>
       <HLCommandLand height="{height}"
                      duration="1.0"
                      yaw="{yaw}"/>
@@ -67,20 +68,6 @@
                    type="Eigen::Affine3d"/>
       <input_port name="height"
                   type="double"/>
-    </Action>
-    <Action ID="ExtractHeight"
-            editable="true">
-      <input_port name="pose"
-                  type="Eigen::Affine3d"/>
-      <output_port name="height"
-                   type="double"/>
-    </Action>
-    <Action ID="ExtractYawDeg"
-            editable="true">
-      <input_port name="pose"
-                  type="Eigen::Affine3d"/>
-      <output_port name="yaw"
-                   type="double"/>
     </Action>
     <Action ID="HLCommandGoTo"
             editable="true">
@@ -119,6 +106,19 @@
             editable="true"/>
     <Action ID="PrintStuff2"
             editable="true"/>
+    <Action ID="SplitPose"
+            editable="true">
+      <input_port name="pose"
+                  type="Eigen::Affine3d"/>
+      <output_port name="x"
+                   type="double"/>
+      <output_port name="y"
+                   type="double"/>
+      <output_port name="z"
+                   type="double"/>
+      <output_port name="yaw"
+                   type="double"/>
+    </Action>
     <Action ID="WaitFor"
             editable="true">
       <input_port name="duration"

@@ -6,8 +6,15 @@
 #include "behaviortree_cpp/bt_factory.h"
 #include <behaviortree_cpp/loggers/groot2_publisher.h>
 
+#include "padflies_cpp/command.hpp"
 
-class PadflieCommander : public PadflieCommanderBase {
+#include "padflies_cpp/command_context_interface.hpp"
+#include "padflies_cpp/commander_state.hpp"
+
+class PadflieCommander 
+        : public PadflieCommanderBase,
+          public ICommandContext
+{
     public: 
         PadflieCommander(
             const std::string & prefix,
@@ -22,11 +29,15 @@ class PadflieCommander : public PadflieCommanderBase {
             std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface
         );
 
-        void m_tick_tree_timer();
+        void m_command_queue_execute();
 
         bool is_healthy() const override;
 
         bool get_home_state() const override;
+
+        bool can_takeoff() const override;
+        bool can_land() const override;
+        bool is_flying() const override;
 
     private:
         
@@ -55,8 +66,17 @@ class PadflieCommander : public PadflieCommanderBase {
     private: 
         void m_trigger_landing();
         
-        bool m_process_takeoff_command() override;
-        bool m_process_land_command() override;
+        void m_handle_takeoff_command(
+            const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
+            const std::shared_ptr<rmw_request_id_t> request_id,
+            const std::shared_ptr<std_srvs::srv::Trigger::Request> req
+        ) override;
+
+        void m_handle_land_command(
+            const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
+            const std::shared_ptr<rmw_request_id_t> request_id,
+            const std::shared_ptr<std_srvs::srv::Trigger::Request> req
+        ) override;
 
         void m_on_takeoff_finished(bool success);
         void m_on_land_finished(bool success);
@@ -83,19 +103,7 @@ class PadflieCommander : public PadflieCommanderBase {
         bool m_deactivating = false;
         bool m_commander_is_healthy = true;
 
-        enum class CommanderState {
-            UNCONFIGURED,
-            CONFIGURED,
-            CHARGING, 
-            CHARGED,
-            WAITING_FOR_TAKEOFF_RIGHTS,
-            TAKEOFF,
-            FLYING,
-            WAITING_FOR_LAND_RIGHTS, 
-            LANDING, 
-            READY_TO_DEACTIVATE,
-            FORCE_DEACTIVATE_RIGHT_WAIT
-        };
+        
         CommanderState m_state = CommanderState::UNCONFIGURED;
 
 
@@ -104,7 +112,9 @@ class PadflieCommander : public PadflieCommanderBase {
         
         std::shared_ptr<Routine> m_routine;
 
-        std::shared_ptr<rclcpp::TimerBase> m_tree_ticker_timer;
+        std::shared_ptr<rclcpp::TimerBase> m_command_queue_timer;
+        std::mutex m_command_queue_mutex;
+        std::queue<std::shared_ptr<Command>> m_command_queue;
         bool m_tree_is_running = false;
         BT::BehaviorTreeFactory m_bt_factory;
         BT::Tree m_behavior_tree;
