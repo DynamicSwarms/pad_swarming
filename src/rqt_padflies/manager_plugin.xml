@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<library path="rqt_padflies">
+  <class name="PadfliesManager" type="rqt_padflies::ManagerPlugin" base_class_type="rqt_gui_cpp::Plugin">
+    <description>
+      GUI for management of Padflies.
+    </description>
+    <qtgui>
+      <group>
+      <label>Padflies</label>
+        <icon type="theme">system-run</icon>
+        <statustip>Plugins for Padflies.</statustip>
+      </group>
+
+      <label>PadfliesManagement</label>
+      <icon type="theme">battery-low</icon>
+      <statustip>GUI for Padflies Management.</statustip>
+    </qtgui>
+  </class>
+</library>

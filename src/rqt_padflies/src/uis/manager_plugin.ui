@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PadfliesManager</class>
+ <widget class="QWidget" name="PadfliesManager">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Padflies Manager</string>
+  </property>
+
+<layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>2</number>
+  </property>
+  <item>
+    <widget class="QListWidget" name="list_widget">
+      <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>10</verstretch>
+        </sizepolicy>
+      </property>
+      <property name="autoFillBackground">
+        <bool>false</bool>
+      </property>
+      <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+      </property>
+      <property name="alternatingRowColors">
+        <bool>true</bool>
+      </property>
+      <property name="sortingEnabled">
+        <bool>true</bool>
+      </property>
+      </widget>
+    </item>
+
+    </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
