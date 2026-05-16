@@ -64,6 +64,18 @@ HardwareActor::~HardwareActor()
     RCLCPP_INFO(m_logger, "HardwareActor destructor called.");
 }
 
+std::string
+HardwareActor::get_current_target_frame() const
+{
+
+    if (m_mode == ActorMode::POSITION_CONTROL) 
+        return m_target_pose.frame_id;
+    else if (m_mode == ActorMode::VELOCITY_CONTROL)
+        return m_target_velocity.frame_id;
+    else
+        return "";
+}
+
 bool 
 HardwareActor::set_pose_target(
     const EigenPoseStamped & target_pose,

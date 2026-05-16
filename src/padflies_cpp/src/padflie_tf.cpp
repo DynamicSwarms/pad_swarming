@@ -241,6 +241,8 @@ bool PadflieTF::lookup_transform(
         log("ConnectivityException: %s", ex.what());
     } catch (const tf2::ExtrapolationException & ex) {
        log("ExtrapolationException: %s", ex.what());
+    } catch (const tf2::InvalidArgumentException & ex) {
+        log("InvalidArgument: %s", ex.what());
     }
 
     return false;

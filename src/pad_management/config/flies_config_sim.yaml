@@ -5,6 +5,21 @@ flies:
 - id: 1
   initial_position: [0.0, -0.4, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 2
+  initial_position: [0.0, -0.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 3
+  initial_position: [0.0, -0.8, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 4
+  initial_position: [0.0, -1.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 5
+  initial_position: [0.0, -1.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 6
+  initial_position: [0.0, -1.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
 - id: 7
   initial_position: [-0.2, 0.0, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]

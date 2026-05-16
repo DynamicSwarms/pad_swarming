@@ -38,6 +38,16 @@ private:
         auto response = std_srvs::srv::Trigger::Response();
         response.success = true;
         response.message = "Takeoff command received";
+        
+        RCLCPP_INFO(m_logger, "Takeoff command received. Sending takeoff target.");
+        // So that the target is initialized
+        EigenPoseStamped target;
+        target.pose = Eigen::Affine3d::Identity();
+        target.pose.translation() = Eigen::Vector3d(0.0, 0.0, 2.0); // Takeoff to 2 meters height
+        target.frame_id = "world";
+        m_hardware_actor->set_pose_target(target, false); // Don't use yaw for takeoff
+
+
         service_handle->send_response(*request_id, response);
     }
 

@@ -43,7 +43,7 @@ def generate_launch_description():
         ],
     )
 
-    flies = [0, 1, 7]
+    flies = [0, 1, 2, 3, 4, 5, 6, 7]
     padflies = []
     for i in flies:
         padflies.append(

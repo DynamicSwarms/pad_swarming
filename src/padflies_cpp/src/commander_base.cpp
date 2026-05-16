@@ -123,8 +123,8 @@ PadflieCommanderBase::m_handle_info_timer()
 {
     padflies_interfaces::msg::PadflieInfo info_msg;
     info_msg.cf_prefix = m_cf_prefix;
-    // if (m_padflie_tf.get_cf_pose_stamped(m_hardware_actor->get_current_target_frame(), info_msg.pose)) 
-    //     info_msg.pose_valid = true;
+    if (m_padflie_tf.get_cf_pose_stamped(m_hardware_actor->get_current_target_frame(), info_msg.pose)) 
+         info_msg.pose_valid = true;
     Eigen::Vector3d position;
     if (m_padflie_tf.get_cf_position(position))
     {    

@@ -54,6 +54,7 @@ public:
     );
 
     ~HardwareActor();
+    std::string get_current_target_frame() const;
 
     bool set_pose_target(
         const EigenPoseStamped & target_pose,

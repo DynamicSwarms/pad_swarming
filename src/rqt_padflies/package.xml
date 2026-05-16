@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>padflies_interfaces</depend>
 
   <build_depend>qtbase5-dev</build_depend>
   <build_depend>rqt_console</build_depend>
