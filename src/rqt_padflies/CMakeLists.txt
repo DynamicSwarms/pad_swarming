@@ -32,6 +32,7 @@ set(manager_plugin_HDRS
   include/rqt_padflies/padflie_control_connection.hpp
   include/rqt_padflies/control_modal.hpp
   include/rqt_padflies/coordinate_plane_widget.hpp
+  include/rqt_padflies/padflie_ros_connection.hpp
 )
 
 set(manager_plugin_UIS

@@ -1,26 +1,18 @@
 #pragma once
 
-#include "rqt_padflies/padflie_widget.hpp"
 #include <QListWidgetItem>
 
 namespace rqt_padflies
 {
 
-  class PadflieListWidgetItem : public QListWidgetItem, public PadflieWidget
+  class PadflieListWidgetItem : public QListWidgetItem
   {
     public:
       PadflieListWidgetItem(
-        int id,
-        std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface
-      )
+        int id)
       : QListWidgetItem()
-      , PadflieWidget(nullptr, id, node_topics_interface, node_base_interface, node_graph_interface, node_services_interface)
       , m_id(id)
-      {
-      }
+      {}
       ~PadflieListWidgetItem() = default;
 
       bool 

@@ -2,13 +2,14 @@
 
 PadflieLifecycleConnection::PadflieLifecycleConnection(
     std::string prefix, 
-    LifecycleStateCallback lifecycle_state_callback,
     std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
-    rclcpp::CallbackGroup::SharedPtr callback_group)
-    : m_lifecycle_state_callback(lifecycle_state_callback)
+    std::shared_ptr<rclcpp::CallbackGroup> callback_group,
+    rclcpp::Logger logger)
+    : m_lifecycle_state_callback(nullptr)
+    , m_logger(logger)
 {
     auto subscription_options = rclcpp::SubscriptionOptions();
     subscription_options.callback_group = callback_group;
@@ -27,13 +28,15 @@ PadflieLifecycleConnection::PadflieLifecycleConnection(
         prefix + "/change_state",
         rclcpp::QoS(10).get_rmw_qos_profile(),
         callback_group);
+
+    m_callback_group = node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     m_get_state_client = rclcpp::create_client<lifecycle_msgs::srv::GetState>(
         node_base_interface,
         node_graph_interface,
         node_services_interface,
         prefix + "/get_state",
-        rclcpp::QoS(10).get_rmw_qos_profile(),
-        callback_group);
+        rmw_qos_profile_services_default,
+        m_callback_group);
 }
 
 PadflieLifecycleConnection::~PadflieLifecycleConnection()
@@ -61,10 +64,10 @@ PadflieLifecycleConnection::transition_padflie_with_callback(
             try {
                 auto response = future.get();
 
-                callback(response->success);
+                if (callback) callback(response->success);
             }
             catch (const std::exception & e) {
-                callback(false);
+                if (callback) callback(false);
             }
         };
     m_change_state_client->async_send_request(request, response_callback);
@@ -81,29 +84,33 @@ PadflieLifecycleConnection::poll_current_lifecycle_state()
             try {
                 auto response = future.get();
 
-                m_lifecycle_state_callback(response->current_state);
+                if (m_lifecycle_state_callback) {
+                    m_lifecycle_state_callback(response->current_state);
+                }
             }
             catch (const std::exception & e) {
-                std::cerr << "Failed to get current lifecycle state: " << e.what() << std::endl;
+                RCLCPP_ERROR(m_logger, "Failed to get current lifecycle state: %s", e.what());
             }
         };
     m_get_state_client->async_send_request(request, response_callback);
 }
 
 void 
-PadflieLifecycleConnection::activate_padflie_with_callback(std::function<void(bool)> callback)
+PadflieLifecycleConnection::activate_padflie()
 {
-    transition_padflie_with_callback(lifecycle_msgs::msg::State::TRANSITION_STATE_ACTIVATING, "activate", callback);
+    transition_padflie_with_callback(lifecycle_msgs::msg::State::TRANSITION_STATE_ACTIVATING, "activate", nullptr);
 }
 
 void 
-PadflieLifecycleConnection::deactivate_padflie_with_callback(std::function<void(bool)> callback)
+PadflieLifecycleConnection::deactivate_padflie()
 {
-    transition_padflie_with_callback(lifecycle_msgs::msg::State::TRANSITION_STATE_DEACTIVATING, "deactivate", callback);
+    transition_padflie_with_callback(lifecycle_msgs::msg::State::TRANSITION_STATE_DEACTIVATING, "deactivate", nullptr);
 }
 
 void 
 PadflieLifecycleConnection::m_transition_event_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg)
 {
-    m_lifecycle_state_callback(msg->goal_state);
+    if (m_lifecycle_state_callback) {
+        m_lifecycle_state_callback(msg->goal_state);
+    }
 }

@@ -8,6 +8,8 @@
 #include "rqt_padflies/padflie_widget.hpp"
 #include "rqt_padflies/padflie_list_widget_item.hpp"
 
+#include "rqt_padflies/padflie_ros_connection.hpp"
+
 #include "ui_manager_plugin.h"
 
 #include <QWidget>
@@ -16,6 +18,13 @@
 
 namespace rqt_padflies
 {
+struct PadflieListEntry
+{
+  PadflieListWidgetItem* item;
+  PadflieWidget* widget;
+  std::shared_ptr<PadflieROSConnection> ros_connection;
+};
+
 class ManagerPlugin : public rqt_gui_cpp::Plugin
 {
   Q_OBJECT
@@ -44,7 +53,7 @@ class ManagerPlugin : public rqt_gui_cpp::Plugin
     Ui::PadfliesManager m_ui;
     QWidget *m_widget;
     
-    std::unordered_map<int, PadflieListWidgetItem*> m_padflie_widgets;
+    std::unordered_map<int, PadflieListEntry> m_padflie_widgets;
 
     std::shared_ptr<rclcpp::Subscription<std_msgs::msg::String>> m_availability_subscription;
     std::shared_ptr<rclcpp::TimerBase> m_update_timer;

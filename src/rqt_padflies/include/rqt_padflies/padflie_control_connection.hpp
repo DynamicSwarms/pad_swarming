@@ -52,9 +52,10 @@ public:
         m_send_target_publisher->publish(message);
     }
 
-    void get_target(Eigen::Vector3d &target)
+    bool get_target(Eigen::Vector3d &target)
     {
         target = m_current_target;
+        return m_has_target;
     }
 
     void land()
@@ -76,6 +77,7 @@ private:
     std::shared_ptr<rclcpp::Client<std_srvs::srv::Trigger>> m_land_client;
     std::shared_ptr<rclcpp::Client<std_srvs::srv::Trigger>> m_takeoff_client;
 
+    bool m_has_target = false;
     Eigen::Vector3d m_current_target = Eigen::Vector3d(0.0, 0.0, 2.0);
 
 };

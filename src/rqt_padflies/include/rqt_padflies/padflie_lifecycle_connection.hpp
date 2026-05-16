@@ -14,17 +14,21 @@ public:
 
     PadflieLifecycleConnection(
         std::string prefix,
-        LifecycleStateCallback lifecycle_state_callback,
         std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
-        rclcpp::CallbackGroup::SharedPtr callback_group);   
+        std::shared_ptr<rclcpp::CallbackGroup> callback_group,
+        rclcpp::Logger logger);   
 
     ~PadflieLifecycleConnection();
 
-    void activate_padflie_with_callback(std::function<void(bool)> callback);
-    void deactivate_padflie_with_callback(std::function<void(bool)> callback);
+    void add_lifecycle_state_callback(LifecycleStateCallback callback) {
+        m_lifecycle_state_callback = callback;
+    }
+        
+    void activate_padflie();
+    void deactivate_padflie();
 
     bool padflie_is_available() {
         return m_get_state_client->service_is_ready();
@@ -39,8 +43,12 @@ private:
     void m_transition_event_callback(const lifecycle_msgs::msg::TransitionEvent::SharedPtr msg);
 
 private: 
+    std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
+    rclcpp::Logger m_logger;
+    
     LifecycleStateCallback m_lifecycle_state_callback;
     std::shared_ptr<rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>> m_transition_event_sub;
     std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::ChangeState>> m_change_state_client;
     std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::GetState>> m_get_state_client;
+
 };

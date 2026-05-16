@@ -83,14 +83,24 @@ ManagerPlugin::m_signal_handler_add_padflie(int id)
   }
 
   RCLCPP_INFO(m_node->get_logger(), "Adding padflie with ID %d to the manager", id);
-  m_padflie_widgets[id] = new PadflieListWidgetItem(
-    id, 
+  std::shared_ptr<PadflieROSConnection> ros_connection = std::make_shared<PadflieROSConnection>(
+    "/padflie" + std::to_string(id),
+    m_node->get_node_timers_interface(),
     m_node->get_node_topics_interface(),
     m_node->get_node_base_interface(),
     m_node->get_node_graph_interface(),
-    m_node->get_node_services_interface()
+    m_node->get_node_services_interface(),
+    m_node->get_node_logging_interface()
   );
-  PadflieWidget* widget = m_padflie_widgets[id];
+  auto* item = new PadflieListWidgetItem(id);
+  auto* widget = new PadflieWidget(
+    nullptr,
+    id,
+    ros_connection
+  );
+
+  m_padflie_widgets[id] = {item, widget, ros_connection};
+
   connect(this, &ManagerPlugin::availability_message_received,
           widget, [widget, id](int received_id)
   {
@@ -99,18 +109,23 @@ ManagerPlugin::m_signal_handler_add_padflie(int id)
   },
   Qt::QueuedConnection);
 
-  m_padflie_widgets[id]->setSizeHint(QSize(500, widget->getHeight()));
+  item->setSizeHint(QSize(500, widget->getHeight()));
 
 
-  m_ui.list_widget->addItem(m_padflie_widgets[id]);
-  m_ui.list_widget->setItemWidget(m_padflie_widgets[id], widget);
+  m_ui.list_widget->addItem(item);
+  m_ui.list_widget->setItemWidget(item, widget);
   m_ui.list_widget->sortItems();
 }
 
 void ManagerPlugin::shutdownPlugin()
 {
-  m_update_timer->cancel();
+  if (m_update_timer) {
+    m_update_timer->cancel();
+    m_update_timer.reset();
+  }
   m_availability_subscription.reset();
+  m_ui.list_widget->clear();
+  m_padflie_widgets.clear();
 }
 
 void ManagerPlugin::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const

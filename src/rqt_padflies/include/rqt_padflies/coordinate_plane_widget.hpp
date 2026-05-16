@@ -24,14 +24,19 @@ public:
         setFixedSize(300, 300);
     }
 
-    QPointF selectedPoint() const { return m_selected_point; }
-    QPointF hoverPoint() const { return m_hover_point; }
-    
-    void set_scale(double scale) { m_scale = scale; update(); }
+    QPointF selectedPoint() const { return screenToWorld(m_selected_point); }
+    QPointF hoverPoint() const { return screenToWorld(m_hover_point); }
 
+    void set_scale(double scale) { m_scale = scale; update(); }
+    void set_target(double x, double y) {
+        m_selected_point = worldToScreen(QPointF(x, y));
+        emit pointSelected(QPointF(x, y));
+        update();
+    }
 signals:
     void pointSelected(QPointF point);
     void pointHovered(QPointF point, bool valid);
+    void wheelScrolled(double delta);
 private: 
     bool hasHeightForWidth() const override
     {
@@ -91,31 +96,42 @@ protected:
 
         // hover point
         if (m_has_hover) {
-            QPointF s = worldToScreen(m_hover_point);
+            QPointF s = m_hover_point;
             painter.setPen(QPen(Qt::yellow, 2));
             painter.drawEllipse(s, 5, 5);
         }
 
         // selected point
-        QPointF s = worldToScreen(m_selected_point);
+        QPointF s = m_selected_point;
         painter.setPen(QPen(Qt::red, 3));
         painter.drawEllipse(s, 6, 6);
     }
     void mouseMoveEvent(QMouseEvent *event) override
     {
-        m_hover_point = screenToWorld(event->pos());
+        m_hover_point = event->pos();
         m_has_hover = true;
 
-        emit pointHovered(m_hover_point, true);
+        emit pointHovered(screenToWorld(m_hover_point), true);
         update();
     }
     void mousePressEvent(QMouseEvent *event) override
     {    
-        m_selected_point = screenToWorld(event->pos());
+        m_selected_point = event->pos();
 
-        emit pointSelected(m_selected_point);
+        emit pointSelected(screenToWorld(m_selected_point));
         update();
     }
+
+    void wheelEvent(QWheelEvent *event) override
+    {
+        double delta = event->angleDelta().y() / 120.0; // 120 is the standard for one notch
+        
+        emit pointHovered(screenToWorld(m_hover_point), true);
+        emit wheelScrolled(delta);
+    }
+
+    
+
     void leaveEvent(QEvent *event) override
     {
         m_has_hover = false;
@@ -145,8 +161,8 @@ private:
 
 
 private:
-    QPointF m_hover_point;
-    QPointF m_selected_point;
+    QPointF m_hover_point; // in screen coordinates
+    QPointF m_selected_point; // in screen coordinates
     bool m_has_hover = false;
 
 private:
