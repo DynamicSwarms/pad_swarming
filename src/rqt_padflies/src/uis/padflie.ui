@@ -78,6 +78,9 @@
      <property name="text">
       <string>TextLabel</string>
      </property>
+     <property name="toolTip">
+      <string>Availability status</string>
+     </property>
     </widget>
    </item>
    <item>
@@ -101,9 +104,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QPushButton" name="configured_button">
+    <widget class="QPushButton" name="inactive_button">
      <property name="text">
-      <string>Configured</string>
+      <string>Inactive</string>
      </property>
     </widget>
    </item>

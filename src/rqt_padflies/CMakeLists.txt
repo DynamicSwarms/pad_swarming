@@ -11,23 +11,31 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs   REQUIRED)
+find_package(padflies_interfaces REQUIRED)
 find_package(qt_gui_cpp REQUIRED)
 find_package(rqt_gui_cpp REQUIRED)
 find_package(Qt5Widgets REQUIRED)
-
+find_package(Eigen3 REQUIRED)
 set(manager_plugin_SRCS
   src/manager_plugin.cpp
+  src/padflie_lifecycle_connection.cpp
 )
 
 set(manager_plugin_HDRS
   include/rqt_padflies/manager_plugin.hpp
   include/rqt_padflies/padflie_widget.hpp
   include/rqt_padflies/padflie_list_widget_item.hpp
-  include/rqt_padflies/padflie_message_parser.hpp
+  include/rqt_padflies/padflie_lifecycle_connection.hpp
+  include/rqt_padflies/padflie_control_connection.hpp
+  include/rqt_padflies/control_modal.hpp
+  include/rqt_padflies/coordinate_plane_widget.hpp
 )
 
 set(manager_plugin_UIS
+  src/uis/padflie_control_modal.ui
   src/uis/manager_plugin.ui
   src/uis/padflie.ui
 )
@@ -49,13 +57,18 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 ament_target_dependencies(${PROJECT_NAME}
   rclcpp
+  rclcpp_lifecycle
   qt_gui_cpp
   rqt_gui_cpp
-  std_msgs)
+  std_msgs
+  std_srvs
+  padflies_interfaces)
 
 target_link_libraries(${PROJECT_NAME} 
   Qt5::Widgets
+  Eigen3::Eigen
 )
+
 
 install(
   TARGETS ${PROJECT_NAME}

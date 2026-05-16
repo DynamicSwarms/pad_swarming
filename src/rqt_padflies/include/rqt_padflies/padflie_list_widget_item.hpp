@@ -6,24 +6,22 @@
 namespace rqt_padflies
 {
 
-  class PadflieListWidgetItem : public QListWidgetItem
+  class PadflieListWidgetItem : public QListWidgetItem, public PadflieWidget
   {
     public:
-      PadflieListWidgetItem(int id)
+      PadflieListWidgetItem(
+        int id,
+        std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface
+      )
       : QListWidgetItem()
+      , PadflieWidget(nullptr, id, node_topics_interface, node_base_interface, node_graph_interface, node_services_interface)
       , m_id(id)
-      , m_message_parser(std::make_shared<PadflieMessageParser>())
       {
       }
       ~PadflieListWidgetItem() = default;
-
-      void set_available() {
-        m_message_parser->parse_availability();
-      }
-
-      PadflieWidget * get_widget() const {
-        return new PadflieWidget(nullptr, m_id, m_message_parser);
-      }
 
       bool 
       operator<(const QListWidgetItem & other) const override {
@@ -38,8 +36,6 @@ namespace rqt_padflies
 
     private: 
       int m_id; 
-
-      std::shared_ptr<PadflieMessageParser> m_message_parser;
     };
 
 

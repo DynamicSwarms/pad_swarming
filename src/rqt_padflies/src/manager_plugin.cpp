@@ -12,10 +12,12 @@ void ManagerPlugin::initPlugin(qt_gui_cpp::PluginContext& context)
   m_node = node_;
   m_widget = new QWidget();
   m_ui.setupUi(m_widget);
+  m_ui.list_widget->setUniformItemSizes(true);
 
 
-  connect(this, &ManagerPlugin::add_padflie, this, &ManagerPlugin::m_signal_handler_add_padflie);
-  connect(this, &ManagerPlugin::availability_message_received, this, &ManagerPlugin::m_signal_handler_availability_message);
+  connect(this, &ManagerPlugin::add_padflie,
+          this, &ManagerPlugin::m_signal_handler_add_padflie,
+          Qt::QueuedConnection);
 
   m_widget->setWindowTitle("Padflies Manager");
   context.addWidget(m_widget);
@@ -38,6 +40,8 @@ void ManagerPlugin::initPlugin(qt_gui_cpp::PluginContext& context)
 void
 ManagerPlugin::update()
 {
+  if (!rclcpp::ok()) return;
+
   std::vector<std::string> node_names = m_node->get_node_graph_interface()->get_node_names();
   for (const auto& node_name : node_names) {
     if (node_name.find("padflie") != std::string::npos) {
@@ -59,7 +63,12 @@ void ManagerPlugin::m_handle_availability_message(std::shared_ptr<std_msgs::msg:
   try {
     std::string id_str = msg->data.substr(8); // Assuming name is like "/padflieID"
     int id = std::stoi(id_str);
-    emit availability_message_received(id);
+    QMetaObject::invokeMethod(
+      this,
+      [this, id]() {
+        emit availability_message_received(id);
+      },
+      Qt::QueuedConnection);
   } catch (const std::exception& e) {
     RCLCPP_WARN(m_node->get_logger(), "Received availability message but failed to extract ID: %s", msg->data.c_str());
   }
@@ -74,8 +83,22 @@ ManagerPlugin::m_signal_handler_add_padflie(int id)
   }
 
   RCLCPP_INFO(m_node->get_logger(), "Adding padflie with ID %d to the manager", id);
-  m_padflie_widgets[id] = new PadflieListWidgetItem(id);
-  PadflieWidget * widget = m_padflie_widgets[id]->get_widget();
+  m_padflie_widgets[id] = new PadflieListWidgetItem(
+    id, 
+    m_node->get_node_topics_interface(),
+    m_node->get_node_base_interface(),
+    m_node->get_node_graph_interface(),
+    m_node->get_node_services_interface()
+  );
+  PadflieWidget* widget = m_padflie_widgets[id];
+  connect(this, &ManagerPlugin::availability_message_received,
+          widget, [widget, id](int received_id)
+  {
+      if (received_id == id)
+          widget->set_available();
+  },
+  Qt::QueuedConnection);
+
   m_padflie_widgets[id]->setSizeHint(QSize(500, widget->getHeight()));
 
 
@@ -84,20 +107,10 @@ ManagerPlugin::m_signal_handler_add_padflie(int id)
   m_ui.list_widget->sortItems();
 }
 
-void 
-ManagerPlugin::m_signal_handler_availability_message(int id)
-{
-  //RCLCPP_INFO(m_node->get_logger(), "Received availability message for padflie with ID %d", id);
-  if (m_padflie_widgets.find(id) != m_padflie_widgets.end()) {
-    m_padflie_widgets[id]->set_available();
-  } else {
-    emit add_padflie(id);
-  }
-}
-
 void ManagerPlugin::shutdownPlugin()
 {
   m_update_timer->cancel();
+  m_availability_subscription.reset();
 }
 
 void ManagerPlugin::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const

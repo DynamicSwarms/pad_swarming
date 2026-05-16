@@ -21,7 +21,6 @@ PadResourceManager::is_allowed(std::string name)
 void 
 PadResourceManager::_release(std::string name)
 {
-    // This is a very naive implementation, in a real implementation we would want to track which name has the lock and only release that one
     auto it = m_locks.find(name);
     if (it != m_locks.end()) {
         m_locks.erase(it); // Should release
