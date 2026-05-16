@@ -21,6 +21,7 @@ config_files = [
     "config/crazyflie_config_vicon.yaml",
     "config/flies_config_lighthouse.yaml",
     "config/flies_config_vicon.yaml",
+    "config/flies_config_sim.yaml",
     "config/pads_config_sim.yaml",
     "config/pads_config_vicon.yaml",
     "config/tracker_config.yaml",
@@ -28,7 +29,6 @@ config_files = [
 ]
 for config_file in config_files:
     data_files.append(("share/" + package_name + "/config", [config_file]))
-
 
 
 setup(

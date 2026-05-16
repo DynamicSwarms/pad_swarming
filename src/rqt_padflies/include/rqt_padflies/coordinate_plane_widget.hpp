@@ -24,12 +24,13 @@ public:
         setFixedSize(300, 300);
     }
 
-    QPointF selectedPoint() const { return screenToWorld(m_selected_point); }
+    QPointF selectedPoint() const { return m_selected_point; }
     QPointF hoverPoint() const { return screenToWorld(m_hover_point); }
 
     void set_scale(double scale) { m_scale = scale; update(); }
     void set_target(double x, double y) {
-        m_selected_point = worldToScreen(QPointF(x, y));
+        m_selected_point = QPointF(x, y);
+        m_has_selected_point = true;
         emit pointSelected(QPointF(x, y));
         update();
     }
@@ -102,9 +103,11 @@ protected:
         }
 
         // selected point
-        QPointF s = m_selected_point;
-        painter.setPen(QPen(Qt::red, 3));
-        painter.drawEllipse(s, 6, 6);
+        if(m_has_selected_point) {
+            QPointF s = worldToScreen(m_selected_point);
+            painter.setPen(QPen(Qt::red, 3));
+            painter.drawEllipse(s, 6, 6);
+        }
     }
     void mouseMoveEvent(QMouseEvent *event) override
     {
@@ -116,9 +119,10 @@ protected:
     }
     void mousePressEvent(QMouseEvent *event) override
     {    
-        m_selected_point = event->pos();
+        m_selected_point = screenToWorld(event->pos());
+        m_has_selected_point = true;
 
-        emit pointSelected(screenToWorld(m_selected_point));
+        emit pointSelected(m_selected_point);
         update();
     }
 
@@ -128,6 +132,7 @@ protected:
         
         emit pointHovered(screenToWorld(m_hover_point), true);
         emit wheelScrolled(delta);
+        update();        
     }
 
     
@@ -145,15 +150,15 @@ private:
         double nx = (p.x() / width()) * 2.0 - 1.0;
         double ny = 1.0 - (p.y() / height()) * 2.0;
 
-        return QPointF(nx * m_scale, ny * m_scale);
+        return QPointF(ny * m_scale, -nx * m_scale) ;
     }
     QPointF worldToScreen(const QPointF &p) const
     {        
         double nx = p.x() / m_scale;
         double ny = p.y() / m_scale;
 
-        double x = (nx + 1.0) * 0.5 * width();
-        double y = (1.0 - (ny + 1.0) * 0.5) * height();
+        double x = (-ny + 1.0) * 0.5 * width();
+        double y = (1.0 - (nx + 1.0) * 0.5) * height();
 
         return QPointF(x, y);
     }
@@ -162,8 +167,9 @@ private:
 
 private:
     QPointF m_hover_point; // in screen coordinates
-    QPointF m_selected_point; // in screen coordinates
+    QPointF m_selected_point; // in world coordinates
     bool m_has_hover = false;
+    bool m_has_selected_point = false;
 
 private:
     double m_scale = 1.0; // world radius in meters

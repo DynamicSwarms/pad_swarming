@@ -29,14 +29,13 @@ PadflieLifecycleConnection::PadflieLifecycleConnection(
         rclcpp::QoS(10).get_rmw_qos_profile(),
         callback_group);
 
-    m_callback_group = node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     m_get_state_client = rclcpp::create_client<lifecycle_msgs::srv::GetState>(
         node_base_interface,
         node_graph_interface,
         node_services_interface,
         prefix + "/get_state",
         rmw_qos_profile_services_default,
-        m_callback_group);
+        callback_group);
 }
 
 PadflieLifecycleConnection::~PadflieLifecycleConnection()
@@ -44,6 +43,7 @@ PadflieLifecycleConnection::~PadflieLifecycleConnection()
     m_transition_event_sub.reset();
     m_change_state_client.reset();
     m_get_state_client.reset();
+    m_callback_group.reset();
 }
 
 void
@@ -78,18 +78,19 @@ PadflieLifecycleConnection::poll_current_lifecycle_state()
 {
     if (!m_get_state_client->service_is_ready()) return;
     auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
+    auto lifecycle_state_callback = m_lifecycle_state_callback;
     auto response_callback =
-        [this](rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedFuture future)
+        [lifecycle_state_callback, logger = m_logger](rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedFuture future)
         {
             try {
                 auto response = future.get();
 
-                if (m_lifecycle_state_callback) {
-                    m_lifecycle_state_callback(response->current_state);
+                if (lifecycle_state_callback) {
+                    lifecycle_state_callback(response->current_state);
                 }
             }
             catch (const std::exception & e) {
-                RCLCPP_ERROR(m_logger, "Failed to get current lifecycle state: %s", e.what());
+                RCLCPP_ERROR(logger, "Failed to get current lifecycle state: %s", e.what());
             }
         };
     m_get_state_client->async_send_request(request, response_callback);

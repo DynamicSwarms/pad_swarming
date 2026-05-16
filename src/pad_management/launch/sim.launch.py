@@ -3,6 +3,7 @@ from launch import LaunchDescription
 
 from ament_index_python.packages import get_package_share_directory
 
+
 def generate_launch_description():
     gateway = Node(
         package="crazyflie_simulation_gateway",
@@ -12,15 +13,21 @@ def generate_launch_description():
         parameters=[{"use_sim_time": False}],
     )
 
-    flies_count = 3
     crazyflies = Node(
         package="crazyflie_simulation_examples",
         executable="crazyflie_spawner",
         output="screen",
-        parameters=[{"count": flies_count}],
+        parameters=[
+            {
+                "yaml_path": get_package_share_directory("pad_management")
+                + "/config/flies_config_sim.yaml"
+            }
+        ],
     )
+
+    flies = [0, 1, 7]
     padflies = []
-    for i in range(flies_count):
+    for i in flies:
         padflies.append(
             Node(
                 package="padflies_cpp",
@@ -30,7 +37,6 @@ def generate_launch_description():
             )
         )
 
-
     position_visualization = Node(
         package="crazyflies",
         executable="position_visualization",
@@ -38,8 +44,7 @@ def generate_launch_description():
     )
 
     pads_config_sim = (
-        get_package_share_directory("pad_management")
-        + "/config/pads_config_sim.yaml"
+        get_package_share_directory("pad_management") + "/config/pads_config_sim.yaml"
     )
     pad_broadcaster = Node(
         package="pad_management",
@@ -60,9 +65,9 @@ def generate_launch_description():
     charging_base_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0 0 0 0 0 0 world ChargingBase20".split(" "),
+        arguments="0 0 0 3.14159 0 0 world ChargingBase20".split(" "),
     )
-    
+
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",

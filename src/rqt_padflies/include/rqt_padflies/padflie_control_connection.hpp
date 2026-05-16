@@ -41,9 +41,19 @@ public:
             callback_group);
     }
 
+    ~PadflieControlConnection()
+    {
+        m_send_target_publisher.reset();
+        m_land_client.reset();
+        m_takeoff_client.reset();
+    }
+
+
     void set_target(Eigen::Vector3d target)
     {
         m_current_target = target;
+        m_has_target = true;
+
         auto message = padflies_interfaces::msg::SendTarget();
         message.target.header.frame_id = "world";
         message.target.pose.position.x = target.x();
