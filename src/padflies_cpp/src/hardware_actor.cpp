@@ -60,7 +60,8 @@ HardwareActor::HardwareActor(
 
 HardwareActor::~HardwareActor()
 {
-    RCLCPP_DEBUG(m_logger, "HardwareActor destructor called.");
+    
+    RCLCPP_INFO(m_logger, "HardwareActor destructor called.");
 }
 
 bool 

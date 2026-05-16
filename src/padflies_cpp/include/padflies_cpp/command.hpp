@@ -26,6 +26,10 @@ public:
     m_routine->start();
   }
 
+  void halt() {
+    m_routine->halt();
+  }
+
   bool has_been_started() const {
     return m_routine->has_been_started();
   }

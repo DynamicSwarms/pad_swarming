@@ -54,24 +54,58 @@ class PadflieCommanderBase{
         virtual bool is_healthy() const = 0;
     
     private: 
+        /**
+         * Gets called when padflie gets configured. (Hardware is detected)
+         * hw_state_controller not yet connected
+         * no tf available
+         * availability is not yet sent
+         */
         virtual void m_configure_commander(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) = 0;
+        ) {};
+        /**
+         * Gets called when base commander finished configuration. 
+         * hw_state_controller is connected and starts listening to hardware state
+         * tf is available and starts listening to padflie tf changes
+         * availability is sent according to hardware state
+         */
         virtual void m_on_commander_configured() {};
 
+        /**
+         * Gets called when padflie gets activated.
+         * Prechecks are complete 
+         * hardware_actor is not yet available
+         * control interface is not yet available -> no commands incomming
+         * availabilility is still sent
+         */
         virtual void m_activate_commander(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) = 0;
+        ) {};
+        /**
+         * Gets called when base commander finished activation. 
+         * hardware_actor is available
+         * control interface is available -> commands can be sent to padflie
+         */
         virtual void m_on_commander_activated() {};
 
+        /**
+         * Gets called when padflie gets deactivated. 
+         * Before this is called the control interface gets destroyed 
+         * -> no more commands are beeing sent to padflie. 
+         * The hardware_actor and hardware_state controller are still available.
+         */
         virtual void m_deactivate_commander(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
             bool force
-        ) = 0;
+        ) {};
+        /*
+         * Gets called when base commander finished deactivation. 
+         * hardware_actor is no longer available
+         * hardware_state_controller is reset
+         */
         virtual void m_on_commander_deactivated() {};
 
         virtual void m_on_charged_callback() {};
-        
     
         virtual void m_handle_takeoff_command(
             const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
@@ -85,7 +119,7 @@ class PadflieCommanderBase{
             const std::shared_ptr<std_srvs::srv::Trigger::Request> req
         ) = 0;
 
-        virtual bool get_home_state() const = 0;
+        virtual bool get_home_state() const {return false;};
           
         virtual void m_handle_send_target_command(
             const padflies_interfaces::msg::SendTarget::SharedPtr msg

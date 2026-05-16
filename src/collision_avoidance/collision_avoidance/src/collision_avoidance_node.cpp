@@ -35,11 +35,12 @@ public:
       std::bind(&CollisionAvoidanceNode::calculate_collisions, this, _1, _2)
     );
 
-    cleanup_timer = this->create_wall_timer(
+    cleanup_timer = rclcpp::create_timer(
+      this,
+      this->get_clock(),
       std::chrono::milliseconds(200),
       std::bind(&CollisionAvoidanceNode::remove_old_objects, this)
     );
-
   } 
 private: 
   rclcpp::Service<collision_avoidance_interfaces::srv::CollisionAvoidance>::SharedPtr service;

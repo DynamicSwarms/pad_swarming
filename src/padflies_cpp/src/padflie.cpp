@@ -5,7 +5,9 @@
 #include "lifecycle_msgs/srv/get_state.hpp"
 
 
+#include "padflies_cpp/commander_base.hpp"
 #include "padflies_cpp/commander.hpp"
+#include "padflies_cpp/sim_commander.hpp"
 
 enum class CrazyflieType {
     HARDWARE,
@@ -20,22 +22,40 @@ public:
   , m_cf_id(declare_parameter("id", rclcpp::ParameterValue(0xE7), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
   , m_prefix("/padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
-  , m_padflie_commander(
-      m_prefix, 
-      m_cf_prefix, 
-      this->get_node_base_interface(), 
-      this->get_node_parameters_interface(), 
-      this->get_node_timers_interface(),
-      this->get_node_clock_interface(), 
-      this->get_node_waitables_interface(),
-      this->get_node_graph_interface(),
-      this->get_node_services_interface(),
-      this->get_node_logging_interface())
   {
+    if (true) 
+    { 
+      m_padflie_commander = std::make_unique<SimCommander>(
+          m_prefix,
+          m_cf_prefix,
+          this->get_node_base_interface(),
+          this->get_node_parameters_interface(),
+          this->get_node_timers_interface(),
+          this->get_node_clock_interface(),
+          this->get_node_waitables_interface(),
+          this->get_node_graph_interface(),
+          this->get_node_services_interface(),
+          this->get_node_logging_interface()
+      );
+    } else {
+      m_padflie_commander = std::make_unique<PadflieCommander>(
+        m_prefix,
+        m_cf_prefix,
+        this->get_node_base_interface(),
+        this->get_node_parameters_interface(),
+        this->get_node_timers_interface(),
+        this->get_node_clock_interface(),
+        this->get_node_waitables_interface(),
+        this->get_node_graph_interface(),
+        this->get_node_services_interface(),
+        this->get_node_logging_interface()
+      );
+    }
+
     m_commander_health_check_timer = this->create_wall_timer(
       std::chrono::milliseconds(200),
       [this]() {
-        if (!m_padflie_commander.is_healthy()) 
+        if (!m_padflie_commander->is_healthy()) 
         {
           RCLCPP_ERROR(this->get_logger(), "Padflie Commander is not healthy, deactivating");
           m_force_deactivate = true;
@@ -112,7 +132,7 @@ public:
       success = true; // Maybe inform the commander??
     } else {
       try {
-        m_padflie_commander.on_configure(shared_from_this());
+        m_padflie_commander->on_configure(shared_from_this());
         success = true;
       } catch (const CommanderException & e) {
         RCLCPP_ERROR(this->get_logger(), "Failed to configure PadflieCommander: %s", e.what());
@@ -136,7 +156,7 @@ public:
     RCLCPP_INFO(this->get_logger(), "Activating Padflie with prefix: %s", m_prefix.c_str());
     bool success = false;
     try {
-      m_padflie_commander.on_activate(shared_from_this());
+      m_padflie_commander->on_activate(shared_from_this());
       success = true;
     } catch (const CommanderException & e) {
       RCLCPP_ERROR(this->get_logger(), "Failed to activate PadflieCommander: %s", e.what());
@@ -155,7 +175,7 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
     try {
-      m_padflie_commander.on_deactivate(shared_from_this(), m_force_deactivate);
+      m_padflie_commander->on_deactivate(shared_from_this(), m_force_deactivate);
     } catch (const CommanderException & e) {
       RCLCPP_ERROR(this->get_logger(), "Failed to deactivate PadflieCommander: %s", e.what());
       //return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
@@ -193,7 +213,7 @@ private:
   std::string m_prefix;
   std::string m_cf_prefix;
 
-  PadflieCommander m_padflie_commander;
+  std::unique_ptr<PadflieCommanderBase> m_padflie_commander;
 
   std::shared_ptr<rclcpp::CallbackGroup> m_get_state_callback_group;
   std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::GetState>> m_cf_get_state_client;

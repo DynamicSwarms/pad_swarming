@@ -18,6 +18,7 @@ public:
       rclcpp::Logger logger,
       const std::string & xml_file = std::string("/home/winni/2ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/padflie_behaviors.xml")
     );
+    ~RoutineFactory();
 
     std::shared_ptr<Routine> 
     create_routine(const std::string& tree_name);

@@ -44,7 +44,6 @@ PadflieCommanderBase::on_configure(
 
     m_hw_state_controller.connect(m_cf_prefix, node);
     m_padflie_tf.start_listening(node);
-  
     m_create_availability_interface(node);
 
     m_on_commander_configured();
@@ -95,9 +94,12 @@ PadflieCommanderBase::on_deactivate(
 
     m_deactivate_commander(node, force);
     
-    m_hardware_actor.reset(); // Reset the actor to clean up resources
-    
+    m_hardware_actor.reset(); 
     m_hw_state_controller.reset_state();
+    m_create_availability_interface(node);
+
+
+    m_on_commander_deactivated();
     m_base_state = CommanderBaseState::CONFIGURED;
     RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
 }

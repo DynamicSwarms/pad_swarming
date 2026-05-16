@@ -42,6 +42,11 @@ RoutineFactory::RoutineFactory(
     m_bt_factory.registerBehaviorTreeFromFile(xml_file);
   }
 
+RoutineFactory::~RoutineFactory()
+{
+  RCLCPP_INFO(m_logger, "RoutineFactory destructor called.");
+}
+
 std::shared_ptr<Routine> 
 RoutineFactory::create_routine(const std::string& tree_name)
 {

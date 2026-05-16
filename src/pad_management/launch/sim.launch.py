@@ -1,16 +1,34 @@
 from launch_ros.actions import Node
 from launch import LaunchDescription
 
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch.conditions import LaunchConfigurationEquals
+
 from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
+    use_sim_time_arg = DeclareLaunchArgument(
+        "use_sim_time",
+        default_value="false",
+        description="Whether to use simulation time",
+    )
+
+    sim_clock = Node(
+        package="crazyflie_simulation_examples",
+        executable="clock",
+        output="screen",
+        parameters=[{"rate": 10.0}],
+        condition=LaunchConfigurationEquals("use_sim_time", "true"),
+    )
+
     gateway = Node(
         package="crazyflie_simulation_gateway",
         executable="gateway",
         output="screen",
         sigterm_timeout="10.0",
-        parameters=[{"use_sim_time": False}],
+        parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
     )
 
     crazyflies = Node(
@@ -33,7 +51,13 @@ def generate_launch_description():
                 package="padflies_cpp",
                 executable="padflie",
                 name=f"padflie{i}",
-                parameters=[{"id": i, "pad_id": i}],
+                parameters=[
+                    {
+                        "id": i,
+                        "pad_id": i,
+                        "use_sim_time": LaunchConfiguration("use_sim_time"),
+                    }
+                ],
             )
         )
 
@@ -41,6 +65,7 @@ def generate_launch_description():
         package="crazyflies",
         executable="position_visualization",
         name="position_visualization",
+        parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
     )
 
     pads_config_sim = (
@@ -55,7 +80,9 @@ def generate_launch_description():
     )
 
     collision_avoidance = Node(
-        package="collision_avoidance", executable="collision_avoidance_node"
+        package="collision_avoidance",
+        executable="collision_avoidance_node",
+        parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
     )
 
     traffic_controller = Node(
@@ -82,6 +109,8 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            use_sim_time_arg,
+            sim_clock,
             gateway,
             crazyflies,
             *padflies,

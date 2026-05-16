@@ -30,11 +30,10 @@ class PadflieCommander
         );
 
         void m_command_queue_execute();
+        void m_command_queue_on_deactivate();
 
         bool is_healthy() const override;
-
         bool get_home_state() const override;
-
         bool can_takeoff() const override;
         bool can_land() const override;
         bool is_flying() const override;
@@ -59,13 +58,7 @@ class PadflieCommander
 
         void m_on_charged_callback() override;
 
-    private:
-        void m_handle_landing_target_timer();    
-        void m_acquire_pad_right_callback(bool success);
-    
     private: 
-        void m_trigger_landing();
-        
         void m_handle_takeoff_command(
             const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
             const std::shared_ptr<rmw_request_id_t> request_id,
@@ -78,16 +71,9 @@ class PadflieCommander
             const std::shared_ptr<std_srvs::srv::Trigger::Request> req
         ) override;
 
-        void m_on_takeoff_finished(bool success);
-        void m_on_land_finished(bool success);
-
         void m_handle_send_target_command(
             const padflies_interfaces::msg::SendTarget::SharedPtr msg
         ) override;
-
-    private: 
-        void createBehaviorTree();
-
 
     private: 
         std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
@@ -99,26 +85,13 @@ class PadflieCommander
 
         std::shared_ptr<RoutineFactory> m_routine_factory;
 
-
-        bool m_deactivating = false;
-        bool m_commander_is_healthy = true;
-
-        
         CommanderState m_state = CommanderState::UNCONFIGURED;
 
 
         std::shared_ptr<rclcpp::TimerBase> m_landing_target_timer;
         
         
-        std::shared_ptr<Routine> m_routine;
-
         std::shared_ptr<rclcpp::TimerBase> m_command_queue_timer;
         std::mutex m_command_queue_mutex;
         std::queue<std::shared_ptr<Command>> m_command_queue;
-        bool m_tree_is_running = false;
-        BT::BehaviorTreeFactory m_bt_factory;
-        BT::Tree m_behavior_tree;
-        std::unique_ptr<BT::Groot2Publisher> m_bt_groot_publisher;
-
-        std::chrono::steady_clock::time_point m_takeoff_command_time;
 };
