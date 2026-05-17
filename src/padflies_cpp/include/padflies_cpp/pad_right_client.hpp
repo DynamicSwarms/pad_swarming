@@ -46,6 +46,13 @@ public:
         m_pad_right_control_action_client->async_send_goal(goal_msg, send_goal_options);
     }
 
+    void cancel_goal() 
+    {
+        if (m_current_goal_handle) {
+            m_pad_right_control_action_client->async_cancel_goal(m_current_goal_handle);
+        }
+    }
+
     bool goal_responded() { return m_goal_responded; }
     bool goal_accepted() { return m_goal_accepted; }
 

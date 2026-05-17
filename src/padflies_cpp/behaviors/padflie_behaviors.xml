@@ -1,5 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root BTCPP_format="4">
+  <BehaviorTree ID="GetRights">
+    <Sequence>
+      <ChoosePad pad_right_client="{client}"/>
+      <GetPadRight pad_right_client="{client}"/>
+      <Fallback>
+        <Sequence>
+          <RetryUntilSuccessful num_attempts="10">
+            <ReactiveSequence>
+              <GoalResponded pad_right_client="{client}"/>
+              <GoalAccepted pad_right_client="{client}"/>
+            </ReactiveSequence>
+          </RetryUntilSuccessful>
+          <RetryUntilSuccessful num_attempts="400">
+            <HasRight pad_right_client="{client}"/>
+          </RetryUntilSuccessful>
+          <ReactiveSequence>
+            <HasRight pad_right_client="{client}"/>
+            <SubTree ID="LandRoutine"/>
+          </ReactiveSequence>
+        </Sequence>
+        <CancelRight pad_right_client="{client}"/>
+      </Fallback>
+    </Sequence>
+  </BehaviorTree>
+
   <BehaviorTree ID="Land">
     <Sequence>
       <ReactiveSequence>
@@ -31,7 +56,7 @@
                                height="-0.4"/>
       <SplitPose pose="{target}"
                  x="{x}"
-                 y="{_}"
+                 y="{y}"
                  z="{height}"
                  yaw="{yaw}"/>
       <HLCommandLand height="{height}"
@@ -42,7 +67,9 @@
 
   <BehaviorTree ID="LandSimple">
     <Sequence>
-      <HLCommandLand yaw="0.0"/>
+      <HLCommandLand height="0.0"
+                     duration="4.0"
+                     yaw="0.0"/>
       <WaitFor duration="2.0"/>
     </Sequence>
   </BehaviorTree>
@@ -53,7 +80,9 @@
 
   <BehaviorTree ID="TakeoffSimple">
     <Sequence>
-      <HLCommandTakeoff yaw="0.0"/>
+      <HLCommandTakeoff heigth="1.0"
+                        duration="4.0"
+                        yaw="0.0"/>
       <WaitFor duration="2.0"/>
     </Sequence>
   </BehaviorTree>
@@ -69,6 +98,31 @@
       <input_port name="height"
                   type="double"/>
     </Action>
+    <Action ID="CancelRight"
+            editable="true">
+      <input_port name="pad_right_client"
+                  type="std::shared_ptr&lt;PadRightClient&gt;"/>
+    </Action>
+    <Action ID="ChoosePad"
+            editable="true">
+      <output_port name="pad_right_client"
+                   type="std::shared_ptr&lt;PadRightClient&gt;"/>
+    </Action>
+    <Action ID="GetPadRight"
+            editable="true">
+      <input_port name="pad_right_client"
+                  type="std::shared_ptr&lt;PadRightClient&gt;"/>
+    </Action>
+    <Condition ID="GoalAccepted"
+               editable="true">
+      <input_port name="pad_right_client"
+                  type="std::shared_ptr&lt;PadRightClient&gt;"/>
+    </Condition>
+    <Condition ID="GoalResponded"
+               editable="true">
+      <input_port name="pad_right_client"
+                  type="std::shared_ptr&lt;PadRightClient&gt;"/>
+    </Condition>
     <Action ID="HLCommandGoTo"
             editable="true">
       <input_port name="target"
@@ -102,6 +156,11 @@
                   default="0.0"
                   type="double"/>
     </Action>
+    <Condition ID="HasRight"
+               editable="true">
+      <input_port name="pad_right_client"
+                  type="std::shared_ptr&lt;PadRightClient&gt;"/>
+    </Condition>
     <Action ID="PrintStuff"
             editable="true"/>
     <Action ID="PrintStuff2"
