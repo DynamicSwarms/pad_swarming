@@ -7,14 +7,14 @@ PadExecuteClient::PadExecuteClient(
     rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr node_logging_interface,
     rclcpp::node_interfaces::NodeWaitablesInterface::SharedPtr node_waitables_interface,
     rclcpp::CallbackGroup::SharedPtr callback_group)
-: m_logger(node_logging_interface->get_logger().get_child("PadExecuteClient"))
+: m_logger(node_logging_interface->get_logger().get_child("PadExecuteClient[" + name + "]"))
 {
     m_action_client = rclcpp_action::create_client<ActionT>(
         node_base_interface,
         node_graph_interface,
         node_logging_interface,
         node_waitables_interface,
-        "/" + name + "/pad_execute",
+        name + "/pad_execute",
         callback_group);
 }
 
@@ -25,7 +25,7 @@ PadExecuteClient::send_goal(
     uint8_t action)
 {
     if (!this->m_action_client->wait_for_action_server(std::chrono::seconds(5))) {
-        RCLCPP_ERROR(rclcpp::get_logger("PadExecuteClient"), "Action server not available after waiting");
+        RCLCPP_ERROR(m_logger, "Action server not available after waiting");
         return;
     }
 
@@ -49,9 +49,9 @@ void
 PadExecuteClient::goal_response_callback(const GoalHandlePtr & goal_handle)
 {
     if (!goal_handle) {
-        RCLCPP_ERROR(rclcpp::get_logger("PadExecuteClient"), "Goal rejected");
+        RCLCPP_ERROR(m_logger, "The padflie rejected the goal");
     } else {
-        RCLCPP_INFO(rclcpp::get_logger("PadExecuteClient"), "Goal accepted");
+        RCLCPP_INFO(m_logger, "The padflie accepted the goal");
     }
 }
 
@@ -60,15 +60,16 @@ PadExecuteClient::feedback_callback(
     GoalHandlePtr goal_handle,
     const std::shared_ptr<const ActionT::Feedback> feedback)
 {
-    RCLCPP_INFO(rclcpp::get_logger("PadExecuteClient"), "Received feedback: %d", feedback->status);
+    RCLCPP_INFO(m_logger, "Received feedback from padflie: %d", feedback->status);
 }
 
 void 
 PadExecuteClient::result_callback(const GoalHandleT::WrappedResult & result)
 {
     if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
-        RCLCPP_INFO(rclcpp::get_logger("PadExecuteClient"), "Goal succeeded: %s", result.result->reason.c_str());
+        RCLCPP_INFO(m_logger, "Padflie said: Goal succeeded: %s", result.result->reason.c_str());
     } else {
-        RCLCPP_ERROR(rclcpp::get_logger("PadExecuteClient"), "Goal failed with code");// %d", result.status);
+        RCLCPP_ERROR(m_logger, "Padflie said: Goal failed with code");// %d", result.status);
     }
+    m_is_done = true;
 }

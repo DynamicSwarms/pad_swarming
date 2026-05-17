@@ -1,14 +1,25 @@
+# Goal - sent by Pad
 string pad_name
 uint8 action 
 
 uint8 ACTION_LAND = 0
 uint8 ACTION_TAKEOFF = 1
 ---
+# Result -sent by CF
 uint8 status
 string reason
 
 uint8 STATUS_ON_PAD = 0
 uint8 STATUS_NOT_ON_PAD = 1
 ---
+# Feedback - sent by CF
 uint8 status
+
+uint8 STATUS_LANDING_APPROACH_FAR = 0
+uint8 STATUS_LANDING_APPROACH_CLOSE = 1
+uint8 STATUS_LANDED = 2
+
+uint8 STATUS_TAKEOFF_IN_PAD = 3
+uint8 STATUS_TAKEOFF_LEFT_PAD = 4
+uint8 STATUS_TAKEOFF_CLEARED_PAD = 5
 geometry_msgs/PoseStamped current_pose

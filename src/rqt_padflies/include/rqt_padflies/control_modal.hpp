@@ -32,9 +32,9 @@ public:
         m_ui.height_label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
 
 
-
-        connect(m_ui.takeoff_button, &QPushButton::pressed, this, &ControlModal::on_takeoff_button_clicked);
-        connect(m_ui.land_button, &QPushButton::pressed, this, &ControlModal::on_land_button_clicked);
+        // Clicked is automatically connected by Qt's auto-connection feature 
+        //connect(m_ui.takeoff_button, &QPushButton::clicked, this, &ControlModal::on_takeoff_button_clicked);
+        //connect(m_ui.land_button, &QPushButton::clicked, this, &ControlModal::on_land_button_clicked);
         
         double height = slider_value_to_height(m_ui.z_slider->value());
         m_ui.height_label->setText(QString("%1 m").arg(height, 0, 'f', 1));
@@ -105,6 +105,7 @@ public:
 
 private slots:
     void on_takeoff_button_clicked() {
+        std::cerr << "Takeoff button clicked, sending takeoff command." << std::endl;
         m_control_connection->takeoff();
     }
 

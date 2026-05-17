@@ -21,6 +21,7 @@ enum ActorState {
 };
 
 enum ActorMode {
+    NONE, 
     POSITION_CONTROL,
     VELOCITY_CONTROL
 };

@@ -1,6 +1,7 @@
 #include "pad_management_cpp/pad_right_server.hpp"
 
 PadRightServer::PadRightServer(
+    const std::string & name,
     IPadResourceManager & pad_resource_manager,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
@@ -42,7 +43,7 @@ PadRightServer::PadRightServer(
         node_clock_interface,
         node_logging_interface,
         node_waitables_interface,
-        "~/pad_right_control",
+        name + "/pad_right_control",
         std::bind(&PadRightServer::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
         std::bind(&PadRightServer::handle_cancel, this, std::placeholders::_1),
         std::bind(&PadRightServer::handle_accepted, this, std::placeholders::_1),
@@ -56,18 +57,7 @@ void
 PadRightServer::manage_requests()
 {
     if (m_request_map->manage_requests()) {
-        // Do something if a new owner is selected
-        //std::string current_holder = m_request_map->get_current_holder();
-        //m_pad_execute_client = std::make_shared<PadExecuteClient>(
-        //    current_holder,
-        //    m_node_base_interface,
-        //    m_node_graph_interface,
-        //    m_node_logging_interface,
-        //    m_node_waitables_interface,
-        //    m_callback_group
-        //);
-
-        //m_pad_execute_client->send_goal(current_holder, pad_management_interfaces::action::PadExecute::Goal::ACTION_TAKEOFF); 
+ 
 
     }
 }
@@ -96,7 +86,21 @@ rclcpp_action::GoalResponse PadRightServer::handle_goal(
 void PadRightServer::handle_accepted(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<pad_management_interfaces::action::PadRightControl>> goal_handle)
 {
-    m_request_map->add_request(goal_handle);
+    std::string name = goal_handle->get_goal()->name; // padflieID
+    m_pad_execute_client = std::make_shared<PadExecuteClient>(
+            name,
+            m_node_base_interface,
+            m_node_graph_interface,
+            m_node_logging_interface,
+            m_node_waitables_interface,
+            m_callback_group
+        );
+
+
+
+
+
+    m_request_map->add_request(goal_handle, m_pad_execute_client);
 }
 
 rclcpp_action::CancelResponse PadRightServer::handle_cancel(

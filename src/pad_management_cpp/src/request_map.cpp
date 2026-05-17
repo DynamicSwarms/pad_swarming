@@ -28,7 +28,8 @@ bool RequestMap::has_name(const std::string & name)
 }
 
 void RequestMap::add_request(
-    const GoalHandlePtr goal_handle)
+    const GoalHandlePtr goal_handle, 
+    std::shared_ptr<PadExecuteClient> pad_execute_client)
 {
     RCLCPP_INFO(m_logger, "Adding request with name %s", goal_handle->get_goal()->name.c_str());
     const auto uuid = goal_handle->get_goal_id();
@@ -43,7 +44,8 @@ void RequestMap::add_request(
             m_logger,
             m_node_clock_interface,
             goal_handle,
-            m_pad_resource_manager
+            m_pad_resource_manager, 
+            pad_execute_client
         )
     );
     m_publish_feedback();
@@ -54,6 +56,7 @@ bool RequestMap::manage_requests()
     std::lock_guard<std::mutex> lock(m_request_mutex);
     m_check_cancelations();
     m_check_timeouts();
+    m_check_done_status();
 
     bool new_owner_selected = false;
     if (new_owner_selected = m_select_new_owner()) {
@@ -101,6 +104,19 @@ void RequestMap::m_check_cancelations()
       ++it;
     }
   }
+}
+
+void RequestMap::m_check_done_status()
+{
+    for (auto it = m_request_map.begin(); it != m_request_map.end();) {
+        auto & request = it->second;
+        if (request.is_finished()) {
+            RCLCPP_INFO(m_logger, "Request finished with name %s, removing from map.", request.name().c_str());
+            it = m_request_map.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void RequestMap::m_check_timeouts()

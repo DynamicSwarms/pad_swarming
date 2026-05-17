@@ -47,7 +47,7 @@ public:
     bool fits_more_requests() const { return m_request_map.size() < static_cast<size_t>(m_max_requests); }
 
     bool has_name(const std::string & name);
-    void add_request(const GoalHandlePtr goal_handle);
+    void add_request(const GoalHandlePtr goal_handle, std::shared_ptr<PadExecuteClient> pad_execute_client);
     bool manage_requests();
 
 protected:
@@ -62,6 +62,7 @@ private:
     void m_publish_feedback();
     void m_check_cancelations();
     void m_check_timeouts();
+    void m_check_done_status();
 
     IPadResourceManager & m_pad_resource_manager;
     int m_max_requests;

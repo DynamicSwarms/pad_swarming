@@ -16,7 +16,7 @@ HardwareActor::HardwareActor(
     PadflieTF* padflie_tf
 )
 : m_state(ActorState::DEACTIVATED)
-, m_mode(ActorMode::POSITION_CONTROL)
+, m_mode(ActorMode::NONE)
 , m_dt(0.1) // Default time step
 , m_target_pose()
 , m_fixed_yaw(false)
@@ -73,7 +73,7 @@ HardwareActor::get_current_target_frame() const
     else if (m_mode == ActorMode::VELOCITY_CONTROL)
         return m_target_velocity.frame_id;
     else
-        return "";
+        return "world";
 }
 
 bool 
@@ -188,7 +188,7 @@ HardwareActor::m_ll_command_timer_callback()
             return;
         }
 
-        if (m_mode == ActorMode::VELOCITY_CONTROL) 
+        if (m_mode == ActorMode::VELOCITY_CONTROL || m_mode == ActorMode::NONE) 
         {
             RCLCPP_INFO(m_logger, "Velocity Mode not supported yet.");
         }

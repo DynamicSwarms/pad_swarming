@@ -15,8 +15,9 @@ float duration_to_seconds(const rclcpp::Duration & duration)
 Request::Request(
     rclcpp::Logger logger,
     rclcpp::node_interfaces::NodeClockInterface::SharedPtr node_clock_interface,
-    const std::shared_ptr<GoalHandleT> & goal_handle,
-    IPadResourceManager & pad_resource_manager)
+    const std::shared_ptr<PadRightControlGoalHandleT> & goal_handle,
+    IPadResourceManager & pad_resource_manager, 
+    std::shared_ptr<PadExecuteClient> pad_execute_client)
 :   m_logger(logger.get_child("[" + goal_handle->get_goal()->name + "]")),
     m_clock(node_clock_interface->get_clock()),
     m_name(goal_handle->get_goal()->name),
@@ -24,19 +25,25 @@ Request::Request(
     m_max_wait_time(duration_from_seconds(goal_handle->get_goal()->max_wait_time)),
     m_usage_time(duration_from_seconds(goal_handle->get_goal()->usage_time)),
     m_goal_handle(goal_handle),
-    m_resource_manager(pad_resource_manager)
+    m_resource_manager(pad_resource_manager),
+    m_pad_execute_client(pad_execute_client)
 {
+    pad_execute_client->send_goal(m_name, pad_management_interfaces::action::PadExecute::Goal::ACTION_TAKEOFF);
 }
 
 Request::~Request()
 {
     RCLCPP_INFO(m_logger, "Destroying request object.");
-    if (m_executing) m_resource_manager.release(m_name);
-}
+    
+    if (is_finished()) 
+    {
+        auto result = std::make_shared<PadRightControlActionT::Result>();
+        result->success = true;
+        result->reason = "Completed successfully";
+        m_goal_handle->succeed(result);
+    }
 
-const std::string & Request::name() const
-{
-    return m_name;
+    if (m_executing) m_resource_manager.release(m_name);
 }
 
 
@@ -47,7 +54,7 @@ Request::check_cancel()
         const bool was_owner = owns_lock();
 
 
-        auto result = std::make_shared<ActionT::Result>();
+        auto result = std::make_shared<PadRightControlActionT::Result>();
         result->success = true;
         result->reason = "Canceled by client";
         m_goal_handle->canceled(result);
@@ -80,7 +87,7 @@ bool
 Request::hold_time_exceeded(const rclcpp::Duration & max_hold_time) const
 {
     if (m_executing && ((m_clock->now() - m_acquire_time) >= max_hold_time)) {
-        auto result = std::make_shared<ActionT::Result>();
+        auto result = std::make_shared<PadRightControlActionT::Result>();
         result->success = false;
         result->reason = "Hold time exceeded";
         m_goal_handle->abort(result);
@@ -96,13 +103,13 @@ Request::publish_feedback(
     const rclcpp::Duration & expected_wait_time, 
     const rclcpp::Duration & max_hold_time) const
 {
-    auto feedback = std::make_shared<ActionT::Feedback>();
+    auto feedback = std::make_shared<PadRightControlActionT::Feedback>();
     if (owns_lock()) {
-        feedback->status = ActionT::Feedback::STATUS_ACQUIRED_RIGHT;
+        feedback->status = PadRightControlActionT::Feedback::STATUS_ACQUIRED_RIGHT;
         auto time_held = m_clock->now() - m_acquire_time;
         feedback->time_remaining = duration_to_seconds(max_hold_time - time_held);
     } else {
-        feedback->status = ActionT::Feedback::STATUS_WAITING_FOR_RIGHT;
+        feedback->status = PadRightControlActionT::Feedback::STATUS_WAITING_FOR_RIGHT;
         feedback->time_remaining = duration_to_seconds(expected_wait_time);
     }
     

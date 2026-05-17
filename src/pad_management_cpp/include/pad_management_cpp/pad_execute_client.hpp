@@ -21,6 +21,8 @@ public:
         rclcpp::CallbackGroup::SharedPtr callback_group
     );
 
+    bool is_finished() const { return m_is_done; }
+
     void send_goal(
         const std::string & pad_name,
         uint8_t action);
@@ -34,6 +36,8 @@ public:
     void result_callback(const GoalHandleT::WrappedResult & result);
 private:
     rclcpp::Logger m_logger; 
+
+    bool m_is_done = false;
 
     std::shared_ptr<rclcpp_action::Client<ActionT>> m_action_client;
 };

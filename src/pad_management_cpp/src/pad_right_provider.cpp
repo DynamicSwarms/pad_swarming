@@ -13,6 +13,7 @@ public:
   : Node("pad_right_action_server")
   , m_pad_resource_manager()
   , m_pad_right_server(std::make_shared<PadRightServer>(
+      "megapad",
       m_pad_resource_manager,
       this->get_node_base_interface(),
       this->get_node_parameters_interface(),

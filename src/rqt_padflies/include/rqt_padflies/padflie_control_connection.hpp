@@ -48,6 +48,10 @@ public:
         m_takeoff_client.reset();
     }
 
+    void reset_target()
+    {
+        m_has_target = false;
+    }
 
     void set_target(Eigen::Vector3d target)
     {

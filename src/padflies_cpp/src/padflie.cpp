@@ -8,6 +8,7 @@
 #include "padflies_cpp/commander_base.hpp"
 #include "padflies_cpp/commander.hpp"
 #include "padflies_cpp/sim_commander.hpp"
+#include "padflies_cpp/action_commander.hpp"
 
 enum class CrazyflieType {
     HARDWARE,
@@ -25,7 +26,7 @@ public:
   {
     if (true) 
     { 
-      m_padflie_commander = std::make_unique<SimCommander>(
+      m_padflie_commander = std::make_unique<ActionCommander>(
           m_prefix,
           m_cf_prefix,
           this->get_node_base_interface(),

@@ -151,9 +151,6 @@ class PadflieCommanderBase{
         rcl_interfaces::msg::SetParametersResult 
         m_set_parameters_callback(const std::vector<rclcpp::Parameter> & parameters);
 
-      
-
-
     protected: 
         std::string m_prefix;
         std::string m_cf_prefix;

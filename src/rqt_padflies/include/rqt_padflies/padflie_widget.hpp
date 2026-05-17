@@ -174,11 +174,13 @@ class PadflieWidget : public QWidget
       {
         set_lifecycle_button(m_ui.inactive_button, true, false);
         set_lifecycle_button(m_ui.active_button, false, true);
+        m_ros_connection->get_control_connection()->reset_target();
       }
       if (current_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_UNCONFIGURED)
       {
         set_lifecycle_button(m_ui.unconfigured_button, true, false);
         set_lifecycle_button(m_ui.inactive_button, false, true);
+        m_ros_connection->get_control_connection()->reset_target();
       }
 
     }
