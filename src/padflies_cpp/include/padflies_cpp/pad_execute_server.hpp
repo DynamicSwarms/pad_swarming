@@ -44,17 +44,32 @@ public:
         }
     }
 
+    void send_result(uint8_t status)
+    {
+        if (m_current_pad_execute_goal_handle) {
+            auto result = std::make_shared<PadExecuteActionT::Result>();
+            result->status = status;
+            m_current_pad_execute_goal_handle->succeed(result);
+        }
+        result_sent = true;
+    }
+
+    bool result_sent() const { return result_sent; }
+
 private: 
     std::string m_selected_pad_name = "";
 
     bool m_goal_cancelled = false;
     bool m_goal_received = false;
 
+    bool result_sent = false;
+
 
     rclcpp_action::GoalResponse handle_pad_execute_goal(
         const rclcpp_action::GoalUUID & uuid,
         std::shared_ptr<const PadExecuteActionT::Goal> goal)
     {
+        result_sent = false;
         // TODO: Check if the goal is of a selected pad, otherwise reject
         RCLCPP_INFO(m_logger, "Received goal request with pad name %s and action %d", goal->pad_name.c_str(), goal->action);
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -71,5 +86,12 @@ private:
     {
         RCLCPP_INFO(m_logger, "Goal accepted, but no execution implemented.");
     }
+
+private: 
+    std::string m_prefix;
+    rclcpp::Logger m_logger;
+
+    std::shared_ptr<rclcpp_action::Server<PadExecuteActionT>> m_pad_execute_action_server;
+    std::shared_ptr<PadExecuteGoalHandleT> m_current_pad_execute_goal_handle;
 
 };

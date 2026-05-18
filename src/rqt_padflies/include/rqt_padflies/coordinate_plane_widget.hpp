@@ -29,14 +29,9 @@ public:
 
     void set_scale(double scale) { m_scale = scale; update(); }
 
-    void reset_target() {
-        m_has_selected_point = false;
-        update();
-    }
     void set_target(double x, double y) {
         m_selected_point = QPointF(x, y);
         m_has_selected_point = true;
-        emit pointSelected(QPointF(x, y));
         update();
     }
 signals:

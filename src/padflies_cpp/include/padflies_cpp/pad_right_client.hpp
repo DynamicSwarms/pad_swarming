@@ -19,6 +19,7 @@ public:
         std::shared_ptr<rclcpp::CallbackGroup> callback_group,
         rclcpp::Logger parent_logger)
         : m_prefix(prefix)
+        , m_pad_name(pad_name)
         , m_logger(parent_logger.get_child("PadRightClient[" + pad_name + "]"))
     {
         m_pad_right_control_action_client = rclcpp_action::create_client<PadRightControlActionT>(
@@ -52,6 +53,8 @@ public:
             m_pad_right_control_action_client->async_cancel_goal(m_current_goal_handle);
         }
     }
+
+    std::string get_pad_name() const { return m_pad_name; }
 
     bool goal_responded() { return m_goal_responded; }
     bool goal_accepted() { return m_goal_accepted; }
@@ -104,6 +107,7 @@ private:
 
 private: 
     std::string m_prefix;
+    std::string m_pad_name;
     rclcpp::Logger m_logger;
 
     std::shared_ptr<rclcpp_action::Client<PadRightControlActionT>> m_pad_right_control_action_client;
