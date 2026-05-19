@@ -3,24 +3,29 @@
   <BehaviorTree ID="LandBehavior">
     <Sequence>
       <ChoosePad pad_client="{client}"/>
-      <TimeoutROS timeout_ms="1000">
-        <ReactiveSequence>
-          <ApproachIDLE pad_client="{client}"/>
-          <SendFeedback pad_client="{client}"/>
+      <ReactiveSequence>
+        <ApproachIDLE pad_client="{client}"/>
+        <SendFeedback pad_client="{client}"/>
+        <TimeoutROS timeout_ms="1000">
           <GetPadRight pad_client="{client}"
                        action="LAND"/>
-        </ReactiveSequence>
-      </TimeoutROS>
+        </TimeoutROS>
+      </ReactiveSequence>
+      <Repeat num_cycles="10">
+        <Delay delay_msec="1000">
+          <ApproachIDLE pad_client="{client}"/>
+        </Delay>
+      </Repeat>
       <ForceSuccess>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
           <SendFeedback pad_client="{client}"/>
-          <AsyncSequence>
-            <TimeoutROS timeout_ms="500">
+          <TimeoutROS timeout_ms="500">
+            <AsyncSequence>
               <ApproachCLOSE pad_client="{client}"/>
-            </TimeoutROS>
-            <Land pad_client="{client}"/>
-          </AsyncSequence>
+              <Land pad_client="{client}"/>
+            </AsyncSequence>
+          </TimeoutROS>
         </ReactiveSequence>
       </ForceSuccess>
       <ReleasePadRight pad_client="{client}"/>

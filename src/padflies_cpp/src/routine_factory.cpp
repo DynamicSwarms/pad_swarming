@@ -6,6 +6,7 @@
 
 RoutineFactory::RoutineFactory(
     std::shared_ptr<HardwareActor> hardware_actor,
+    std::shared_ptr<PadflieTF> padflie_tf,
     std::shared_ptr<PadExecuteServer> pad_execute_server,
     std::shared_ptr<PadClientFactory> pad_client_factory,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
@@ -24,7 +25,7 @@ RoutineFactory::RoutineFactory(
     m_bt_factory.registerNodeType<HoldPadRight>("HoldPadRight", logger, pad_execute_server);
     m_bt_factory.registerNodeType<ReleasePadRight>("ReleasePadRight", logger);
     m_bt_factory.registerNodeType<LandRoutine>("Land", logger, node_clock_interface, hardware_actor, pad_execute_server);
-    m_bt_factory.registerNodeType<ApproachIDLE>("ApproachIDLE", logger, hardware_actor, pad_execute_server);
+    m_bt_factory.registerNodeType<ApproachIDLE>("ApproachIDLE", logger, hardware_actor, padflie_tf, pad_execute_server);
     m_bt_factory.registerNodeType<ApproachCLOSE>("ApproachCLOSE", logger, hardware_actor, pad_execute_server);
     m_bt_factory.registerNodeType<TimeoutROS>("TimeoutROS", logger, node_clock_interface);
     m_bt_factory.registerNodeType<SendFeedback>("SendFeedback", logger, pad_execute_server);

@@ -436,10 +436,12 @@ public:
         const BT::NodeConfig& config,   
         rclcpp::Logger logger,
         std::shared_ptr<HardwareActor> hardware_actor,
+        std::shared_ptr<PadflieTF> padflie_tf,
         std::shared_ptr<PadExecuteServer> pad_execute_server)
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_hardware_actor(hardware_actor)
+    , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
     {
     }
@@ -462,14 +464,31 @@ public:
         RCLCPP_INFO(m_logger, "Approaching IDLE position...");
 
         Eigen::Affine3d my_pose = Eigen::Affine3d::Identity(); // TODO: get current pose from hardware actor
-        Eigen::Affine3d idle_pose = Eigen::Affine3d::Identity(); // TODO: get idle pose from pad client
-        bool success = m_pad_client->get_pad_idle_target(1.0, my_pose, idle_pose);
-        if (!success)
+        Eigen::Vector3d translation;
+        if (!m_padflie_tf->get_cf_position(translation))
         {
+            RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
+            return BT::NodeStatus::FAILURE;
+        } else {
+            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", translation.x(), translation.y(), translation.z());
+        }
+        my_pose.translation() = translation;
+        Eigen::Affine3d idle_pose_remote_frame = Eigen::Affine3d::Identity(); // TODO: get idle pose from pad client
+        bool success = m_pad_client->get_pad_idle_target(1.0, my_pose, idle_pose_remote_frame);
+        if (!success)
+    {
             RCLCPP_ERROR(m_logger, "Error getting idle target!");
             return BT::NodeStatus::FAILURE;
         }
-        m_hardware_actor->go_to(idle_pose, 0.0, true);
+
+        Eigen::Affine3d world_to_idle;
+        m_padflie_tf->get_world_affine3d("pad_circle", world_to_idle);
+        
+        Eigen::Affine3d idle_pose_world = world_to_idle.inverse() * idle_pose_remote_frame; // TODO: transform idle pose to world frame using padflie_tf
+        RCLCPP_INFO(m_logger, "The goal idle position is: [%f, %f, %f]", idle_pose_remote_frame.translation().x(), idle_pose_remote_frame.translation().y(), idle_pose_remote_frame.translation().z());
+        RCLCPP_INFO(m_logger, "The goal idle position in world frame is: [%f, %f, %f]", idle_pose_world.translation().x(), idle_pose_world.translation().y(), idle_pose_world.translation().z());
+            
+        m_hardware_actor->go_to(idle_pose_world, 0.0, false);
         return BT::NodeStatus::SUCCESS;
     }
 
@@ -490,6 +509,7 @@ public:
 private: 
     rclcpp::Logger m_logger;
     std::shared_ptr<HardwareActor> m_hardware_actor;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server; 
     std::shared_ptr<PadClient> m_pad_client;
 };

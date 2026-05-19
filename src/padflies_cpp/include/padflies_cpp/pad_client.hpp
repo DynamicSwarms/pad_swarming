@@ -53,10 +53,32 @@ public:
         const Eigen::Affine3d & position,
         Eigen::Affine3d & target_position)
     {
+        auto request = std::make_shared<pad_management_interfaces::srv::PadIdleTarget::Request>();
+        request->name = m_prefix;
+        request->position = geometry_msgs::msg::PoseStamped();
+        // TODO: clock now
+        request->position.header.frame_id = "world";
+        request->position.pose.position.x = position.translation().x();
+        request->position.pose.position.y = position.translation().y();
+        request->position.pose.position.z = position.translation().z();
+        request->position.pose.orientation.x = 0.0;
+        request->position.pose.orientation.y = 0.0;
+        request->position.pose.orientation.z = 0.0;
+        request->position.pose.orientation.w = 1.0;
 
-        // TODO: Do smth with pad_idle client... and tf
-        target_position = Eigen::Affine3d::Identity();
-        target_position.translation() = position.translation() + Eigen::Vector3d(0.0, 0.0, 0.5); // dummy target above the current position
+        if (m_pad_idle_target_client->wait_for_service(std::chrono::milliseconds(static_cast<int>(timeout_seconds * 1000)))) {
+            auto result_future = m_pad_idle_target_client->async_send_request(request);
+            if (result_future.wait_for(std::chrono::milliseconds(static_cast<int>(timeout_seconds * 1000))) == std::future_status::ready) {
+                auto response = result_future.get();
+                target_position.translation().x() = response->target.pose.position.x;
+                target_position.translation().y() = response->target.pose.position.y;
+                target_position.translation().z() = response->target.pose.position.z;
+            }
+        } else {
+            RCLCPP_ERROR(m_logger, "Service /%s/pad_idle_target not available after waiting for %f seconds", m_pad_name.c_str(), timeout_seconds);
+            return false;
+        }
+
         return true;
     }
 
