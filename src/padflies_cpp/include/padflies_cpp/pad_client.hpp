@@ -2,25 +2,30 @@
 
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "pad_management_interfaces/action/pad_right_control.hpp"
+#include "pad_management_interfaces/srv/pad_idle_target.hpp"
+#include "padflies_cpp/padflie_tf.hpp"
 
-class PadRightClient
+class PadClient
 {
 public:
     using PadRightControlActionT = pad_management_interfaces::action::PadRightControl;
     using PadRightControlGoalHandleT = rclcpp_action::ClientGoalHandle<PadRightControlActionT>;
 
-    PadRightClient(
+    PadClient(
         const std::string & prefix,
         const std::string & pad_name,
+        std::shared_ptr<PadflieTF> padflie_tf,
         std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
         std::shared_ptr<rclcpp::CallbackGroup> callback_group,
         rclcpp::Logger parent_logger)
         : m_prefix(prefix)
         , m_pad_name(pad_name)
-        , m_logger(parent_logger.get_child("PadRightClient[" + pad_name + "]"))
+        , m_logger(parent_logger.get_child("PadClient[" + pad_name + "]"))
+        , m_padflie_tf(padflie_tf)
     {
         m_pad_right_control_action_client = rclcpp_action::create_client<PadRightControlActionT>(
                 node_base_interface,
@@ -29,10 +34,30 @@ public:
                 node_waitables_interface,
                 pad_name + "/pad_right_control",
                 callback_group);
+
+        m_pad_idle_target_client = rclcpp::create_client<pad_management_interfaces::srv::PadIdleTarget>(
+                node_base_interface,
+                node_graph_interface,
+                node_services_interface,
+                pad_name + "/pad_idle_target",
+                rclcpp::QoS(10).get_rmw_qos_profile(),
+                callback_group);
     }
 
     bool is_action_server_available(std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
         return m_pad_right_control_action_client->wait_for_action_server(timeout);
+    }
+
+    bool get_pad_idle_target(
+        double timeout_seconds,
+        const Eigen::Affine3d & position,
+        Eigen::Affine3d & target_position)
+    {
+
+        // TODO: Do smth with pad_idle client... and tf
+        target_position = Eigen::Affine3d::Identity();
+        target_position.translation() = position.translation() + Eigen::Vector3d(0.0, 0.0, 0.5); // dummy target above the current position
+        return true;
     }
 
     void send_request(uint8_t action) 
@@ -41,9 +66,9 @@ public:
         goal_msg.action = action;
         goal_msg.name = m_prefix;
         auto send_goal_options = rclcpp_action::Client<PadRightControlActionT>::SendGoalOptions();
-        send_goal_options.goal_response_callback = std::bind(&PadRightClient::goal_response_callback, this, std::placeholders::_1);
-        send_goal_options.feedback_callback = std::bind(&PadRightClient::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
-        send_goal_options.result_callback = std::bind(&PadRightClient::result_callback, this, std::placeholders::_1);
+        send_goal_options.goal_response_callback = std::bind(&PadClient::goal_response_callback, this, std::placeholders::_1);
+        send_goal_options.feedback_callback = std::bind(&PadClient::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
+        send_goal_options.result_callback = std::bind(&PadClient::result_callback, this, std::placeholders::_1);
         m_pad_right_control_action_client->async_send_goal(goal_msg, send_goal_options);
     }
 
@@ -86,9 +111,9 @@ private:
         m_right_acquired = feedback->status == PadRightControlActionT::Feedback::STATUS_ACQUIRED_RIGHT;
 
         if (feedback->status == PadRightControlActionT::Feedback::STATUS_WAITING_FOR_RIGHT)
-            RCLCPP_INFO(m_logger, "FBD: Pad is waiting for right to be acquired...");
+            RCLCPP_INFO(m_logger, "FBD: Pad says PadClient needs to wait for right...");
         else if (feedback->status == PadRightControlActionT::Feedback::STATUS_ACQUIRED_RIGHT)
-            RCLCPP_INFO(m_logger, "FBD: Acquired right!");
+            RCLCPP_INFO(m_logger, "FBD: Pad says PadClient acquired right!");
     }
 
     void result_callback(const typename PadRightControlGoalHandleT::WrappedResult & result) 
@@ -97,9 +122,9 @@ private:
         m_received_result = true;
 
         if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
-            RCLCPP_INFO(m_logger, "Pad right control action succeeded");
+            RCLCPP_INFO(m_logger, "Pad right control action finished with: SUCCESS");
         } else {
-            RCLCPP_ERROR(m_logger, "Pad right control action failed with code %d", result.code);
+            RCLCPP_ERROR(m_logger, "Pad right control action failed with: FAILED");
         }
     }
 
@@ -108,9 +133,11 @@ private:
 private: 
     std::string m_prefix;
     std::string m_pad_name;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
     rclcpp::Logger m_logger;
 
     std::shared_ptr<rclcpp_action::Client<PadRightControlActionT>> m_pad_right_control_action_client;
+    std::shared_ptr<rclcpp::Client<pad_management_interfaces::srv::PadIdleTarget>> m_pad_idle_target_client;
 
 private: 
     std::shared_ptr<PadRightControlGoalHandleT> m_current_goal_handle;

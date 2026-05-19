@@ -11,6 +11,7 @@
 
   <depend>rclcpp</depend>
   <depend>padflies_interfaces</depend>
+  <depend>padflies_management_interfaces</depend>
 
   <build_depend>qtbase5-dev</build_depend>
   <build_depend>rqt_console</build_depend>

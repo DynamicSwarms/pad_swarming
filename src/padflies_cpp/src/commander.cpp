@@ -1,7 +1,7 @@
 #include "padflies_cpp/commander.hpp"
 
-#include "padflies_cpp/command_simple_takeoff.hpp"
-#include "padflies_cpp/command_simple_land.hpp"
+#include "padflies_cpp/command_land.hpp"
+#include "padflies_cpp/command_takeoff.hpp"
 
 
 PadflieCommander::PadflieCommander(
@@ -20,6 +20,23 @@ PadflieCommander::PadflieCommander(
 , m_node_base_interface(node_base_interface)
 , m_node_timers_interface(node_timers_interface)
 , m_node_clock_interface(node_clock_interface)
+, m_pad_execute_server(std::make_shared<PadExecuteServer>(
+    prefix,
+    node_base_interface,
+    node_clock_interface,
+    node_logging_interface,
+    node_waitables_interface,
+    node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)))
+, m_pad_client_factory(std::make_shared<PadClientFactory>(
+    prefix,
+    m_padflie_tf,
+    node_base_interface,
+    node_graph_interface,
+    node_logging_interface,
+    node_waitables_interface,
+    node_services_interface,
+    node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive),
+    m_logger))
 , m_pad_control(std::make_shared<PadControl>(
     prefix,
     node_base_interface,
@@ -125,14 +142,15 @@ void
 PadflieCommander::m_activate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
-    m_pad_control->create_connection("megapad");
+    //m_pad_control->create_connection("megapad");
 }
 
 void PadflieCommander::m_on_commander_activated() 
 {
     m_routine_factory = std::make_shared<RoutineFactory>(
         m_hardware_actor, 
-        m_pad_control,
+        m_pad_execute_server,
+        m_pad_client_factory,
         m_node_base_interface,
         m_node_timers_interface,
         m_node_clock_interface, 
@@ -170,7 +188,9 @@ PadflieCommander::m_handle_takeoff_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {
     RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
-    std::shared_ptr<Command> command = std::make_shared<SimpleTakeoffCommand>(
+    m_hardware_actor->takeoff(0.5, 0.0, 5.0);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::shared_ptr<Command> command = std::make_shared<TakeoffCommand>(
         m_routine_factory,
         service_handle,
         request_id,
@@ -189,7 +209,7 @@ PadflieCommander::m_handle_land_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {   
     RCLCPP_INFO(m_logger, "Land command received for %s", m_cf_prefix.c_str());
-    std::shared_ptr<Command> command = std::make_shared<SimpleLandCommand>(
+    std::shared_ptr<Command> command = std::make_shared<LandCommand>(
         m_routine_factory,
         service_handle,
         request_id,

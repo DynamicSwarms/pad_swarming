@@ -13,7 +13,7 @@ HardwareActor::HardwareActor(
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,    
     const std::string & cf_prefix, 
-    PadflieTF* padflie_tf
+    std::shared_ptr<PadflieTF> padflie_tf
 )
 : m_state(ActorState::DEACTIVATED)
 , m_mode(ActorMode::NONE)

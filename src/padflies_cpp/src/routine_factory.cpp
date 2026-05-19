@@ -1,15 +1,13 @@
 
 #include "padflies_cpp/routine_factory.hpp"
 
-#include "behaviors/hardware_actor_behaviors.cpp"
-#include "behaviors/eigen_behaviors.cpp"
-#include "behaviors/timing_behaviors.cpp"
-#include "behaviors/pad_behaviors.cpp"
+#include "behaviors/behaviors.cpp"
 
 
 RoutineFactory::RoutineFactory(
     std::shared_ptr<HardwareActor> hardware_actor,
-    std::shared_ptr<PadControl> pad_control,
+    std::shared_ptr<PadExecuteServer> pad_execute_server,
+    std::shared_ptr<PadClientFactory> pad_client_factory,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
@@ -21,24 +19,15 @@ RoutineFactory::RoutineFactory(
   , m_node_clock_interface(node_clock_interface)
   , m_logger(logger)
   {
-    m_bt_factory.registerNodeType<HLCommandGoTo>("HLCommandGoTo", hardware_actor, logger);
-    m_bt_factory.registerNodeType<HLCommandLand>("HLCommandLand", hardware_actor, logger);
-    m_bt_factory.registerNodeType<HLCommandTakeoff>("HLCommandTakeoff", hardware_actor, logger);
-    m_bt_factory.registerNodeType<LLCommanderSendTarget>("LLCommanderSendTarget", hardware_actor, logger);
-    m_bt_factory.registerNodeType<CalculateAbovePadTargetAction>("CalculateAbovePadTarget", logger);
-    m_bt_factory.registerNodeType<WaitFor>("WaitFor", node_clock_interface, logger);
-
-    m_bt_factory.registerNodeType<SplitPose>("SplitPose");
-    m_bt_factory.registerNodeType<AcquirePadRight>("AcquirePadRight", pad_control);
-    m_bt_factory.registerSimpleAction("PrintStuff", [&](BT::TreeNode& self){
-      RCLCPP_INFO(rclcpp::get_logger("PrintStuff"), "Hello from PrintStuff node!");
-      return BT::NodeStatus::SUCCESS;
-    });
-    m_bt_factory.registerSimpleAction("PrintStuff2", [&](BT::TreeNode& self){
-      RCLCPP_INFO(rclcpp::get_logger("PrintStuff2"), "Hello from PrintStuff2 node!");
-      return BT::NodeStatus::SUCCESS;
-    });
-
+    m_bt_factory.registerNodeType<ChoosePad>("ChoosePad",logger,  pad_client_factory);
+    m_bt_factory.registerNodeType<GetPadRight>("GetPadRight", logger, pad_execute_server);
+    m_bt_factory.registerNodeType<HoldPadRight>("HoldPadRight", logger, pad_execute_server);
+    m_bt_factory.registerNodeType<ReleasePadRight>("ReleasePadRight", logger);
+    m_bt_factory.registerNodeType<LandRoutine>("Land", logger, node_clock_interface, hardware_actor, pad_execute_server);
+    m_bt_factory.registerNodeType<ApproachIDLE>("ApproachIDLE", logger, hardware_actor, pad_execute_server);
+    m_bt_factory.registerNodeType<ApproachCLOSE>("ApproachCLOSE", logger, hardware_actor, pad_execute_server);
+    m_bt_factory.registerNodeType<TimeoutROS>("TimeoutROS", logger, node_clock_interface);
+    m_bt_factory.registerNodeType<SendFeedback>("SendFeedback", logger, pad_execute_server);
     m_bt_factory.registerBehaviorTreeFromFile(xml_file);
   }
 

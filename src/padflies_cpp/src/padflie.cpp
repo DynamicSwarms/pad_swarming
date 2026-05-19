@@ -24,7 +24,7 @@ public:
   , m_prefix("/padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("/cf" + std::to_string(m_cf_id))
   {
-    if (true) 
+    if (false) 
     { 
       m_padflie_commander = std::make_unique<ActionCommander>(
           m_prefix,

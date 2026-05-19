@@ -10,6 +10,8 @@
 
 #include "padflies_cpp/command_context_interface.hpp"
 #include "padflies_cpp/commander_state.hpp"
+#include "padflies_cpp/pad_execute_server.hpp"
+#include "padflies_cpp/pad_client_factory.hpp"
 
 class PadflieCommander 
         : public PadflieCommanderBase,
@@ -79,6 +81,11 @@ class PadflieCommander
         std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
         std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> m_node_timers_interface;
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> m_node_clock_interface;
+
+
+        std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+        std::shared_ptr<PadClientFactory> m_pad_client_factory;
+        
 
         std::shared_ptr<PadControl> m_pad_control;
         std::shared_ptr<rclcpp::Clock> m_clock;

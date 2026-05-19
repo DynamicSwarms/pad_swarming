@@ -49,6 +49,7 @@ set(PADFLIE_DEPS
 ament_target_dependencies(padflie
   rclcpp
   rclcpp_components
+  pad_management_interfaces
   rclcpp_lifecycle
   lifecycle_msgs
   std_srvs)

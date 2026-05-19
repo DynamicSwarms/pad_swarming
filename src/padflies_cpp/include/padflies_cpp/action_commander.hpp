@@ -3,7 +3,7 @@
 #include "padflies_cpp/commander_base.hpp"
 
 #include "pad_management_interfaces/action/pad_execute.hpp"
-#include "padflies_cpp/pad_right_client.hpp"
+#include "padflies_cpp/pad_client.hpp"
 
 #include "rclcpp_action/rclcpp_action.hpp"
 class ActionCommander : public PadflieCommanderBase
@@ -74,9 +74,9 @@ public:
 
     void takeoff_control_loop()
     {   
-        auto clt = m_pad_right_client;
+        auto clt = m_pad_client;
         if (!clt) {
-            RCLCPP_ERROR(m_logger, "PadRightClient not initialized in takeoff control loop");
+            RCLCPP_ERROR(m_logger, "PadClient not initialized in takeoff control loop");
             return;
         }
 
@@ -142,25 +142,27 @@ public:
     {   
         m_current_takeoff_request_id = request_id;
         m_current_takeoff_service_handle = service_handle;
-        m_pad_right_client = std::make_shared<PadRightClient>(
+        m_pad_client = std::make_shared<PadClient>(
             m_prefix,
             "megapad",
+            m_padflie_tf,
             m_node_base_interface,
             m_node_graph_interface,
             m_node_logging_interface,
             m_node_waitables_interface,
+            m_node_services_interface,
             m_callback_group,
             m_logger);
 
         RCLCPP_INFO(m_logger, "Waiting for action server %s to be available...", "megapad");
-        if (!m_pad_right_client->is_action_server_available(std::chrono::seconds(1))) 
+        if (!m_pad_client->is_action_server_available(std::chrono::seconds(1))) 
         {
             RCLCPP_ERROR(m_logger, "Action server %s not available after waiting", "megapad");
             respond_to_takeoff_command(false);
             return;
         }
 
-        m_pad_right_client->send_request(PadRightClient::PadRightControlActionT::Goal::ACTION_TAKEOFF);
+        m_pad_client->send_request(PadClient::PadRightControlActionT::Goal::ACTION_TAKEOFF);
         m_takeoff_control_timer = rclcpp::create_timer(
             m_node_base_interface,
             m_node_timers_interface,
@@ -211,7 +213,7 @@ private:
     rclcpp::Logger m_logger;
 
     std::shared_ptr<rclcpp_action::Server<PadExecuteActionT>> m_pad_execute_action_server;
-    std::shared_ptr<PadRightClient> m_pad_right_client;
+    std::shared_ptr<PadClient> m_pad_client;
     std::shared_ptr<rclcpp::TimerBase> m_takeoff_control_timer;
     enum class TakeoffState {
         WAITING_FOR_GOAL_RESPONSE,

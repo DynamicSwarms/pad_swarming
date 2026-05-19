@@ -156,7 +156,7 @@ class PadflieCommanderBase{
         std::string m_cf_prefix;
 
         HardwareStateController m_hw_state_controller;
-        PadflieTF m_padflie_tf;
+        std::shared_ptr<PadflieTF> m_padflie_tf;
         std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
 
     private:

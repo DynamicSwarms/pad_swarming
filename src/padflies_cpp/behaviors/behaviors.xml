@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="LandBehavior">
+    <Sequence>
+      <ChoosePad pad_client="{client}"/>
+      <TimeoutROS timeout_ms="1000">
+        <Parallel failure_count="1"
+                  success_count="1">
+          <GetPadRight pad_client="{client}"
+                       action="LAND"/>
+          <ApproachIDLE pad_client="{client}"/>
+          <SendFeedback pad_client="{client}"/>
+        </Parallel>
+      </TimeoutROS>
+      <Parallel failure_count="1"
+                success_count="1">
+        <HoldPadRight pad_client="{client}"/>
+        <Sequence>
+          <TimeoutROS timeout_ms="1000">
+            <ApproachCLOSE pad_client="{client}"/>
+          </TimeoutROS>
+          <Land pad_client="{client}"/>
+        </Sequence>
+        <SendFeedback pad_client="{client}"/>
+      </Parallel>
+      <ReleasePadRight pad_client="{client}"/>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="TakeoffBehavior">
+    <AlwaysSuccess/>
+  </BehaviorTree>
+
+  <!-- Description of Node Models (used by Groot) -->
+  <TreeNodesModel>
+    <Action ID="ApproachCLOSE"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Action ID="ApproachIDLE"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Action ID="ChoosePad"
+            editable="true">
+      <output_port name="pad_client"
+                   type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Action ID="GetPadRight"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <input_port name="action"
+                  default="TAKEOFF"
+                  type="std::string">either TAKEOFF or LAND</input_port>
+    </Action>
+    <Action ID="HoldPadRight"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Action ID="Land"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Action ID="ReleasePadRight"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Action ID="SendFeedback"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Action>
+    <Decorator ID="TimeoutROS"
+               editable="true">
+      <input_port name="timeout_ms"
+                  type="int"/>
+    </Decorator>
+  </TreeNodesModel>
+
+</root>

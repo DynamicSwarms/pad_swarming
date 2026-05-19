@@ -13,7 +13,7 @@ PadflieCommanderBase::PadflieCommanderBase(
 : m_prefix(prefix)
 , m_cf_prefix(cf_prefix)
 , m_hw_state_controller(node_param_interface)
-, m_padflie_tf(cf_prefix.substr(1), WORLD, node_clock_interface->get_clock(), node_logging_interface->get_logger())
+, m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix.substr(1), WORLD, node_clock_interface->get_clock(), node_logging_interface->get_logger()))
 , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
 , m_initial_pad(node_param_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>())
 , m_param_callback_handle(node_param_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
@@ -21,7 +21,7 @@ PadflieCommanderBase::PadflieCommanderBase(
 , m_logger(node_logging_interface->get_logger())
 {
     if (!m_initial_pad.empty()) {
-        m_padflie_tf.set_pad(m_initial_pad);
+        m_padflie_tf->set_pad(m_initial_pad);
     } else {
     // TODO
     }
@@ -43,7 +43,7 @@ PadflieCommanderBase::on_configure(
     m_configure_commander(node);
 
     m_hw_state_controller.connect(m_cf_prefix, node);
-    m_padflie_tf.start_listening(node);
+    m_padflie_tf->start_listening(node);
     m_create_availability_interface(node);
 
     m_on_commander_configured();
@@ -60,7 +60,7 @@ PadflieCommanderBase::on_activate(
     if (!m_hw_state_controller.is_charged()) throw CommanderException("Crazyflie is not charged!");
     if (!m_hw_state_controller.canfly()) throw CommanderException("Crazyflie cannot fly!");
     Eigen::Vector3d position;
-    if (!m_padflie_tf.get_cf_position(position)) throw CommanderException("Crazyflie position is not available!");
+    if (!m_padflie_tf->get_cf_position(position)) throw CommanderException("Crazyflie position is not available!");
 
     m_activate_commander(node);
 
@@ -73,7 +73,7 @@ PadflieCommanderBase::on_activate(
         node->get_node_clock_interface(),
         node->get_node_logging_interface(),
         m_cf_prefix,
-        &m_padflie_tf);
+        m_padflie_tf);
 
     m_remove_availability_interface(node);
     m_create_control_interface(node);
@@ -123,10 +123,10 @@ PadflieCommanderBase::m_handle_info_timer()
 {
     padflies_interfaces::msg::PadflieInfo info_msg;
     info_msg.cf_prefix = m_cf_prefix;
-    if (m_padflie_tf.get_cf_pose_stamped(m_hardware_actor->get_current_target_frame(), info_msg.pose)) 
+    if (m_padflie_tf->get_cf_pose_stamped(m_hardware_actor->get_current_target_frame(), info_msg.pose)) 
          info_msg.pose_valid = true;
     Eigen::Vector3d position;
-    if (m_padflie_tf.get_cf_position(position))
+    if (m_padflie_tf->get_cf_position(position))
     {    
         info_msg.pose_world_valid = true;
         info_msg.pose_world.position.x = position.x();
