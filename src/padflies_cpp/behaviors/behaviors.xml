@@ -4,25 +4,25 @@
     <Sequence>
       <ChoosePad pad_client="{client}"/>
       <TimeoutROS timeout_ms="1000">
-        <Parallel failure_count="1"
-                  success_count="1">
-          <GetPadRight pad_client="{client}"
-                       action="LAND"/>
+        <ReactiveSequence>
           <ApproachIDLE pad_client="{client}"/>
           <SendFeedback pad_client="{client}"/>
-        </Parallel>
+          <GetPadRight pad_client="{client}"
+                       action="LAND"/>
+        </ReactiveSequence>
       </TimeoutROS>
-      <Parallel failure_count="1"
-                success_count="1">
-        <HoldPadRight pad_client="{client}"/>
-        <Sequence>
-          <TimeoutROS timeout_ms="1000">
-            <ApproachCLOSE pad_client="{client}"/>
-          </TimeoutROS>
-          <Land pad_client="{client}"/>
-        </Sequence>
-        <SendFeedback pad_client="{client}"/>
-      </Parallel>
+      <ForceSuccess>
+        <ReactiveSequence>
+          <HasPadRight pad_client="{client}"/>
+          <SendFeedback pad_client="{client}"/>
+          <AsyncSequence>
+            <TimeoutROS timeout_ms="500">
+              <ApproachCLOSE pad_client="{client}"/>
+            </TimeoutROS>
+            <Land pad_client="{client}"/>
+          </AsyncSequence>
+        </ReactiveSequence>
+      </ForceSuccess>
       <ReleasePadRight pad_client="{client}"/>
     </Sequence>
   </BehaviorTree>
@@ -56,11 +56,11 @@
                   default="TAKEOFF"
                   type="std::string">either TAKEOFF or LAND</input_port>
     </Action>
-    <Action ID="HoldPadRight"
-            editable="true">
+    <Condition ID="HasPadRight"
+               editable="true">
       <input_port name="pad_client"
                   type="std::shared_ptr&lt;PadClient&gt;"/>
-    </Action>
+    </Condition>
     <Action ID="Land"
             editable="true">
       <input_port name="pad_client"

@@ -10,7 +10,7 @@ class PadRightActionServerNode : public rclcpp::Node
 {
 public:
   PadRightActionServerNode()
-  : Node("pad_right_action_server")
+  : Node("megapad")
   , m_pad_resource_manager()
   , m_pad_right_server(std::make_shared<PadRightServer>(
       "megapad",

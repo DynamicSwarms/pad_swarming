@@ -150,6 +150,46 @@ private:
     std::shared_ptr<PadClient> m_pad_client;
     uint8_t m_action;
 };
+class HasPadRight : public BT::ConditionNode
+{
+public: 
+    HasPadRight(
+        const std::string& name, 
+        const BT::NodeConfig& config,
+        rclcpp::Logger logger)
+    : BT::ConditionNode(name, config)
+    , m_logger(logger.get_child(name))
+    {
+    }
+
+    static BT::PortsList providedPorts()
+    {
+        return {
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client")
+        };
+    }
+
+    BT::NodeStatus tick() override
+    {
+        std::shared_ptr<PadClient> client;
+        if (!getInput("pad_client", client))
+        {
+            RCLCPP_ERROR(m_logger, "Error getting input port [pad_client]!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        if (client->has_right()) {
+            RCLCPP_INFO(m_logger, "Condition HasPadRight SUCCESS");
+            return BT::NodeStatus::SUCCESS;
+        } else {
+            RCLCPP_INFO(m_logger, "Condition HasPadRight FAILURE");
+            return BT::NodeStatus::FAILURE;
+        }
+    }
+private:
+    rclcpp::Logger m_logger;
+};
+
 
 class HoldPadRight : public BT::StatefulActionNode
 {
@@ -263,7 +303,6 @@ public:
             return BT::NodeStatus::FAILURE;
         }
      
-        RCLCPP_INFO(m_logger, "Releasing PadRight...");
         client->cancel_goal();
         return BT::NodeStatus::SUCCESS;
     }
@@ -389,7 +428,7 @@ private:
 };
 
 
-class ApproachIDLE : public BT::StatefulActionNode
+class ApproachIDLE : public BT::SyncActionNode
 {
 public:
     ApproachIDLE(
@@ -398,7 +437,7 @@ public:
         rclcpp::Logger logger,
         std::shared_ptr<HardwareActor> hardware_actor,
         std::shared_ptr<PadExecuteServer> pad_execute_server)
-    : BT::StatefulActionNode(name, config)
+    : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_hardware_actor(hardware_actor)
     , m_pad_execute_server(pad_execute_server)
@@ -412,7 +451,7 @@ public:
         };
     }
 
-    BT::NodeStatus onStart() override
+    BT::NodeStatus tick() override
     {
         if (!getInput("pad_client", m_pad_client))
         {
@@ -431,22 +470,22 @@ public:
             return BT::NodeStatus::FAILURE;
         }
         m_hardware_actor->go_to(idle_pose, 0.0, true);
-        return BT::NodeStatus::RUNNING;
+        return BT::NodeStatus::SUCCESS;
     }
 
 
-    BT::NodeStatus onRunning() override
-    {
-        RCLCPP_INFO(m_logger, "Approaching IDLE position, waiting for completion...");
-        
-        // query idle target and send actor to it
-        return BT::NodeStatus::RUNNING;
-    }
+    // BT::NodeStatus onRunning() override
+    // {
+    //     RCLCPP_INFO(m_logger, "Approaching IDLE position, waiting for completion...");
+    //     
+    //     // query idle target and send actor to it
+    //     return BT::NodeStatus::RUNNING;
+    // }
 
-    void onHalted() override
-    {
-        RCLCPP_INFO(m_logger, "ApproachIDLE halted, stopping the drone. What should happen here?");
-    }
+    // void onHalted() override
+    // {
+    //     RCLCPP_INFO(m_logger, "ApproachIDLE halted, stopping the drone. What should happen here?");
+    // }
 
 private: 
     rclcpp::Logger m_logger;
@@ -595,11 +634,10 @@ private:
     rclcpp::Duration m_timeout_duration{std::chrono::milliseconds(0)};
 
     bool m_child_halted = false;
-    
 };
 
 
-class SendFeedback : public BT::StatefulActionNode
+class SendFeedback : public BT::SyncActionNode
 {
 public:
     SendFeedback(
@@ -607,10 +645,12 @@ public:
         const BT::NodeConfig& config,
         rclcpp::Logger logger, 
         std::shared_ptr<PadExecuteServer> pad_execute_server)
-    : BT::StatefulActionNode(name, config)
+    : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_pad_execute_server(pad_execute_server)
-    {}
+    {
+        RCLCPP_INFO(m_logger, "SendFeedback node created");
+    }
 
     static BT::PortsList providedPorts()
     {
@@ -619,12 +659,7 @@ public:
         };
     }
 
-    void onHalted() override
-    {
-        RCLCPP_INFO(m_logger, "SendFeedback halted.");
-    }
-
-    BT::NodeStatus onStart() override
+    BT::NodeStatus tick() override
     {
         std::shared_ptr<PadClient> client;
         if (!getInput("pad_client", client))
@@ -633,16 +668,9 @@ public:
             return BT::NodeStatus::FAILURE;
         }
      
-        return BT::NodeStatus::RUNNING;
+        RCLCPP_INFO(m_logger, "Sending feedback from SendFeedback node...");
+        return BT::NodeStatus::SUCCESS;
     }
-
-    BT::NodeStatus onRunning() override
-    {
-        RCLCPP_INFO(m_logger, "Sending feedback for current Execute goal...");
-        //client->send_feedback();
-        return BT::NodeStatus::RUNNING;
-    }
-
 private:
     rclcpp::Logger m_logger;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
