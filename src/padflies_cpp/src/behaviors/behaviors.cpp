@@ -182,7 +182,7 @@ public:
         }
 
         if (client->has_right()) {
-            RCLCPP_INFO(m_logger, "Condition HasPadRight SUCCESS");
+            RCLCPP_DEBUG(m_logger, "Condition HasPadRight SUCCESS");
             return BT::NodeStatus::SUCCESS;
         } else {
             RCLCPP_INFO(m_logger, "Condition HasPadRight FAILURE");
@@ -283,16 +283,19 @@ public:
     ReleasePadRight(
         const std::string& name,
         const BT::NodeConfig& config,
-        rclcpp::Logger logger)
+        rclcpp::Logger logger, 
+        std::shared_ptr<PadExecuteServer> server)
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
+    , m_pad_execute_server(server)
     {
     }
 
     static BT::PortsList providedPorts()
     {
         return {
-            BT::InputPort<std::shared_ptr<PadClient>>("pad_client")
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
+            BT::InputPort<uint8_t>("status")
         };
     }
 
@@ -300,21 +303,37 @@ public:
     {
         RCLCPP_INFO(m_logger, "Releasing PadRight...");
         std::shared_ptr<PadClient> client;
+        uint8_t status;
+         
         if (!getInput("pad_client", client))
         { 
             RCLCPP_ERROR(m_logger, "Error getting input port [client]!");
             return BT::NodeStatus::FAILURE;
         }
      
-        client->cancel_goal();
+        if (!getInput("status", status))
+        { 
+            RCLCPP_ERROR(m_logger, "Error getting input port [status]!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        if (status == pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDED)
+        {
+            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_ON_PAD);
+        } else if (status == pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_CLEARED_PAD) {
+            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_NOT_ON_PAD);
+        } else {
+            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_FAILURE);
+        }
+
         return BT::NodeStatus::SUCCESS;
     }
 
 private: 
     rclcpp::Logger m_logger;
+    std::shared_ptr<PadExecuteServer> m_pad_execute_server;
     std::shared_ptr<PadClient> m_pad_client;
 };
-
 
 
 
@@ -342,8 +361,29 @@ public:
     static BT::PortsList providedPorts()
     {
         return {
-            BT::InputPort<std::shared_ptr<PadClient>>("pad_client")
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
+            BT::OutputPort<uint8_t>("status")
         };
+    }
+
+    bool get_target_world_frame(Eigen::Affine3d& target_world_frame)
+    {
+        geometry_msgs::msg::PoseStamped target_pose = m_pad_client->get_target_pose();
+        Eigen::Affine3d target_remote_frame;
+        
+        
+        tf2::fromMsg(target_pose.pose, target_remote_frame);
+        if (m_padflie_tf->affine3d_transform(
+            target_remote_frame, 
+            target_pose.header.frame_id, 
+            "world", 
+            target_world_frame))
+        {
+            return true;
+        } else {
+            RCLCPP_ERROR(m_logger, "Failed to transform target pose from frame [%s] to world frame!", target_pose.header.frame_id.c_str());
+            return false;
+        }
     }
 
     BT::NodeStatus onStart() {
@@ -353,7 +393,30 @@ public:
             return BT::NodeStatus::FAILURE;
         }
 
+
+        // If we are close to the target, we can make PHASE1 shorter.
+        Eigen::Affine3d target_world_frame;
+        if (!get_target_world_frame(target_world_frame))        {
+            RCLCPP_ERROR(m_logger, "Failed to get target pose in world frame!");
+            return BT::NodeStatus::FAILURE;
+        }
+        Eigen::Vector3d position; 
+        if (m_padflie_tf->get_cf_position(position))
+        {
+            if ((position - target_world_frame.translation()).norm() < 1.0) 
+            {
+                RCLCPP_INFO(m_logger, "are close to the target position!");
+                m_phase_durations.at(LandState::PHASE1) = rclcpp::Duration(1250ms);
+            }
+        } else 
+        {
+            RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+
         m_state = LandState::INIT;
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING);
         m_phase_start_time = m_clock->now();
         return BT::NodeStatus::RUNNING;
     }
@@ -362,52 +425,23 @@ public:
         //RCLCPP_INFO(m_logger, "LandRoutine state machine tick, current state: %d", static_cast<int>(m_state));
         //RCLCPP_INFO(m_logger, "Time since phase start: %f seconds, phase_duration: %f", (m_clock->now() - m_phase_start_time).seconds(), m_phase_durations.at(m_state).seconds());
         if ((m_clock->now() - m_phase_start_time) < m_phase_durations.at(m_state)) 
-            return BT::NodeStatus::RUNNING;
-        
+            return BT::NodeStatus::RUNNING;        
         m_phase_start_time = m_clock->now();
 
-
-        geometry_msgs::msg::PoseStamped target_pose = m_pad_client->get_target_pose();
-        double yaw = tf2::getYaw(target_pose.pose.orientation);
-
-        Eigen::Affine3d target_remote_frame;
-        tf2::fromMsg(target_pose.pose, target_remote_frame);
-
-        Eigen::Affine3d world_to_pad;
-        m_padflie_tf->get_world_affine3d(target_pose.header.frame_id, world_to_pad);
-         
-        Eigen::Affine3d target_pose_world = world_to_pad.inverse() * target_remote_frame; // TODO: transform target pose to world frame using padflie_tf
         
-        
-
-        bool are_close = false;
-        Eigen::Vector3d position; 
-        if (m_padflie_tf->get_cf_position(position))
+        Eigen::Affine3d target_world_frame;
+        if (!get_target_world_frame(target_world_frame))
         {
-            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
-            if ((position - target_pose_world.translation()).norm() < 1.0) {
-                RCLCPP_INFO(m_logger, "are close to the target position!");
-                are_close = true;
-            }
-        } else {
-            RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
-        }
-        if (!are_close)
-        {
-            m_phase_durations.at(LandState::PHASE1) = rclcpp::Duration(4500ms);
+            RCLCPP_ERROR(m_logger, "Failed to get target pose in world frame!");
+            return BT::NodeStatus::FAILURE;
         }
 
-        RCLCPP_INFO(m_logger, "Target pose in world frame: [%f, %f, %f]", target_pose_world.translation().x(), target_pose_world.translation().y(), target_pose_world.translation().z());
-
-
-
-
-        Eigen::Affine3d landing_pose = Eigen::Affine3d::Identity(); // TODO: get landing pose from pad client
+        //RCLCPP_INFO(m_logger, "Target pose in world frame: [%f, %f, %f]", target_world_frame.translation().x(), target_world_frame.translation().y(), target_world_frame.translation().z());
         switch (m_state) {
             case LandState::INIT:
                 RCLCPP_INFO(m_logger, "Starting land routine...");
                 m_hardware_actor->go_to(
-                    target_pose_world * Eigen::Translation3d(0, 0, 0.25),
+                    target_world_frame * Eigen::Translation3d(0, 0, 0.25),
                     m_phase_durations.at(LandState::PHASE1).seconds(),
                     false);
                 m_state = LandState::PHASE1;
@@ -415,7 +449,7 @@ public:
             case LandState::PHASE1:
                 RCLCPP_INFO(m_logger, "Phase 1: Moving to landing position...");
                 m_hardware_actor->go_to(
-                    target_pose_world * Eigen::Translation3d(0, 0, -0.1),
+                    target_world_frame * Eigen::Translation3d(0, 0, -0.1),
                     3.0,
                     false);
                 m_state = LandState::PHASE2;
@@ -424,15 +458,15 @@ public:
                 RCLCPP_INFO(m_logger, "Phase 2: Final descent...");
 
                 m_hardware_actor->land(
-                    (target_pose_world * Eigen::Translation3d(0, 0, -0.5)).translation().z(),
-                    yaw,
+                    (target_world_frame * Eigen::Translation3d(0, 0, -0.5)).translation().z(),
+                    std::atan2(target_world_frame.rotation()(1,0), target_world_frame.rotation()(0,0)) * 180.0 / M_PI,
                     3.0);
                 m_state = LandState::DONE;
                 break;
             case LandState::DONE:
                 // Send out PadExecute Result with success.
 
-                m_state = LandState::DONE; // stay in DONE state
+                setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDED);
                 return BT::NodeStatus::SUCCESS;
                 break;
             default:
@@ -463,7 +497,7 @@ private:
     LandState m_state = LandState::INIT;
     std::map<LandState, rclcpp::Duration> m_phase_durations = {
         {LandState::INIT, rclcpp::Duration(0s)},
-        {LandState::PHASE1, rclcpp::Duration(1250ms)},
+        {LandState::PHASE1, rclcpp::Duration(4500ms)},
         {LandState::PHASE2, rclcpp::Duration(1000ms)},
         {LandState::DONE, rclcpp::Duration(0s)}
     };
@@ -492,7 +526,8 @@ public:
     static BT::PortsList providedPorts()
     {
         return {
-            BT::InputPort<std::shared_ptr<PadClient>>("pad_client")
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
+            BT::OutputPort<uint8_t>("status")
         };
     }
 
@@ -503,6 +538,7 @@ public:
             RCLCPP_ERROR(m_logger, "Error getting input port [pad_client]!");
             return BT::NodeStatus::FAILURE;
         }
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_APPROACH_IDLE);
 
         RCLCPP_INFO(m_logger, "Approaching IDLE position...");
 
@@ -586,7 +622,8 @@ public:
     static BT::PortsList providedPorts()
     {
         return {
-            BT::InputPort<std::shared_ptr<PadClient>>("pad_client")
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"),
+            BT::OutputPort<uint8_t>("status")
         };
     }
 
@@ -599,6 +636,7 @@ public:
             return BT::NodeStatus::FAILURE;
         }
 
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_APPROACH_CLOSE);
         RCLCPP_INFO(m_logger, "Approaching CLOSE position...");
         return BT::NodeStatus::RUNNING;
     }
@@ -673,7 +711,6 @@ public:
 
         BT::NodeStatus tick() override
         {     
-            RCLCPP_INFO(m_logger, "TimeoutROS tick, checking timeout...");
             int timeout_ms;
             if (!m_timeout_started)
             {
@@ -748,7 +785,8 @@ public:
     static BT::PortsList providedPorts()
     {
         return {
-            BT::InputPort<std::shared_ptr<PadClient>>("pad_client")
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
+            BT::InputPort<uint8_t>("status")
         };
     }
 
@@ -760,12 +798,211 @@ public:
             RCLCPP_ERROR(m_logger, "Error getting input port [client]!");
             return BT::NodeStatus::FAILURE;
         }
-     
-        RCLCPP_INFO(m_logger, "Sending feedback from SendFeedback node...");
+        uint8_t status;
+        if (!getInput("status", status))
+        { 
+            RCLCPP_ERROR(m_logger, "Error getting input port [status]!");
+            return BT::NodeStatus::FAILURE;
+        }
+        m_pad_execute_server->send_feedback(status);
+
+        
+        RCLCPP_DEBUG(m_logger, "Sending feedback from SendFeedback node...");
         return BT::NodeStatus::SUCCESS;
     }
 private:
     rclcpp::Logger m_logger;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
     std::shared_ptr<PadClient> m_pad_client;
+};
+
+
+class TakeoffRoutine : public BT::StatefulActionNode
+{
+public: 
+    TakeoffRoutine(
+        const std::string& name, 
+        const BT::NodeConfig& config,
+        rclcpp::Logger logger, 
+        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
+        std::shared_ptr<HardwareActor> hardware_actor, 
+        std::shared_ptr<PadflieTF> padflie_tf,
+        std::shared_ptr<PadExecuteServer> pad_execute_server)
+    : BT::StatefulActionNode(name, config)
+    , m_logger(logger.get_child(name))
+    , m_clock(node_clock_interface->get_clock())
+    , m_hardware_actor(hardware_actor)
+    , m_padflie_tf(padflie_tf)
+    , m_pad_execute_server(pad_execute_server)
+    {
+        m_state = TakeoffState::INIT;
+    }
+
+    static BT::PortsList providedPorts()
+    {
+        return {
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
+            BT::OutputPort<uint8_t>("status")
+        };
+    }
+
+    bool get_target_world_frame(Eigen::Affine3d& target_world_frame)
+    {
+        geometry_msgs::msg::PoseStamped target_pose = m_pad_client->get_target_pose();
+        Eigen::Affine3d target_remote_frame;
+        
+        
+        tf2::fromMsg(target_pose.pose, target_remote_frame);
+        if (m_padflie_tf->affine3d_transform(
+            target_remote_frame, 
+            target_pose.header.frame_id, 
+            "world", 
+            target_world_frame))
+        {
+            return true;
+        } else {
+            RCLCPP_ERROR(m_logger, "Failed to transform target pose from frame [%s] to world frame!", target_pose.header.frame_id.c_str());
+            return false;
+        }
+    }
+
+    BT::NodeStatus onStart() {
+        if (!getInput("pad_client", m_pad_client))
+        {
+            RCLCPP_ERROR(m_logger, "Error getting input port [pad_client]!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        Eigen::Vector3d position;
+        if (m_padflie_tf->get_cf_position(position))
+        {
+            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
+        } else {
+            RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+
+        m_state = TakeoffState::INIT;
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_IN_PAD);
+        m_phase_start_time = m_clock->now();
+        return BT::NodeStatus::RUNNING;
+    }
+
+    BT::NodeStatus onRunning() {        
+        //RCLCPP_INFO(m_logger, "LandRoutine state machine tick, current state: %d", static_cast<int>(m_state));
+        //RCLCPP_INFO(m_logger, "Time since phase start: %f seconds, phase_duration: %f", (m_clock->now() - m_phase_start_time).seconds(), m_phase_durations.at(m_state).seconds());
+        if ((m_clock->now() - m_phase_start_time) < m_phase_durations.at(m_state)) 
+            return BT::NodeStatus::RUNNING;        
+        m_phase_start_time = m_clock->now();
+
+        
+        Eigen::Affine3d target_world_frame;
+        if (!get_target_world_frame(target_world_frame))
+        {
+            RCLCPP_ERROR(m_logger, "Failed to get target pose in world frame!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        switch (m_state) {
+            case TakeoffState::INIT:
+                RCLCPP_INFO(m_logger, "Starting takeoff routine... moving up to clear the pad...");
+                m_hardware_actor->go_to(
+                    Eigen::Affine3d::Identity() * Eigen::Translation3d(0,0, 0.1),
+                    3.0,
+                    true); // relative move up by 0.1m from current position
+                m_state = TakeoffState::PHASE1;
+                break;
+            case TakeoffState::PHASE1:
+                RCLCPP_INFO(m_logger, "Phase 1: Moving higher...");
+                m_hardware_actor->go_to(
+                    Eigen::Affine3d::Identity() * Eigen::Translation3d(0,0, 0.6),
+                    1.5,
+                    true); // relative move up by 0.1m from current position
+                setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_LEFT_PAD);
+                m_state = TakeoffState::PHASE2;
+                break;
+            case TakeoffState::PHASE2:
+                RCLCPP_INFO(m_logger, "Phase 2: Final ascent...");
+                {
+                    PoseTarget takeoff_target;
+                    takeoff_target.frame_id = "world";
+                    takeoff_target.pose = target_world_frame * Eigen::Translation3d(0, 0, 1.0); // move to a point above the target pose
+                    takeoff_target.use_yaw = true;
+                    takeoff_target.collision_avoidance = true;
+
+                    m_hardware_actor->set_pose_target(takeoff_target);
+                }
+
+                m_state = TakeoffState::DONE;
+                break;
+            case TakeoffState::DONE:
+                // Send out PadExecute Result with success.
+
+                setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_CLEARED_PAD);
+                return BT::NodeStatus::SUCCESS;
+                break;
+            default:
+                RCLCPP_ERROR(m_logger, "Unknown state in LandRoutine!");
+                return BT::NodeStatus::FAILURE;
+        }
+        return BT::NodeStatus::RUNNING;
+    }
+
+    void onHalted() {
+        RCLCPP_INFO(m_logger, "LandRoutine halted, stopping the drone. What should happen here?");
+    }
+
+private: 
+    rclcpp::Logger m_logger;
+    rclcpp::Clock::SharedPtr m_clock;
+    std::shared_ptr<HardwareActor> m_hardware_actor;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
+    std::shared_ptr<PadExecuteServer> m_pad_execute_server;  
+    std::shared_ptr<PadClient> m_pad_client;
+
+    enum class TakeoffState {
+        INIT,
+        PHASE1,
+        PHASE2,
+        DONE 
+    };
+    TakeoffState m_state = TakeoffState::INIT;
+    std::map<TakeoffState, rclcpp::Duration> m_phase_durations = {
+        {TakeoffState::INIT, rclcpp::Duration(0s)},
+        {TakeoffState::PHASE1, rclcpp::Duration(250ms)},
+        {TakeoffState::PHASE2, rclcpp::Duration(250ms)},
+        {TakeoffState::DONE, rclcpp::Duration(0s)}
+    };
+    rclcpp::Time m_phase_start_time;
+};
+
+
+class TakeoffInit : public BT::SyncActionNode
+{
+public:
+    TakeoffInit(
+        const std::string& name,
+        const BT::NodeConfig& config,
+        rclcpp::Logger logger)
+    : BT::SyncActionNode(name, config)
+    , m_logger(logger.get_child(name))
+    {
+    }
+
+    static BT::PortsList providedPorts()
+    {
+        return {
+            BT::OutputPort<uint8_t>("status")
+        };
+    }
+
+    BT::NodeStatus tick() override
+    {
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_IN_PAD);
+        RCLCPP_INFO(m_logger, "TakeoffInit ticked, setting status to TAKEOFF_IN_PAD");
+        return BT::NodeStatus::SUCCESS;
+    }
+private:
+    rclcpp::Logger m_logger;
 };

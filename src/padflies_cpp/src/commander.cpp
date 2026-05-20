@@ -189,8 +189,6 @@ PadflieCommander::m_handle_takeoff_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {
     RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
-    m_hardware_actor->takeoff(0.5, 0.0, 5.0);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
     std::shared_ptr<Command> command = std::make_shared<TakeoffCommand>(
         m_routine_factory,
         service_handle,

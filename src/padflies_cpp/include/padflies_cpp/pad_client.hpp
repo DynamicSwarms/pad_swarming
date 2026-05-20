@@ -101,6 +101,8 @@ public:
     {
         if (m_current_goal_handle) {
             m_pad_right_control_action_client->async_cancel_goal(m_current_goal_handle);
+        } else {
+            RCLCPP_WARN(m_logger, "No current goal to cancel");
         }
     }
 

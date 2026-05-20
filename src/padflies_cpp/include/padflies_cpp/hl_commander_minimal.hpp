@@ -27,7 +27,7 @@ public:
     void takeoff(
         double height,
         double duration_seconds,
-        double yaw,
+        double yaw_degrees,
         double group_mask = 0
     );
 
@@ -35,13 +35,13 @@ public:
     void land(
         double target_height,
         double duration_seconds,
-        double yaw,
+        double yaw_degrees,
         double group_mask = 0
     );
 
     void go_to(
         const Eigen::Vector3d & position,
-        double yaw,
+        double yaw_degrees,
         double duration_seconds,
         bool relative = false,
         double group_mask = 0

@@ -45,14 +45,14 @@ def generate_launch_description():
 
     flies = [0, 1, 2, 3, 4, 5, 6, 7]
     padflies = []
-    #for i in flies:
-    for i in [0]:
+    # for i in flies:
+    for i in [0, 1]:
         padflies.append(
             Node(
                 package="padflies_cpp",
                 executable="padflie",
                 name=f"padflie{i}",
-                #prefix="gdbserver localhost:3000",
+                # prefix="gdbserver localhost:3000",
                 parameters=[
                     {
                         "id": i,

@@ -135,10 +135,6 @@ HardwareActor::go_to(
     const double yaw_deg =
         std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0)) * 180.0 / M_PI;
 
-    RCLCPP_INFO(m_logger, "Commanding go_to with target position: [%f, %f, %f], yaw: %f degrees, duration: %f seconds, relative: %s",
-                target_pose.translation().x(), target_pose.translation().y(), target_pose.translation().z(),
-                yaw_deg, duration, relative ? "true" : "false");
-
     m_hl_commander.go_to(
         target_pose.translation(), 
         yaw_deg,                   

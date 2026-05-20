@@ -36,7 +36,17 @@ public:
         const std::string & frame_id,
         Eigen::Affine3d & affine);
     
-    
+    bool get_affine3d_transform(
+        const std::string & target_frame,
+        const std::string & source_frame,
+        Eigen::Affine3d & affine);
+
+    bool affine3d_transform(
+        const Eigen::Affine3d & src,
+        const std::string & source_frame,
+        const std::string & target_frame,
+        Eigen::Affine3d & dst);
+
     /**
      * Get the position of the pad with a timeout.
      * If the pad is not found within the timeout it will raise an exception.

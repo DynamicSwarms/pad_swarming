@@ -1,6 +1,7 @@
 #include "padflies_cpp/padflie_tf.hpp"
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "tf2_eigen/tf2_eigen.hpp"
 
 using std::placeholders::_1;
 
@@ -66,6 +67,34 @@ bool PadflieTF::get_world_affine3d(
                                     transform.transform.rotation.y,
                                     transform.transform.rotation.z);
         affine = translation * rotation;
+        return true;
+    }
+    return false;
+}
+bool PadflieTF::get_affine3d_transform(
+    const std::string & target_frame,
+    const std::string & source_frame,
+    Eigen::Affine3d & affine)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(target_frame, source_frame, transform))
+    {
+        
+    } 
+    return false;
+}
+
+
+bool PadflieTF::affine3d_transform(
+    const Eigen::Affine3d & src,
+    const std::string & source_frame,
+    const std::string & target_frame,
+    Eigen::Affine3d & dst)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(target_frame, source_frame, transform))
+    {
+        tf2::doTransform(src, dst, transform);
         return true;
     }
     return false;

@@ -6,18 +6,20 @@ uint8 ACTION_LAND = 0
 uint8 ACTION_TAKEOFF = 1
 ---
 # Result -sent by CF
-uint8 status
+uint8 result
 string reason
 
-uint8 STATUS_ON_PAD = 0
-uint8 STATUS_NOT_ON_PAD = 1
+uint8 RESULT_ON_PAD = 0
+uint8 RESULT_NOT_ON_PAD = 1
+uint8 RESULT_FAILURE = 2
 ---
 # Feedback - sent by CF
 uint8 status
 
-uint8 STATUS_LANDING_APPROACH_FAR = 0
+uint8 STATUS_LANDING_APPROACH_IDLE = 0
 uint8 STATUS_LANDING_APPROACH_CLOSE = 1
-uint8 STATUS_LANDED = 2
+uint8 STATUS_LANDING = 2
+uint8 STATUS_LANDED = 3
 
 uint8 STATUS_TAKEOFF_IN_PAD = 3
 uint8 STATUS_TAKEOFF_LEFT_PAD = 4

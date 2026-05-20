@@ -57,7 +57,7 @@ public:
     {
         if (m_current_pad_execute_goal_handle) {
             auto result = std::make_shared<PadExecuteActionT::Result>();
-            result->status = status;
+            result->result = status;
             m_current_pad_execute_goal_handle->succeed(result);
         }
         m_result_sent = true;

@@ -113,7 +113,7 @@ public:
             m_hardware_actor->takeoff(0.5, 0.0, 2.0);
             auto result = std::make_shared<PadExecuteActionT::Result>();
 
-            result->status = PadExecuteActionT::Result::STATUS_NOT_ON_PAD;
+            result->result = PadExecuteActionT::Result::RESULT_NOT_ON_PAD;
             m_current_pad_execute_goal_handle->succeed(result);  
             m_takeoff_state = TakeoffState::TAKING_OFF_CLEARED_PAD;
         } else if (m_takeoff_state == TakeoffState::TAKING_OFF_CLEARED_PAD)
