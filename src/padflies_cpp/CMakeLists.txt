@@ -20,6 +20,7 @@ find_package(pad_management_interfaces REQUIRED)
 find_package(collision_avoidance_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(behaviortree_cpp REQUIRED)
@@ -68,6 +69,7 @@ ament_target_dependencies(padflie_deps
   rclcpp_lifecycle
   tf2
   tf2_ros
+  tf2_eigen
   tf2_geometry_msgs
   collision_avoidance_interfaces
   std_srvs

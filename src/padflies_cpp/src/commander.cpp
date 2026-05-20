@@ -227,7 +227,7 @@ PadflieCommander::m_handle_send_target_command(
     const padflies_interfaces::msg::SendTarget::SharedPtr msg) 
 {
     if (m_state == CommanderState::FLYING) {
-        EigenPoseStamped target;
+        PoseTarget target;
         target.pose = Eigen::Affine3d::Identity();
         Eigen::Translation3d translation(
             msg->target.pose.position.x,
@@ -243,7 +243,9 @@ PadflieCommander::m_handle_send_target_command(
 
         target.pose = translation * rotation;
         target.frame_id = msg->target.header.frame_id;
-        m_hardware_actor->set_pose_target(target, msg->use_yaw);
+        target.use_yaw = msg->use_yaw;
+        target.collision_avoidance = msg->collision_avoidance;
+        m_hardware_actor->set_pose_target(target);
     }
 }
 

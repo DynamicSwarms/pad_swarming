@@ -4,6 +4,9 @@
 #include "padflies_cpp/pad_client.hpp"
 #include "Eigen/Dense"
 #include "padflies_cpp/hardware_actor.hpp"
+
+#include <tf2/utils.h>
+
 using namespace std::chrono_literals;
 class ChoosePad : public BT::SyncActionNode
 {
@@ -324,11 +327,13 @@ public:
         rclcpp::Logger logger, 
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
         std::shared_ptr<HardwareActor> hardware_actor, 
+        std::shared_ptr<PadflieTF> padflie_tf,
         std::shared_ptr<PadExecuteServer> pad_execute_server)
     : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_clock(node_clock_interface->get_clock())
     , m_hardware_actor(hardware_actor)
+    , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
     {
         m_state = LandState::INIT;
@@ -353,36 +358,75 @@ public:
         return BT::NodeStatus::RUNNING;
     }
 
-    BT::NodeStatus onRunning() {
-        // TODO: send feedback
-
+    BT::NodeStatus onRunning() {        
+        //RCLCPP_INFO(m_logger, "LandRoutine state machine tick, current state: %d", static_cast<int>(m_state));
+        //RCLCPP_INFO(m_logger, "Time since phase start: %f seconds, phase_duration: %f", (m_clock->now() - m_phase_start_time).seconds(), m_phase_durations.at(m_state).seconds());
         if ((m_clock->now() - m_phase_start_time) < m_phase_durations.at(m_state)) 
             return BT::NodeStatus::RUNNING;
         
         m_phase_start_time = m_clock->now();
 
 
+        geometry_msgs::msg::PoseStamped target_pose = m_pad_client->get_target_pose();
+        double yaw = tf2::getYaw(target_pose.pose.orientation);
+
+        Eigen::Affine3d target_remote_frame;
+        tf2::fromMsg(target_pose.pose, target_remote_frame);
+
+        Eigen::Affine3d world_to_pad;
+        m_padflie_tf->get_world_affine3d(target_pose.header.frame_id, world_to_pad);
+         
+        Eigen::Affine3d target_pose_world = world_to_pad.inverse() * target_remote_frame; // TODO: transform target pose to world frame using padflie_tf
+        
+        
+
+        bool are_close = false;
+        Eigen::Vector3d position; 
+        if (m_padflie_tf->get_cf_position(position))
+        {
+            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
+            if ((position - target_pose_world.translation()).norm() < 1.0) {
+                RCLCPP_INFO(m_logger, "are close to the target position!");
+                are_close = true;
+            }
+        } else {
+            RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
+        }
+        if (!are_close)
+        {
+            m_phase_durations.at(LandState::PHASE1) = rclcpp::Duration(4500ms);
+        }
+
+        RCLCPP_INFO(m_logger, "Target pose in world frame: [%f, %f, %f]", target_pose_world.translation().x(), target_pose_world.translation().y(), target_pose_world.translation().z());
+
+
+
+
         Eigen::Affine3d landing_pose = Eigen::Affine3d::Identity(); // TODO: get landing pose from pad client
         switch (m_state) {
             case LandState::INIT:
                 RCLCPP_INFO(m_logger, "Starting land routine...");
-                landing_pose = Eigen::Affine3d::Identity(); // TODO: get landing pose from pad client
-                m_hardware_actor->go_to(landing_pose, 0.0, true);
+                m_hardware_actor->go_to(
+                    target_pose_world * Eigen::Translation3d(0, 0, 0.25),
+                    m_phase_durations.at(LandState::PHASE1).seconds(),
+                    false);
                 m_state = LandState::PHASE1;
                 break;
             case LandState::PHASE1:
                 RCLCPP_INFO(m_logger, "Phase 1: Moving to landing position...");
-                landing_pose = Eigen::Affine3d::Identity(); // TODO: get descent pose from pad client
-                m_hardware_actor->go_to(landing_pose, 0.0, true);
+                m_hardware_actor->go_to(
+                    target_pose_world * Eigen::Translation3d(0, 0, -0.1),
+                    3.0,
+                    false);
                 m_state = LandState::PHASE2;
                 break;
             case LandState::PHASE2:
                 RCLCPP_INFO(m_logger, "Phase 2: Final descent...");
-                m_hardware_actor->land(0.0, 0.0, 2.0);
-                m_state = LandState::PHASE3;
-                break;
-            case LandState::PHASE3:
-                RCLCPP_INFO(m_logger, "Phase 3: Touchdown, waiting for PadRight result...");
+
+                m_hardware_actor->land(
+                    (target_pose_world * Eigen::Translation3d(0, 0, -0.5)).translation().z(),
+                    yaw,
+                    3.0);
                 m_state = LandState::DONE;
                 break;
             case LandState::DONE:
@@ -406,6 +450,7 @@ private:
     rclcpp::Logger m_logger;
     rclcpp::Clock::SharedPtr m_clock;
     std::shared_ptr<HardwareActor> m_hardware_actor;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;  
     std::shared_ptr<PadClient> m_pad_client;
 
@@ -413,15 +458,13 @@ private:
         INIT,
         PHASE1,
         PHASE2,
-        PHASE3, 
         DONE 
     };
     LandState m_state = LandState::INIT;
     std::map<LandState, rclcpp::Duration> m_phase_durations = {
         {LandState::INIT, rclcpp::Duration(0s)},
-        {LandState::PHASE1, rclcpp::Duration(5s)},
-        {LandState::PHASE2, rclcpp::Duration(2s)},
-        {LandState::PHASE3, rclcpp::Duration(1s)},
+        {LandState::PHASE1, rclcpp::Duration(1250ms)},
+        {LandState::PHASE2, rclcpp::Duration(1000ms)},
         {LandState::DONE, rclcpp::Duration(0s)}
     };
     rclcpp::Time m_phase_start_time;
@@ -473,22 +516,30 @@ public:
             RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", translation.x(), translation.y(), translation.z());
         }
         my_pose.translation() = translation;
-        Eigen::Affine3d idle_pose_remote_frame = Eigen::Affine3d::Identity(); // TODO: get idle pose from pad client
-        bool success = m_pad_client->get_pad_idle_target(1.0, my_pose, idle_pose_remote_frame);
+        Eigen::Affine3d idle_pose_remote_frame;
+        std::string target_frame_id;
+        bool success = m_pad_client->get_pad_idle_target(1.0, my_pose, "world", idle_pose_remote_frame, target_frame_id);
         if (!success)
-    {
+        {
             RCLCPP_ERROR(m_logger, "Error getting idle target!");
             return BT::NodeStatus::FAILURE;
         }
 
-        Eigen::Affine3d world_to_idle;
-        m_padflie_tf->get_world_affine3d("pad_circle", world_to_idle);
+        // Eigen::Affine3d world_to_idle;
+        // m_padflie_tf->get_world_affine3d("pad_circle", world_to_idle);
+        // 
+        // Eigen::Affine3d idle_pose_world = world_to_idle.inverse() * idle_pose_remote_frame; // TODO: transform idle pose to world frame using padflie_tf
+        // RCLCPP_INFO(m_logger, "The goal idle position is: [%f, %f, %f]", idle_pose_remote_frame.translation().x(), idle_pose_remote_frame.translation().y(), idle_pose_remote_frame.translation().z());
+        // RCLCPP_INFO(m_logger, "The goal idle position in world frame is: [%f, %f, %f]", idle_pose_world.translation().x(), idle_pose_world.translation().y(), idle_pose_world.translation().z());
         
-        Eigen::Affine3d idle_pose_world = world_to_idle.inverse() * idle_pose_remote_frame; // TODO: transform idle pose to world frame using padflie_tf
-        RCLCPP_INFO(m_logger, "The goal idle position is: [%f, %f, %f]", idle_pose_remote_frame.translation().x(), idle_pose_remote_frame.translation().y(), idle_pose_remote_frame.translation().z());
-        RCLCPP_INFO(m_logger, "The goal idle position in world frame is: [%f, %f, %f]", idle_pose_world.translation().x(), idle_pose_world.translation().y(), idle_pose_world.translation().z());
-            
-        m_hardware_actor->go_to(idle_pose_world, 0.0, false);
+
+        PoseTarget idle_pose_target;
+        idle_pose_target.frame_id = target_frame_id;
+        idle_pose_target.pose = idle_pose_remote_frame;
+        idle_pose_target.use_yaw = true;
+        idle_pose_target.collision_avoidance = true;
+
+        m_hardware_actor->set_pose_target(idle_pose_target);
         return BT::NodeStatus::SUCCESS;
     }
 
@@ -522,10 +573,12 @@ public:
         const BT::NodeConfig& config,
         rclcpp::Logger logger,
         std::shared_ptr<HardwareActor> hardware_actor,
+        std::shared_ptr<PadflieTF> padflie_tf,
         std::shared_ptr<PadExecuteServer> pad_execute_server)
     : BT::StatefulActionNode(name, config)  
     , m_logger(logger.get_child(name))
     , m_hardware_actor(hardware_actor)  
+    , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
     {
     }
@@ -547,8 +600,6 @@ public:
         }
 
         RCLCPP_INFO(m_logger, "Approaching CLOSE position...");
-        Eigen::Affine3d close_pose = Eigen::Affine3d::Identity(); // TODO: get close pose from pad client
-        m_hardware_actor->go_to(close_pose, 0.0, true);
         return BT::NodeStatus::RUNNING;
     }
 
@@ -556,7 +607,28 @@ public:
     {
         RCLCPP_INFO(m_logger, "Approaching CLOSE position, waiting for completion...");
         
-        // query close target and send actor to it
+        geometry_msgs::msg::PoseStamped close_target_pose = m_pad_client->get_target_pose();
+        close_target_pose.pose.position.z += 0.5; // hover 0.5m above the target pose
+        PoseTarget close_target;
+        close_target.frame_id = close_target_pose.header.frame_id;
+        tf2::fromMsg(close_target_pose.pose, close_target.pose);
+        close_target.use_yaw = true;
+        close_target.collision_avoidance = true;
+        m_hardware_actor->set_pose_target(close_target);
+
+        Eigen::Vector3d position; 
+        if (m_padflie_tf->get_cf_position(position))
+        {
+            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
+            if ((position - close_target.pose.translation()).norm() < 0.5) {
+                RCLCPP_INFO(m_logger, "Reached CLOSE position!");
+                return BT::NodeStatus::SUCCESS;
+            }
+        } else {
+            RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
+            return BT::NodeStatus::FAILURE;
+        }
+
         return BT::NodeStatus::RUNNING;
     }
 
@@ -569,6 +641,7 @@ public:
 private: 
     rclcpp::Logger m_logger;
     std::shared_ptr<HardwareActor> m_hardware_actor;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
     std::shared_ptr<PadClient> m_pad_client;
 };

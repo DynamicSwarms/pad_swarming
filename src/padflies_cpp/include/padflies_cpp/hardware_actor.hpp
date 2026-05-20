@@ -12,7 +12,7 @@
 #include "padflies_cpp/ll_commander_minimal.hpp"
 
 #include "padflies_cpp/padflie_tf.hpp"
-
+#include <tf2_eigen/tf2_eigen.hpp>
 enum ActorState {
   DEACTIVATED,
   LOW_LEVEL_COMMANDER,
@@ -33,10 +33,12 @@ struct EigenVelocityStamped
     std::string frame_id;
 };
 
-struct EigenPoseStamped
+struct PoseTarget
 {
     Eigen::Affine3d pose;
     std::string frame_id;
+    bool use_yaw;
+    bool collision_avoidance;
 };
 
 class HardwareActor
@@ -57,9 +59,7 @@ public:
     ~HardwareActor();
     std::string get_current_target_frame() const;
 
-    bool set_pose_target(
-        const EigenPoseStamped & target_pose,
-        bool use_yaw = true);
+    bool set_pose_target(const PoseTarget & target_pose);
 
     bool set_velocity_target(
         const EigenVelocityStamped & velocity, 
@@ -88,7 +88,7 @@ public:
     ActorMode get_mode() const { return m_mode; }
 
     void get_target_pose(
-        EigenPoseStamped & target_pose) const {
+        PoseTarget & target_pose) const {
             target_pose = m_target_pose;
         };
 
@@ -107,19 +107,17 @@ private:
     void m_transition_to_low_level_commander();
     void m_transition_to_high_level_commander();
 
-    void eigen_pose_stamped_to_msg_pose_stamped(
-        const EigenPoseStamped & eigen_pose_stamped,
-        geometry_msgs::msg::PoseStamped & msg_pose_stamped) const
+    void unpack_pose_target(
+        const PoseTarget & pose_target,
+        geometry_msgs::msg::PoseStamped & msg_pose_stamped,
+        bool & use_yaw,
+        bool & collision_avoidance) const
     {
-        msg_pose_stamped.header.frame_id = eigen_pose_stamped.frame_id;
-        msg_pose_stamped.pose.position.x = eigen_pose_stamped.pose.translation().x();
-        msg_pose_stamped.pose.position.y = eigen_pose_stamped.pose.translation().y();
-        msg_pose_stamped.pose.position.z = eigen_pose_stamped.pose.translation().z();
-        Eigen::Quaterniond q(eigen_pose_stamped.pose.rotation());
-        msg_pose_stamped.pose.orientation.w = q.w();
-        msg_pose_stamped.pose.orientation.x = q.x();
-        msg_pose_stamped.pose.orientation.y = q.y();
-        msg_pose_stamped.pose.orientation.z = q.z();
+        use_yaw = pose_target.use_yaw;
+        collision_avoidance = pose_target.collision_avoidance;
+
+        msg_pose_stamped.pose = tf2::toMsg(pose_target.pose);
+        msg_pose_stamped.header.frame_id = pose_target.frame_id;
     }
 
 private: 
@@ -129,7 +127,7 @@ private:
     double m_current_yaw;
 
 private: // Targets 
-    EigenPoseStamped m_target_pose;
+    PoseTarget m_target_pose;
     bool m_fixed_yaw;
 
     EigenVelocityStamped m_target_velocity;

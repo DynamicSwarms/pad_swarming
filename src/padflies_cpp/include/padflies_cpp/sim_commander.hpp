@@ -41,11 +41,13 @@ private:
         
         RCLCPP_INFO(m_logger, "Takeoff command received. Sending takeoff target.");
         // So that the target is initialized
-        EigenPoseStamped target;
+        PoseTarget target;
         target.pose = Eigen::Affine3d::Identity();
         target.pose.translation() = Eigen::Vector3d(0.0, 0.0, 2.0); // Takeoff to 2 meters height
         target.frame_id = "world";
-        m_hardware_actor->set_pose_target(target, false); // Don't use yaw for takeoff
+        target.use_yaw = false;
+        target.collision_avoidance = true;
+        m_hardware_actor->set_pose_target(target); // Don't use yaw for takeoff
 
 
         service_handle->send_response(*request_id, response);
@@ -62,7 +64,7 @@ private:
     }
 
     void m_handle_send_target_command(const padflies_interfaces::msg::SendTarget::SharedPtr msg) override {
-        EigenPoseStamped target;
+        PoseTarget target;
         target.pose = Eigen::Affine3d::Identity();
         Eigen::Translation3d translation(
             msg->target.pose.position.x,
@@ -78,7 +80,9 @@ private:
 
         target.pose = translation * rotation;
         target.frame_id = msg->target.header.frame_id;
-        m_hardware_actor->set_pose_target(target, msg->use_yaw);
+        target.use_yaw = msg->use_yaw;
+        target.collision_avoidance = msg->collision_avoidance;
+        m_hardware_actor->set_pose_target(target);
     }
 
 private: 

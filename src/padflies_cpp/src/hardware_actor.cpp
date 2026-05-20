@@ -77,15 +77,11 @@ HardwareActor::get_current_target_frame() const
 }
 
 bool 
-HardwareActor::set_pose_target(
-    const EigenPoseStamped & target_pose,
-    bool use_yaw)
-{
+HardwareActor::set_pose_target(const PoseTarget& target_pose) {
     if (m_state == ActorState::ERROR_STATE)
         return false;
 
     m_target_pose = target_pose;
-    m_fixed_yaw = !use_yaw;
     m_mode = ActorMode::POSITION_CONTROL;
 
     m_transition_to_low_level_commander();
@@ -138,6 +134,10 @@ HardwareActor::go_to(
 
     const double yaw_deg =
         std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0)) * 180.0 / M_PI;
+
+    RCLCPP_INFO(m_logger, "Commanding go_to with target position: [%f, %f, %f], yaw: %f degrees, duration: %f seconds, relative: %s",
+                target_pose.translation().x(), target_pose.translation().y(), target_pose.translation().z(),
+                yaw_deg, duration, relative ? "true" : "false");
 
     m_hl_commander.go_to(
         target_pose.translation(), 
@@ -194,7 +194,10 @@ HardwareActor::m_ll_command_timer_callback()
         }
 
         geometry_msgs::msg::PoseStamped set_target_pose;
-        eigen_pose_stamped_to_msg_pose_stamped(m_target_pose, set_target_pose);
+        bool use_yaw;
+        bool collision_avoidance;
+
+        unpack_pose_target(m_target_pose, set_target_pose, use_yaw, collision_avoidance);
         Eigen::Vector3d target_position;
         double target_yaw;
         if (!m_padflie_tf->pose_stamped_to_world_position_and_yaw(set_target_pose, target_position, target_yaw))
@@ -214,10 +217,14 @@ HardwareActor::m_ll_command_timer_callback()
             RCLCPP_INFO(m_logger, "Target pose not valid, using last valid target: (%f, %f, %f), yaw: %f",
                         target_position.x(), target_position.y(), target_position.z(), target_yaw);
         }
-        if (m_fixed_yaw) target_yaw = m_fixed_yaw_target;
+        if (!use_yaw) target_yaw = m_fixed_yaw_target;
+
 
         bool collision = false;
-        m_collision_avoidance_client.get_collision_avoidance_target(position, target_position, collision);
+        if (collision_avoidance)
+        {
+            m_collision_avoidance_client.get_collision_avoidance_target(position, target_position, collision);
+        }
 
         m_position_controller.safe_command_position(position, target_position, collision);
         double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);

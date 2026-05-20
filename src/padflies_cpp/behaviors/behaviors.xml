@@ -11,8 +11,8 @@
                        action="LAND"/>
         </TimeoutROS>
       </ReactiveSequence>
-      <Repeat num_cycles="10">
-        <Delay delay_msec="1000">
+      <Repeat num_cycles="100">
+        <Delay delay_msec="100">
           <ApproachIDLE pad_client="{client}"/>
         </Delay>
       </Repeat>
@@ -20,7 +20,7 @@
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
           <SendFeedback pad_client="{client}"/>
-          <TimeoutROS timeout_ms="500">
+          <TimeoutROS timeout_ms="8000">
             <AsyncSequence>
               <ApproachCLOSE pad_client="{client}"/>
               <Land pad_client="{client}"/>

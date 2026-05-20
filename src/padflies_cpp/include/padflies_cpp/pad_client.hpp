@@ -51,13 +51,15 @@ public:
     bool get_pad_idle_target(
         double timeout_seconds,
         const Eigen::Affine3d & position,
-        Eigen::Affine3d & target_position)
+        const std::string & frame_id,
+        Eigen::Affine3d & target_position,
+        std::string & target_frame_id)
     {
         auto request = std::make_shared<pad_management_interfaces::srv::PadIdleTarget::Request>();
         request->name = m_prefix;
         request->position = geometry_msgs::msg::PoseStamped();
         // TODO: clock now
-        request->position.header.frame_id = "world";
+        request->position.header.frame_id = frame_id;
         request->position.pose.position.x = position.translation().x();
         request->position.pose.position.y = position.translation().y();
         request->position.pose.position.z = position.translation().z();
@@ -73,6 +75,7 @@ public:
                 target_position.translation().x() = response->target.pose.position.x;
                 target_position.translation().y() = response->target.pose.position.y;
                 target_position.translation().z() = response->target.pose.position.z;
+                target_frame_id = response->target.header.frame_id;
             }
         } else {
             RCLCPP_ERROR(m_logger, "Service /%s/pad_idle_target not available after waiting for %f seconds", m_pad_name.c_str(), timeout_seconds);
@@ -100,6 +103,8 @@ public:
             m_pad_right_control_action_client->async_cancel_goal(m_current_goal_handle);
         }
     }
+
+    geometry_msgs::msg::PoseStamped get_target_pose() const { return m_target_pose; }
 
     std::string get_pad_name() const { return m_pad_name; }
 
@@ -131,6 +136,7 @@ private:
     {
         (void)goal_handle;
         m_right_acquired = feedback->status == PadRightControlActionT::Feedback::STATUS_ACQUIRED_RIGHT;
+        m_target_pose = feedback->target_pose;
 
         if (feedback->status == PadRightControlActionT::Feedback::STATUS_WAITING_FOR_RIGHT)
             RCLCPP_INFO(m_logger, "FBD: Pad says PadClient needs to wait for right...");
@@ -160,6 +166,8 @@ private:
 
     std::shared_ptr<rclcpp_action::Client<PadRightControlActionT>> m_pad_right_control_action_client;
     std::shared_ptr<rclcpp::Client<pad_management_interfaces::srv::PadIdleTarget>> m_pad_idle_target_client;
+
+    geometry_msgs::msg::PoseStamped m_target_pose; // Land/Takeoff pose received from pad
 
 private: 
     std::shared_ptr<PadRightControlGoalHandleT> m_current_goal_handle;

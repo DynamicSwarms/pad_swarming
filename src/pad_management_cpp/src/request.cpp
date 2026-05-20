@@ -108,6 +108,11 @@ Request::publish_feedback(
         feedback->status = PadRightControlActionT::Feedback::STATUS_ACQUIRED_RIGHT;
         auto time_held = m_clock->now() - m_acquire_time;
         feedback->time_remaining = duration_to_seconds(max_hold_time - time_held);
+
+        feedback->target_pose = geometry_msgs::msg::PoseStamped();
+        feedback->target_pose.header.frame_id = "pad_0";
+        feedback->target_pose.pose.position.x = 0.5; // For testing
+
     } else {
         feedback->status = PadRightControlActionT::Feedback::STATUS_WAITING_FOR_RIGHT;
         feedback->time_remaining = duration_to_seconds(expected_wait_time);

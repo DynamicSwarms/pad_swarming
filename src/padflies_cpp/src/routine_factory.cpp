@@ -24,9 +24,9 @@ RoutineFactory::RoutineFactory(
     m_bt_factory.registerNodeType<GetPadRight>("GetPadRight", logger, pad_execute_server);
     m_bt_factory.registerNodeType<HoldPadRight>("HoldPadRight", logger, pad_execute_server);
     m_bt_factory.registerNodeType<ReleasePadRight>("ReleasePadRight", logger);
-    m_bt_factory.registerNodeType<LandRoutine>("Land", logger, node_clock_interface, hardware_actor, pad_execute_server);
+    m_bt_factory.registerNodeType<LandRoutine>("Land", logger, node_clock_interface, hardware_actor,padflie_tf, pad_execute_server);
     m_bt_factory.registerNodeType<ApproachIDLE>("ApproachIDLE", logger, hardware_actor, padflie_tf, pad_execute_server);
-    m_bt_factory.registerNodeType<ApproachCLOSE>("ApproachCLOSE", logger, hardware_actor, pad_execute_server);
+    m_bt_factory.registerNodeType<ApproachCLOSE>("ApproachCLOSE", logger, hardware_actor, padflie_tf,  pad_execute_server);
     m_bt_factory.registerNodeType<TimeoutROS>("TimeoutROS", logger, node_clock_interface);
     m_bt_factory.registerNodeType<SendFeedback>("SendFeedback", logger, pad_execute_server);
     m_bt_factory.registerNodeType<HasPadRight>("HasPadRight", logger);

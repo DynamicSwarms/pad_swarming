@@ -18,6 +18,9 @@ bool success # true if canceled by client, false if lock timeouted etc.
 uint8 status
 float32 time_remaining # in seconds, expected time until acquisition or time left until timeout
 
+geometry_msgs/PoseStamped target_pose # target pose to land on or takeoff from
+
+
 
 uint8 STATUS_WAITING_FOR_RIGHT = 0
 uint8 STATUS_ACQUIRED_RIGHT = 1
