@@ -1,9 +1,9 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
+#include "tf2_ros/qos.hpp"
+#include <tf2_msgs/msg/tf_message.hpp>
 #include "crazyflie_interfaces/msg/pose_stamped_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
@@ -27,7 +27,14 @@ public:
     ~PadflieTF();
     
     void start_listening(
-        std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
+        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface, 
+        std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface, 
+        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface);
+
+    void m_tf_subscription_callback(
+        const std::shared_ptr<tf2_msgs::msg::TFMessage> msg, 
+        bool is_static);
 
     void set_pad(
         const std::string & pad_name);
@@ -137,7 +144,9 @@ private:
     std::shared_ptr<rclcpp::Clock> m_clock;
     rclcpp::Logger m_logger;
 
-    std::unique_ptr<tf2_ros::TransformListener> m_tf_listener;
+    std::shared_ptr<rclcpp::Subscription<tf2_msgs::msg::TFMessage>> m_tf_subscription;
+    std::shared_ptr<rclcpp::Subscription<tf2_msgs::msg::TFMessage>> m_static_tf_subscription;
+
 
     rclcpp::Subscription<crazyflie_interfaces::msg::PoseStampedArray>::SharedPtr m_cf_positions_sub;
     rclcpp::CallbackGroup::SharedPtr m_callback_group;

@@ -1,0 +1,8 @@
+<library path="padflie_behaviors_base">
+  <class type="padflie_behaviors_base::ChoosePadDefault"
+         base_class_type="padflies_cpp::behavior_plugins::ChoosePad">
+    <description>
+      Default implementation of ChoosePad that selects the "megapad" via PadClientFactory.
+    </description>
+  </class>
+</library>

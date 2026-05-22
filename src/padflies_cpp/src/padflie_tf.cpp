@@ -32,20 +32,51 @@ PadflieTF::~PadflieTF()
 }
 
 void PadflieTF::start_listening(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
-{
-    m_tf_listener = std::make_unique<tf2_ros::TransformListener>(*m_tf_buffer, node);
-    
-    m_callback_group = node->create_callback_group(
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface, 
+    std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface, 
+    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
+{    
+    m_callback_group = node_base_interface->create_callback_group(
         rclcpp::CallbackGroupType::MutuallyExclusive);
     auto sub_opt = rclcpp::SubscriptionOptions();
     sub_opt.callback_group = m_callback_group;
-    m_cf_positions_sub = node->create_subscription<crazyflie_interfaces::msg::PoseStampedArray>(
+    m_cf_positions_sub = rclcpp::create_subscription<crazyflie_interfaces::msg::PoseStampedArray>(
+        node_topics_interface,
         "/cf_positions",
-        10, 
+        rclcpp::QoS(10),
         std::bind(&PadflieTF::cf_positions_callback, this, _1),
         sub_opt);
+
+    m_tf_subscription = rclcpp::create_subscription<tf2_msgs::msg::TFMessage>(
+        node_topics_interface,
+        "/tf",
+        tf2_ros::DynamicListenerQoS(),
+        [this](const std::shared_ptr<const tf2_msgs::msg::TFMessage> msg) {
+            m_tf_subscription_callback(std::const_pointer_cast<tf2_msgs::msg::TFMessage>(msg), false);
+        },
+        sub_opt);
+    m_static_tf_subscription = rclcpp::create_subscription<tf2_msgs::msg::TFMessage>(
+        node_topics_interface,
+        "/tf_static",
+        tf2_ros::StaticListenerQoS(),
+        [this](const std::shared_ptr<const tf2_msgs::msg::TFMessage> msg) {
+            m_tf_subscription_callback(std::const_pointer_cast<tf2_msgs::msg::TFMessage>(msg), true);
+        },
+        sub_opt);
+
 }
+
+void 
+PadflieTF::m_tf_subscription_callback(
+    const tf2_msgs::msg::TFMessage::SharedPtr msg,
+    bool is_static)
+{
+    for (const auto & transform : msg->transforms) {
+        m_tf_buffer->setTransform(transform, "default_authority", is_static);
+    }
+}
+
 
 void PadflieTF::set_pad(const std::string & pad_name)
 {

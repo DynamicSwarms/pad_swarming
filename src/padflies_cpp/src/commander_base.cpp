@@ -43,7 +43,13 @@ PadflieCommanderBase::on_configure(
     m_configure_commander(node);
 
     m_hw_state_controller.connect(m_cf_prefix, node);
-    m_padflie_tf->start_listening(node);
+    m_padflie_tf->start_listening(
+        node->get_node_base_interface(), 
+        node->get_node_topics_interface(), 
+        node->get_node_clock_interface(),
+        node->get_node_logging_interface());
+
+
     m_create_availability_interface(node);
 
     m_on_commander_configured();

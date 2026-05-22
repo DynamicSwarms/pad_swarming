@@ -86,6 +86,48 @@ install(TARGETS padflie
 install(DIRECTORY behaviors
   DESTINATION share/${PROJECT_NAME})
 
+
+# Behavior Plugins Shared Library
+add_library(padflie_behavior_plugins INTERFACE)
+add_library(
+  padflie_behavior_plugins::padflie_behavior_plugins
+  ALIAS padflie_behavior_plugins
+)
+target_compile_features(padflie_behavior_plugins INTERFACE c_std_99 cxx_std_17)
+target_include_directories(padflie_behavior_plugins INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(padflie_behavior_plugins INTERFACE
+  ${pluginlib_TARGETS}
+)
+
+target_link_libraries(padflie_behavior_plugins INTERFACE
+  rclcpp::rclcpp
+  behaviortree_cpp::behaviortree_cpp
+)
+
+# Install headers
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+# Install/export interface target
+install(TARGETS padflie_behavior_plugins
+  EXPORT export_padflie_behavior_plugins
+)
+
+install(EXPORT export_padflie_behavior_plugins
+  NAMESPACE padflie_behavior_plugins::
+  DESTINATION share/${PROJECT_NAME}/cmake
+)
+
+ament_export_include_directories(include)
+
+ament_export_targets(
+  export_padflie_behavior_plugins
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
