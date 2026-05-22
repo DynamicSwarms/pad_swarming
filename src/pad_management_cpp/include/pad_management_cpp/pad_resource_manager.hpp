@@ -5,12 +5,18 @@
 
 class PadResourceManager : public IPadResourceManager
 {
-    bool is_allowed(std::string name) override;
+    bool m_try_lock(uint8_t id) override;
 
-    void _release(std::string name) override;
+    void m_release(uint8_t id, uint8_t result) override;
+
+    bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override;
 private: 
 
-    std::unordered_map<std::string, std::unique_lock<std::mutex>> m_locks;
+    std::string get_pad_name(uint8_t id) const {
+        return "pad_" + std::to_string(id);
+    }
+
+    std::unordered_map<uint8_t, std::unique_lock<std::mutex>> m_locks;
 
     std::mutex m_mutex;
 };

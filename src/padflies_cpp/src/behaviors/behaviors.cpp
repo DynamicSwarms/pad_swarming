@@ -931,7 +931,11 @@ public:
                     takeoff_target.use_yaw = true;
                     takeoff_target.collision_avoidance = true;
 
-                    m_hardware_actor->set_pose_target(takeoff_target);
+                    bool success = m_hardware_actor->set_pose_target(takeoff_target);
+                    if (!success) {
+                        RCLCPP_ERROR(m_logger, "Failed to set takeoff target pose!");
+                        return BT::NodeStatus::FAILURE;
+                    }
                 }
 
                 m_state = TakeoffState::DONE;
@@ -972,7 +976,7 @@ private:
         {TakeoffState::INIT, rclcpp::Duration(0s)},
         {TakeoffState::PHASE1, rclcpp::Duration(250ms)},
         {TakeoffState::PHASE2, rclcpp::Duration(250ms)},
-        {TakeoffState::DONE, rclcpp::Duration(0s)}
+        {TakeoffState::DONE, rclcpp::Duration(1250ms)}
     };
     rclcpp::Time m_phase_start_time;
 };

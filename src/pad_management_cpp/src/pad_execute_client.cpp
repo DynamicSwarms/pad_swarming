@@ -72,4 +72,5 @@ PadExecuteClient::result_callback(const GoalHandleT::WrappedResult & result)
         RCLCPP_ERROR(m_logger, "Padflie said: Goal failed with code");// %d", result.status);
     }
     m_is_done = true;
+    m_result = result.result->result;
 }

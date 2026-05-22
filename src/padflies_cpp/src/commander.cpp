@@ -226,21 +226,9 @@ PadflieCommander::m_handle_send_target_command(
 {
     if (m_state == CommanderState::FLYING) {
         PoseTarget target;
-        target.pose = Eigen::Affine3d::Identity();
-        Eigen::Translation3d translation(
-            msg->target.pose.position.x,
-            msg->target.pose.position.y,
-            msg->target.pose.position.z
-        );
-        Eigen::Quaterniond rotation(
-            msg->target.pose.orientation.w,
-            msg->target.pose.orientation.x,
-            msg->target.pose.orientation.y,
-            msg->target.pose.orientation.z
-        );
-
-        target.pose = translation * rotation;
+        tf2::fromMsg(msg->target.pose, target.pose);
         target.frame_id = msg->target.header.frame_id;
+
         target.use_yaw = msg->use_yaw;
         target.collision_avoidance = msg->collision_avoidance;
         m_hardware_actor->set_pose_target(target);

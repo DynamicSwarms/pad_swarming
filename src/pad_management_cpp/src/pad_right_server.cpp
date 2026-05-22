@@ -56,7 +56,8 @@ PadRightServer::PadRightServer(
 void 
 PadRightServer::manage_requests()
 {
-    if (m_request_map->manage_requests()) {
+    if (m_request_map->manage_requests()) 
+    {
  
 
     }
@@ -95,10 +96,6 @@ void PadRightServer::handle_accepted(
             m_node_waitables_interface,
             m_callback_group
         );
-
-
-
-
 
     m_request_map->add_request(goal_handle, m_pad_execute_client);
 }

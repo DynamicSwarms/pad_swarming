@@ -22,6 +22,7 @@ public:
     );
 
     bool is_finished() const { return m_is_done; }
+    uint8_t result() const { return m_result; }
 
     void send_goal(
         const std::string & pad_name,
@@ -38,6 +39,7 @@ private:
     rclcpp::Logger m_logger; 
 
     bool m_is_done = false;
+    uint8_t m_result = GoalHandleT::Result::RESULT_UNKNOWN;
 
     std::shared_ptr<rclcpp_action::Client<ActionT>> m_action_client;
 };

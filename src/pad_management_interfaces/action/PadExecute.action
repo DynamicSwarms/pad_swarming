@@ -9,9 +9,10 @@ uint8 ACTION_TAKEOFF = 1
 uint8 result
 string reason
 
-uint8 RESULT_ON_PAD = 0
-uint8 RESULT_NOT_ON_PAD = 1
-uint8 RESULT_FAILURE = 2
+uint8 RESULT_UNKNOWN = 0
+uint8 RESULT_ON_PAD = 1
+uint8 RESULT_NOT_ON_PAD = 2
+uint8 RESULT_FAILURE = 3
 ---
 # Feedback - sent by CF
 uint8 status

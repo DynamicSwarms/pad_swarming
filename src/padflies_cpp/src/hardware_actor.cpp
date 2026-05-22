@@ -107,7 +107,11 @@ HardwareActor::set_velocity_target(
 void 
 HardwareActor::m_transition_to_low_level_commander()
 {
- 
+    if (m_state == ActorState::HIGH_LEVEL_COMMANDER)
+    {
+        m_position_controller.initialize_target_history(m_target_pose.pose.translation());
+        // What when velocity controller?
+    }
     m_state = ActorState::LOW_LEVEL_COMMANDER;
 }
 
@@ -117,8 +121,8 @@ HardwareActor::m_transition_to_high_level_commander()
     if (m_state == ActorState::LOW_LEVEL_COMMANDER) 
     {
         m_ll_commander.notify_setpoints_stop(50);
-        m_state = ActorState::HIGH_LEVEL_COMMANDER;
     } 
+    m_state = ActorState::HIGH_LEVEL_COMMANDER;
 }
 
 bool 

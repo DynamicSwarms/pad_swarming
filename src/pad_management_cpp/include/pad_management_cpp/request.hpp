@@ -30,6 +30,7 @@ public:
 
     const std::string & name() const { return m_name; }
     bool is_finished() const {return m_pad_execute_client->is_finished(); }
+    uint8_t result() const {return m_pad_execute_client->result(); }
     bool owns_lock() const;
 
     bool try_acquire();
@@ -59,6 +60,8 @@ private:
     
     IPadResourceManager & m_resource_manager;
     std::shared_ptr<PadExecuteClient> m_pad_execute_client;
+
+    uint8_t m_id = 0;
 
     bool m_executing = false;
 };

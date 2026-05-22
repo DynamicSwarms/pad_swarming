@@ -2,26 +2,37 @@
 
 #include <mutex>
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
+
 class IPadResourceManager
 {
 public:
     virtual ~IPadResourceManager() = default;
 
-    bool can_do_stuff(std::string name)
+    bool try_lock(uint8_t id)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        return is_allowed(name);
+        return m_try_lock(id);
     };
 
-    void release(std::string name)
+    void release(uint8_t id, uint8_t result)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        _release(name);
+        m_release(id, result);
     };
+
+    bool get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position)
+    {
+        return m_get_associated_position(id, position);
+    }
 
 private: 
-    virtual bool is_allowed(std::string name) = 0; 
-    virtual void _release(std::string name) = 0;
+    virtual bool m_try_lock(uint8_t id) = 0;
+
+    // result is a uint8_t respresenting a result of pad_execute action
+    virtual void m_release(uint8_t id, uint8_t result) = 0;
+
+    virtual bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) = 0;
 
     std::mutex m_mutex;
 };

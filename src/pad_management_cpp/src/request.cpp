@@ -20,7 +20,7 @@ Request::Request(
     std::shared_ptr<PadExecuteClient> pad_execute_client)
 :   m_logger(logger.get_child("[" + goal_handle->get_goal()->name + "]")),
     m_clock(node_clock_interface->get_clock()),
-    m_name(goal_handle->get_goal()->name),
+    m_name( goal_handle->get_goal()->name),
     m_request_time(m_clock->now()),
     m_max_wait_time(duration_from_seconds(goal_handle->get_goal()->max_wait_time)),
     m_usage_time(duration_from_seconds(goal_handle->get_goal()->usage_time)),
@@ -28,6 +28,13 @@ Request::Request(
     m_resource_manager(pad_resource_manager),
     m_pad_execute_client(pad_execute_client)
 {
+    try {
+        std::string id_str = m_name.substr(8); // Assuming name is like "/padflieID"
+        m_id = std::stoi(id_str);
+    } catch (const std::exception& e) {
+        RCLCPP_WARN(m_logger, "Failed to extract ID from node name: %s", m_name.c_str());
+    }
+
     pad_execute_client->send_goal(m_name, pad_management_interfaces::action::PadExecute::Goal::ACTION_TAKEOFF);
 }
 
@@ -43,7 +50,8 @@ Request::~Request()
         m_goal_handle->succeed(result);
     }
 
-    if (m_executing) m_resource_manager.release(m_name);
+
+    if (m_executing) m_resource_manager.release(m_id, m_pad_execute_client->result());
 }
 
 
@@ -74,7 +82,7 @@ Request::owns_lock() const
 bool 
 Request::try_acquire()
 {
-    if (!m_executing && m_resource_manager.can_do_stuff(m_name)) {
+    if (!m_executing && m_resource_manager.try_lock(m_id)) {
         m_executing = true;
         m_acquire_time = m_clock->now();
         RCLCPP_INFO(m_logger, "Acquired lock.");
@@ -110,8 +118,8 @@ Request::publish_feedback(
         feedback->time_remaining = duration_to_seconds(max_hold_time - time_held);
 
         feedback->target_pose = geometry_msgs::msg::PoseStamped();
-        feedback->target_pose.header.frame_id = "pad_0";
-        feedback->target_pose.pose.position.x = 0.5; // For testing
+        m_resource_manager.get_associated_position(m_id, feedback->target_pose);
+
 
     } else {
         feedback->status = PadRightControlActionT::Feedback::STATUS_WAITING_FOR_RIGHT;

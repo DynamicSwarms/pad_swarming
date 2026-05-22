@@ -22,6 +22,7 @@ PadflieTF::PadflieTF(
 , m_clock(clock)
 , m_logger(logger)
 {
+    m_tf_buffer->setUsingDedicatedThread(true);
     RCLCPP_DEBUG(m_logger, "PadflieTF initialized for CF: %s, world frame: %s", 
                 m_cf_name.c_str(), m_world_frame.c_str());      
 }
