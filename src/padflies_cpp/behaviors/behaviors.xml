@@ -16,7 +16,7 @@
           </ParallelAll>
         </TimeoutROS>
       </ReactiveSequence>
-      <ForceSuccess>
+      <TryFinally>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
           <SendFeedback pad_client="{client}"
@@ -30,9 +30,9 @@
             </AsyncSequence>
           </TimeoutROS>
         </ReactiveSequence>
-      </ForceSuccess>
-      <ReleasePadRight pad_client="{client}"
-                       status="{status}"/>
+        <ReleasePadRight pad_client="{client}"
+                         status="{status}"/>
+      </TryFinally>
     </Sequence>
   </BehaviorTree>
 
@@ -150,6 +150,8 @@
       <input_port name="timeout_ms"
                   type="int"/>
     </Decorator>
+    <Control ID="TryFinally"
+             editable="true"/>
   </TreeNodesModel>
 
 </root>

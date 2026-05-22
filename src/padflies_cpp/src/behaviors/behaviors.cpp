@@ -1021,3 +1021,74 @@ public:
 private:
     rclcpp::Logger m_logger;
 };
+
+class TryFinally : public BT::ControlNode
+{
+public:
+    TryFinally(
+        const std::string& name,
+        const BT::NodeConfig& config, 
+        rclcpp::Logger logger)
+    : BT::ControlNode(name, config)
+    , m_logger(logger.get_child(name))
+    {
+    }
+
+    ~TryFinally() override = default;
+
+    static BT::PortsList providedPorts()
+    {
+        return {};
+    }
+    
+    BT::NodeStatus tick() override
+    {
+        if (children_nodes_.size() != 2) {
+            RCLCPP_ERROR(m_logger, "TryFinally node must have exactly 2 children!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        if (!m_finally_started) 
+        {
+
+            // Execute the first child (the "try" block)
+            m_try_status = children_nodes_[0]->executeTick();
+
+            // If the "try" block is still running, keep it running
+            if (m_try_status == BT::NodeStatus::RUNNING) {
+                return BT::NodeStatus::RUNNING;
+            } else if ( m_try_status == BT::NodeStatus::FAILURE) {
+                RCLCPP_ERROR(m_logger, "Try block failed -> doing finally block");
+                m_finally_started = true;
+            } else if (m_try_status == BT::NodeStatus::SUCCESS) {
+                RCLCPP_INFO(m_logger, "Try block succeeded -> doing finally block");
+                m_finally_started = true;
+            }
+        }
+
+        // Once the "try" block is done (either SUCCESS or FAILURE), execute the second child (the "finally" block)
+        BT::NodeStatus finally_status = children_nodes_[1]->executeTick();
+
+        // The status of the TryFinally node is determined by the "try" block, but we need to make sure the "finally" block runs to completion
+        if (finally_status == BT::NodeStatus::RUNNING) {
+            return BT::NodeStatus::RUNNING;
+        }
+
+        // If we reach here, both blocks have finished. The overall status is determined by the "try" block.
+        return m_try_status;
+    }
+
+    void halt() override
+    {
+        // Halt both children 
+        for (size_t i = 0; i < children_nodes_.size(); ++i) {
+            haltChild(i);
+        }
+    }
+
+private: 
+    rclcpp::Logger m_logger;
+    bool m_finally_started = false;
+    BT::NodeStatus m_try_status = BT::NodeStatus::IDLE;
+
+};

@@ -31,6 +31,7 @@ RoutineFactory::RoutineFactory(
     m_bt_factory.registerNodeType<ApproachIDLE>("ApproachIDLE", logger, hardware_actor, padflie_tf, pad_execute_server);
     m_bt_factory.registerNodeType<ApproachCLOSE>("ApproachCLOSE", logger, hardware_actor, padflie_tf,  pad_execute_server);
     m_bt_factory.registerNodeType<TimeoutROS>("TimeoutROS", logger, node_clock_interface);
+    m_bt_factory.registerNodeType<TryFinally>("TryFinally", logger);
     m_bt_factory.registerNodeType<SendFeedback>("SendFeedback", logger, pad_execute_server);
     m_bt_factory.registerNodeType<HasPadRight>("HasPadRight", logger);
     m_bt_factory.registerBehaviorTreeFromFile(xml_file);
