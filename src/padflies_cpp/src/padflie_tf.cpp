@@ -236,6 +236,14 @@ bool PadflieTF::get_cf_position(Eigen::Vector3d & position)
     }
     return false;
 }
+bool PadflieTF::get_cf_pose(Eigen::Affine3d & pose)
+{
+    if (m_last_position_time + m_position_timeout > get_now()) {
+        tf2::fromMsg(m_last_position.pose, pose);
+        return true;
+    }
+    return false;
+}
 
 
 bool PadflieTF::transform_point_stamped(

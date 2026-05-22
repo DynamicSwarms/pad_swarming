@@ -3,14 +3,17 @@
   <BehaviorTree ID="LandBehavior">
     <Sequence>
       <ChoosePad pad_client="{client}"/>
+      <LandInit status="{status}"/>
       <ReactiveSequence>
-        <ApproachIDLE pad_client="{client}"
-                      status="{status}"/>
         <SendFeedback pad_client="{client}"
                       status="{status}"/>
         <TimeoutROS timeout_ms="20000">
-          <GetPadRight pad_client="{client}"
-                       action="LAND"/>
+          <ParallelAll max_failures="1">
+            <ApproachIDLE pad_client="{client}"
+                          status="{status}"/>
+            <GetPadRight pad_client="{client}"
+                         action="LAND"/>
+          </ParallelAll>
         </TimeoutROS>
       </ReactiveSequence>
       <ForceSuccess>
@@ -18,7 +21,7 @@
           <HasPadRight pad_client="{client}"/>
           <SendFeedback pad_client="{client}"
                         status="{status}"/>
-          <TimeoutROS timeout_ms="8000">
+          <TimeoutROS timeout_ms="30000">
             <AsyncSequence>
               <ApproachCLOSE pad_client="{client}"
                              status="{status}"/>
@@ -36,8 +39,8 @@
   <BehaviorTree ID="TakeoffBehavior">
     <Sequence>
       <ChoosePad pad_client="{client}"/>
+      <TakeoffInit status="{status}"/>
       <ReactiveSequence>
-        <TakeoffInit status="{status}"/>
         <SendFeedback pad_client="{client}"
                       status="{status}"/>
         <TimeoutROS timeout_ms="20000">
@@ -108,6 +111,11 @@
             editable="true">
       <input_port name="pad_client"
                   type="std::shared_ptr&lt;PadClient&gt;"/>
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Action ID="LandInit"
+            editable="true">
       <output_port name="status"
                    type="unsigned int"/>
     </Action>

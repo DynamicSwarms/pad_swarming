@@ -27,6 +27,7 @@ RoutineFactory::RoutineFactory(
     m_bt_factory.registerNodeType<TakeoffInit>("TakeoffInit", logger);
     m_bt_factory.registerNodeType<TakeoffRoutine>("Takeoff", logger, node_clock_interface, hardware_actor, padflie_tf, pad_execute_server);
     m_bt_factory.registerNodeType<LandRoutine>("Land", logger, node_clock_interface, hardware_actor,padflie_tf, pad_execute_server);
+    m_bt_factory.registerNodeType<LandInit>("LandInit", logger);
     m_bt_factory.registerNodeType<ApproachIDLE>("ApproachIDLE", logger, hardware_actor, padflie_tf, pad_execute_server);
     m_bt_factory.registerNodeType<ApproachCLOSE>("ApproachCLOSE", logger, hardware_actor, padflie_tf,  pad_execute_server);
     m_bt_factory.registerNodeType<TimeoutROS>("TimeoutROS", logger, node_clock_interface);

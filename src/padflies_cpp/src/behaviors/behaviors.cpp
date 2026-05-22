@@ -134,7 +134,7 @@ public:
                 return BT::NodeStatus::RUNNING;
             }
         } else {
-            RCLCPP_INFO(m_logger, "Still waiting to acquire PadRight...");
+            RCLCPP_DEBUG(m_logger, "Still waiting to acquire PadRight...");
             return BT::NodeStatus::RUNNING;
         }
     }
@@ -505,7 +505,7 @@ private:
 };
 
 
-class ApproachIDLE : public BT::SyncActionNode
+class ApproachIDLE : public BT::StatefulActionNode
 {
 public:
     ApproachIDLE(
@@ -515,7 +515,7 @@ public:
         std::shared_ptr<HardwareActor> hardware_actor,
         std::shared_ptr<PadflieTF> padflie_tf,
         std::shared_ptr<PadExecuteServer> pad_execute_server)
-    : BT::SyncActionNode(name, config)
+    : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_hardware_actor(hardware_actor)
     , m_padflie_tf(padflie_tf)
@@ -531,7 +531,7 @@ public:
         };
     }
 
-    BT::NodeStatus tick() override
+    BT::NodeStatus onStart() override
     {
         if (!getInput("pad_client", m_pad_client))
         {
@@ -539,19 +539,22 @@ public:
             return BT::NodeStatus::FAILURE;
         }
         setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_APPROACH_IDLE);
-
         RCLCPP_INFO(m_logger, "Approaching IDLE position...");
+        return BT::NodeStatus::RUNNING;
+    }
 
-        Eigen::Affine3d my_pose = Eigen::Affine3d::Identity(); // TODO: get current pose from hardware actor
-        Eigen::Vector3d translation;
-        if (!m_padflie_tf->get_cf_position(translation))
+    BT::NodeStatus onRunning() override
+    {
+        RCLCPP_DEBUG(m_logger, "Approaching IDLE position...");
+
+        Eigen::Affine3d my_pose;
+        if (!m_padflie_tf->get_cf_pose(my_pose))
         {
             RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
             return BT::NodeStatus::FAILURE;
         } else {
-            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", translation.x(), translation.y(), translation.z());
+            RCLCPP_DEBUG(m_logger, "Current Crazyflie position: [%f, %f, %f]", my_pose.translation().x(), my_pose.translation().y(), my_pose.translation().z());
         }
-        my_pose.translation() = translation;
         Eigen::Affine3d idle_pose_remote_frame;
         std::string target_frame_id;
         bool success = m_pad_client->get_pad_idle_target(1.0, my_pose, "world", idle_pose_remote_frame, target_frame_id);
@@ -560,14 +563,7 @@ public:
             RCLCPP_ERROR(m_logger, "Error getting idle target!");
             return BT::NodeStatus::FAILURE;
         }
-
-        // Eigen::Affine3d world_to_idle;
-        // m_padflie_tf->get_world_affine3d("pad_circle", world_to_idle);
-        // 
-        // Eigen::Affine3d idle_pose_world = world_to_idle.inverse() * idle_pose_remote_frame; // TODO: transform idle pose to world frame using padflie_tf
-        // RCLCPP_INFO(m_logger, "The goal idle position is: [%f, %f, %f]", idle_pose_remote_frame.translation().x(), idle_pose_remote_frame.translation().y(), idle_pose_remote_frame.translation().z());
-        // RCLCPP_INFO(m_logger, "The goal idle position in world frame is: [%f, %f, %f]", idle_pose_world.translation().x(), idle_pose_world.translation().y(), idle_pose_world.translation().z());
-        
+  
 
         PoseTarget idle_pose_target;
         idle_pose_target.frame_id = target_frame_id;
@@ -580,18 +576,10 @@ public:
     }
 
 
-    // BT::NodeStatus onRunning() override
-    // {
-    //     RCLCPP_INFO(m_logger, "Approaching IDLE position, waiting for completion...");
-    //     
-    //     // query idle target and send actor to it
-    //     return BT::NodeStatus::RUNNING;
-    // }
-
-    // void onHalted() override
-    // {
-    //     RCLCPP_INFO(m_logger, "ApproachIDLE halted, stopping the drone. What should happen here?");
-    // }
+    void onHalted() override
+    {
+        RCLCPP_INFO(m_logger, "ApproachIDLE halted, stopping the drone. What should happen here?");
+    }
 
 private: 
     rclcpp::Logger m_logger;
@@ -643,7 +631,7 @@ public:
 
     BT::NodeStatus onRunning() override
     {
-        RCLCPP_INFO(m_logger, "Approaching CLOSE position, waiting for completion...");
+        RCLCPP_DEBUG(m_logger, "Approaching CLOSE position, waiting for completion...");
         
         geometry_msgs::msg::PoseStamped close_target_pose = m_pad_client->get_target_pose();
         close_target_pose.pose.position.z += 0.5; // hover 0.5m above the target pose
@@ -657,9 +645,8 @@ public:
         Eigen::Vector3d position; 
         if (m_padflie_tf->get_cf_position(position))
         {
-            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
             if ((position - close_target.pose.translation()).norm() < 0.5) {
-                RCLCPP_INFO(m_logger, "Reached CLOSE position!");
+                RCLCPP_DEBUG(m_logger, "Reached CLOSE position!");
                 return BT::NodeStatus::SUCCESS;
             }
         } else {
@@ -697,10 +684,7 @@ public:
         : BT::DecoratorNode(name, config)
         , m_logger(logger.get_child(name))
         , m_clock(clock_interface->get_clock())
-        {
-            RCLCPP_INFO(m_logger, "TimeoutROS decorator created");
-
-        }
+        {}
 
         static BT::PortsList providedPorts()
         {
@@ -778,9 +762,7 @@ public:
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_pad_execute_server(pad_execute_server)
-    {
-        RCLCPP_INFO(m_logger, "SendFeedback node created");
-    }
+    {}
 
     static BT::PortsList providedPorts()
     {
@@ -1003,8 +985,37 @@ public:
 
     BT::NodeStatus tick() override
     {
-        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_IN_PAD);
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_INIT);
         RCLCPP_INFO(m_logger, "TakeoffInit ticked, setting status to TAKEOFF_IN_PAD");
+        return BT::NodeStatus::SUCCESS;
+    }
+private:
+    rclcpp::Logger m_logger;
+};
+
+class LandInit : public BT::SyncActionNode
+{
+public:
+    LandInit(
+        const std::string& name,
+        const BT::NodeConfig& config,
+        rclcpp::Logger logger)
+    : BT::SyncActionNode(name, config)
+    , m_logger(logger.get_child(name))
+    {
+    }
+
+    static BT::PortsList providedPorts()
+    {
+        return {
+            BT::OutputPort<uint8_t>("status")
+        };
+    }
+
+    BT::NodeStatus tick() override
+    {
+        setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_INIT);
+        RCLCPP_INFO(m_logger, "LandInit ticked, setting status to LAND_INIT");
         return BT::NodeStatus::SUCCESS;
     }
 private:

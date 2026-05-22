@@ -96,6 +96,9 @@ public:
     bool get_cf_position(
         Eigen::Vector3d & position);
 
+    bool get_cf_pose(
+        Eigen::Affine3d & pose);
+
     bool pose_stamped_to_world_position_and_yaw(
         const geometry_msgs::msg::PoseStamped & pose_stamped,
         Eigen::Vector3d & position,
