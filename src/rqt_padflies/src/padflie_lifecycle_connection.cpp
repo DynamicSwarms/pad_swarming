@@ -8,8 +8,10 @@ PadflieLifecycleConnection::PadflieLifecycleConnection(
     std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
     std::shared_ptr<rclcpp::CallbackGroup> callback_group,
     rclcpp::Logger logger)
-    : m_lifecycle_state_callback(nullptr)
+    : m_callback_group(callback_group)
     , m_logger(logger)
+    , m_lifecycle_state_callback(nullptr)
+
 {
     auto subscription_options = rclcpp::SubscriptionOptions();
     subscription_options.callback_group = callback_group;
@@ -26,7 +28,7 @@ PadflieLifecycleConnection::PadflieLifecycleConnection(
         node_graph_interface,
         node_services_interface,
         prefix + "/change_state",
-        rclcpp::QoS(10).get_rmw_qos_profile(),
+        rclcpp::ServicesQoS().keep_last(10),
         callback_group);
 
     m_get_state_client = rclcpp::create_client<lifecycle_msgs::srv::GetState>(
@@ -34,7 +36,7 @@ PadflieLifecycleConnection::PadflieLifecycleConnection(
         node_graph_interface,
         node_services_interface,
         prefix + "/get_state",
-        rmw_qos_profile_services_default,
+        rclcpp::ServicesQoS(),
         callback_group);
 }
 

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(collision_avoidance)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -16,10 +16,10 @@ find_package(Eigen3 REQUIRED)
 
 add_executable(collision_avoidance_node src/collision_avoidance_node.cpp)
 
-ament_target_dependencies(collision_avoidance_node
-  rclcpp
-  geometry_msgs
-  collision_avoidance_interfaces)
+target_link_libraries(collision_avoidance_node
+  rclcpp::rclcpp
+  geometry_msgs::geometry_msgs
+  collision_avoidance_interfaces::collision_avoidance_interfaces)
 
   target_link_libraries(collision_avoidance_node Eigen3::Eigen)
 

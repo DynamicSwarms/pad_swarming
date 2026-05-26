@@ -38,13 +38,13 @@ private:
 
 
 private:
-  std::function<void(bool success)> m_on_finished_callback;
+  rclcpp::Logger m_logger;
+  BT::Tree m_behavior_tree;
 
   bool m_has_been_started = false;
   bool m_finished = false;
   bool m_tree_is_running = false;
-  BT::Tree m_behavior_tree;
 
+  std::function<void(bool success)> m_on_finished_callback;
   std::shared_ptr<rclcpp::TimerBase> m_timer;
-  rclcpp::Logger m_logger;
 };

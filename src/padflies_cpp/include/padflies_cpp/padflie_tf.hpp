@@ -1,10 +1,10 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "tf2_ros/buffer.h"
+#include "tf2_ros/buffer.hpp"
 #include "tf2_ros/qos.hpp"
 #include <tf2_msgs/msg/tf_message.hpp>
-#include "crazyflie_interfaces/msg/pose_stamped_array.hpp"
+#include "crazyflie_interfaces/msg/pose_named_array.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
@@ -121,7 +121,7 @@ private:
         geometry_msgs::msg::TransformStamped & transform);
 
     void cf_positions_callback(
-        const crazyflie_interfaces::msg::PoseStampedArray::SharedPtr msg);
+        const crazyflie_interfaces::msg::PoseNamedArray::SharedPtr msg);
 
 private: 
     template<typename... Args>
@@ -151,7 +151,7 @@ private:
     std::shared_ptr<rclcpp::Subscription<tf2_msgs::msg::TFMessage>> m_static_tf_subscription;
 
 
-    rclcpp::Subscription<crazyflie_interfaces::msg::PoseStampedArray>::SharedPtr m_cf_positions_sub;
+    rclcpp::Subscription<crazyflie_interfaces::msg::PoseNamedArray>::SharedPtr m_cf_positions_sub;
     rclcpp::CallbackGroup::SharedPtr m_callback_group;
 
 private:

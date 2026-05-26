@@ -18,6 +18,7 @@ class CoordinatePlaneWidget : public QWidget
 public:
     CoordinatePlaneWidget(QWidget *parent = nullptr)
     {
+        (void)parent;
         setMouseTracking(true);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         setSizeIncrement(1, 1);
@@ -58,6 +59,7 @@ private:
 protected:
     void paintEvent(QPaintEvent *event) override 
     {
+        (void)event;
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
         painter.fillRect(rect(), QColor(30, 30, 30));
@@ -139,6 +141,7 @@ protected:
 
     void leaveEvent(QEvent *event) override
     {
+        (void)event;
         m_has_hover = false;
         update();
     }

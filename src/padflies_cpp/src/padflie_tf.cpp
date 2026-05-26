@@ -1,5 +1,5 @@
 #include "padflies_cpp/padflie_tf.hpp"
-#include <tf2/utils.h>
+#include <tf2/utils.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "tf2_eigen/tf2_eigen.hpp"
 
@@ -42,7 +42,7 @@ void PadflieTF::start_listening(
         rclcpp::CallbackGroupType::MutuallyExclusive);
     auto sub_opt = rclcpp::SubscriptionOptions();
     sub_opt.callback_group = m_callback_group;
-    m_cf_positions_sub = rclcpp::create_subscription<crazyflie_interfaces::msg::PoseStampedArray>(
+    m_cf_positions_sub = rclcpp::create_subscription<crazyflie_interfaces::msg::PoseNamedArray>(
         node_topics_interface,
         "/cf_positions",
         rclcpp::QoS(10),
@@ -318,11 +318,13 @@ bool PadflieTF::lookup_transform(
 }
 
 void PadflieTF::cf_positions_callback(
-    const crazyflie_interfaces::msg::PoseStampedArray::SharedPtr msg)
+    const crazyflie_interfaces::msg::PoseNamedArray::SharedPtr msg)
 {
     for (const auto & pose : msg->poses) {
-        if (pose.header.frame_id == m_cf_name) {
-            m_last_position = pose;
+        if (pose.name == m_cf_name) {
+            m_last_position = geometry_msgs::msg::PoseStamped();
+            m_last_position.header.frame_id = msg->header.frame_id;
+            m_last_position.pose = pose.pose;
             m_last_position_time = get_now();
         }
     }

@@ -47,13 +47,13 @@ set(PADFLIE_DEPS
   src/routine_factory.cpp
 )
 
-ament_target_dependencies(padflie
-  rclcpp
-  rclcpp_components
-  pad_management_interfaces
-  rclcpp_lifecycle
-  lifecycle_msgs
-  std_srvs)
+target_link_libraries(padflie
+  rclcpp::rclcpp
+  rclcpp_components::component
+  pad_management_interfaces::pad_management_interfaces
+  rclcpp_lifecycle::rclcpp_lifecycle
+  lifecycle_msgs::lifecycle_msgs
+  std_srvs::std_srvs)
 
 add_library(padflie_deps ${PADFLIE_DEPS})
 target_compile_features(padflie_deps PUBLIC cxx_std_17)
@@ -61,23 +61,28 @@ target_include_directories(padflie_deps PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
 )
-ament_target_dependencies(padflie_deps 
-  rclcpp
-  crazyflie_interfaces
-  padflies_interfaces
-  pad_management_interfaces
-  rclcpp_lifecycle
-  tf2
-  tf2_ros
-  tf2_eigen
-  tf2_geometry_msgs
-  collision_avoidance_interfaces
-  std_srvs
-  behaviortree_cpp)
+target_link_libraries(padflie_deps 
+  rclcpp::rclcpp
+  crazyflie_interfaces::crazyflie_interfaces
+  padflies_interfaces::padflies_interfaces
+  pad_management_interfaces::pad_management_interfaces
+  rclcpp_lifecycle::rclcpp_lifecycle
+  tf2::tf2
+  tf2_ros::tf2_ros
+  tf2_eigen::tf2_eigen
+  tf2_geometry_msgs::tf2_geometry_msgs
+  collision_avoidance_interfaces::collision_avoidance_interfaces
+  std_srvs::std_srvs
+  behaviortree_cpp::behaviortree_cpp)
 
 
 target_link_libraries(padflie
   padflie_deps)
+
+install(TARGETS padflie_deps
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
 
 install(TARGETS padflie
   DESTINATION lib/${PROJECT_NAME})

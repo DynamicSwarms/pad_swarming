@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(pad_management_cpp)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -26,10 +26,10 @@ target_include_directories(pad_right_provider PUBLIC
   $<INSTALL_INTERFACE:include>)
 target_compile_features(pad_right_provider PUBLIC c_std_99 cxx_std_20)  # Require C99 and C++20
 
-ament_target_dependencies(pad_right_provider
-  rclcpp
-  rclcpp_action
-  pad_management_interfaces
+target_link_libraries(pad_right_provider
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  pad_management_interfaces::pad_management_interfaces
 )
 
 install(TARGETS pad_right_provider

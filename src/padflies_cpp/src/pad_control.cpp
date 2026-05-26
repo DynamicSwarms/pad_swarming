@@ -32,21 +32,21 @@ void PadControl::create_connection(const std::string & pad_name)
         m_node_graph_interface,
         m_node_services_interface,
         "/" + pad_name + "/pad_right_acquire",
-        rclcpp::QoS(10).get_rmw_qos_profile(),
+        rclcpp::ServicesQoS().keep_last(10),
         m_callback_groups[m_prefix]);
     m_release_client = rclcpp::create_client<pad_management_interfaces::srv::PadRightRelease>(
         m_node_base_interface,
         m_node_graph_interface,
         m_node_services_interface,
         "/" + pad_name + "/pad_right_release",
-        rclcpp::QoS(10).get_rmw_qos_profile(),
+        rclcpp::ServicesQoS().keep_last(10),
         m_callback_groups[m_prefix]);
     m_pad_idle_target_client = rclcpp::create_client<pad_management_interfaces::srv::PadIdleTarget>(
         m_node_base_interface,
         m_node_graph_interface,
         m_node_services_interface,
         "/" + pad_name + "/pad_idle_target",
-        rclcpp::QoS(10).get_rmw_qos_profile(),
+        rclcpp::ServicesQoS().keep_last(10),
         m_callback_groups[m_prefix]);
 }
 

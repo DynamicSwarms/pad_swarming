@@ -23,7 +23,11 @@ setup(
     maintainer_email="vinzenz@malke.info",
     description="TODO: Package description",
     license="TODO: License declaration",
-    tests_require=["pytest"],
+    extras_require={
+        'test': [
+            'pytest',
+        ],
+    },
     entry_points={
         "console_scripts": [
             "random_walk_agent = agents.random_walk_agent:main",

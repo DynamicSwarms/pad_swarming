@@ -22,7 +22,7 @@ CollisionAvoidanceClient::CollisionAvoidanceClient(
         node_graph_interface,
         node_services_interface,
         "collision_avoidance",
-        rclcpp::QoS(10).get_rmw_qos_profile(),
+        rclcpp::ServicesQoS().keep_last(10),
         m_callback_groups[cf_id]);
 }
 

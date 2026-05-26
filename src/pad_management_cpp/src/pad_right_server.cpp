@@ -12,8 +12,8 @@ PadRightServer::PadRightServer(
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
 :   m_node_base_interface(node_base_interface),
     m_node_timers_interface(node_timers_interface),
-    m_node_logging_interface(node_logging_interface),
     m_node_graph_interface(node_graph_interface),
+    m_node_logging_interface(node_logging_interface),
     m_node_waitables_interface(node_waitables_interface),
     m_max_requests(node_param_interface->declare_parameter(
         "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>()),

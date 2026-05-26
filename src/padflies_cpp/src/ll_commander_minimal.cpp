@@ -27,7 +27,7 @@ LowLevelCommanderMinimal::LowLevelCommanderMinimal(
         node_graph_interface, 
         node_services_interface, 
         cf_prefix + "/notify_setpoints_stop",
-        rmw_qos_profile_services_default,
+        rclcpp::ServicesQoS(),
         m_callback_groups[cf_prefix]);
 
     m_cmd_position_pub = rclcpp::create_publisher<crazyflie_interfaces::msg::Position>(

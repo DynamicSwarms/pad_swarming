@@ -26,16 +26,16 @@ target_compile_features(padflie_behaviors_base PUBLIC c_std_99 cxx_std_17)  # Re
 target_include_directories(padflie_behaviors_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(
-  padflie_behaviors_base
-  rclcpp
-  rclcpp_action
-  behaviortree_cpp
-  pad_management_interfaces
-  tf2
-  tf2_ros
-  tf2_eigen
-  crazyflie_interfaces
+target_link_libraries(
+  padflie_behaviors_base::padflie_behaviors_base
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  behaviortree_cpp::behaviortree_cpp
+  pad_management_interfaces::pad_management_interfaces
+  tf2::tf2
+  tf2_ros::tf2_ros
+  tf2_eigen::tf2_eigen
+  crazyflie_interfaces::crazyflie_interfaces
   "padflies_cpp"
   "pluginlib"
 )

@@ -28,8 +28,8 @@ public:
   
 
 private: 
-  std::shared_ptr<PadRightServer> m_pad_right_server;
   PadResourceManager m_pad_resource_manager;
+  std::shared_ptr<PadRightServer> m_pad_right_server;
 };
 
 int main(int argc, char ** argv)

@@ -65,8 +65,13 @@ public:
       });
 
     m_get_state_callback_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    m_cf_get_state_client = this->create_client<lifecycle_msgs::srv::GetState>(m_cf_prefix + "/get_state", rmw_qos_profile_services_default, m_get_state_callback_group);
-    m_cf_state_check_timer = this->create_wall_timer(std::chrono::milliseconds(200), std::bind(&Padflie::m_cf_state_check_callback, this));
+    m_cf_get_state_client = this->create_client<lifecycle_msgs::srv::GetState>(
+      m_cf_prefix + "/get_state",
+      rclcpp::ServicesQoS().keep_last(10),
+      m_get_state_callback_group);
+    m_cf_state_check_timer = this->create_wall_timer(
+      std::chrono::milliseconds(200),
+      std::bind(&Padflie::m_cf_state_check_callback, this));
     m_cf_transition_event_sub = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
       m_cf_prefix + "/transition_event", 10,
       std::bind(&Padflie::m_cf_transition_event_callback, this, _1));

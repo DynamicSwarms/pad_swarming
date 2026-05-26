@@ -59,7 +59,7 @@ bool RequestMap::manage_requests()
     m_check_done_status();
 
     bool new_owner_selected = false;
-    if (new_owner_selected = m_select_new_owner()) {
+    if ((new_owner_selected = m_select_new_owner())) {
         m_publish_feedback();
     }
     return new_owner_selected;

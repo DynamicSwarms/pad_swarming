@@ -23,7 +23,7 @@ HighLevelCommanderMinimal::HighLevelCommanderMinimal(
         node_graph_interface, 
         node_services_interface, 
         cf_prefix + "/takeoff",
-        rmw_qos_profile_services_default,
+        rclcpp::ServicesQoS(),
         m_callback_groups[cf_prefix]);
 
     m_land_client = rclcpp::create_client<crazyflie_interfaces::srv::Land>(
@@ -31,7 +31,7 @@ HighLevelCommanderMinimal::HighLevelCommanderMinimal(
         node_graph_interface, 
         node_services_interface, 
         cf_prefix + "/land",
-        rmw_qos_profile_services_default,
+        rclcpp::ServicesQoS(),
         m_callback_groups[cf_prefix]);
 
     m_go_to_client = rclcpp::create_client<crazyflie_interfaces::srv::GoTo>(
@@ -39,7 +39,7 @@ HighLevelCommanderMinimal::HighLevelCommanderMinimal(
         node_graph_interface, 
         node_services_interface, 
         cf_prefix + "/go_to",
-        rmw_qos_profile_services_default,
+        rclcpp::ServicesQoS(),
         m_callback_groups[cf_prefix]);
 
 }

@@ -129,10 +129,16 @@ void ManagerPlugin::shutdownPlugin()
 }
 
 void ManagerPlugin::saveSettings(qt_gui_cpp::Settings& plugin_settings, qt_gui_cpp::Settings& instance_settings) const
-{}
+{
+  (void)plugin_settings;
+  (void)instance_settings;
+}
 
 void ManagerPlugin::restoreSettings(const qt_gui_cpp::Settings& plugin_settings, const qt_gui_cpp::Settings& instance_settings)
-{}
+{
+  (void)plugin_settings;
+  (void)instance_settings;
+}
 
 }  // namespace rqt_padflies
 

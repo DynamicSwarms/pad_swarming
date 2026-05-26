@@ -18,7 +18,7 @@ public:
       std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
       std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
       rclcpp::Logger logger,
-      const std::string & xml_file = std::string("/home/winni/2ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/behaviors.xml")
+      const std::string & xml_file = std::string("/home/winni/ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/behaviors.xml")
     );
     ~RoutineFactory();
 

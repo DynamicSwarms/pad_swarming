@@ -29,7 +29,7 @@ public:
             node_graph_interface,
             node_services_interface,
             prefix + "/land",
-            rclcpp::QoS(10).get_rmw_qos_profile(),
+            rclcpp::ServicesQoS().keep_last(10),
             callback_group);
 
         m_takeoff_client = rclcpp::create_client<std_srvs::srv::Trigger>(
@@ -37,7 +37,7 @@ public:
             node_graph_interface,
             node_services_interface,
             prefix + "/takeoff",
-            rclcpp::QoS(10).get_rmw_qos_profile(),
+            rclcpp::ServicesQoS().keep_last(10),
             callback_group);
     }
 

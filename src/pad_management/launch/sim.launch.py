@@ -3,7 +3,7 @@ from launch import LaunchDescription
 
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch.conditions import LaunchConfigurationEquals
+from launch.conditions import IfCondition, LaunchConfigurationEquals
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -20,7 +20,7 @@ def generate_launch_description():
         executable="clock",
         output="screen",
         parameters=[{"rate": 10.0}],
-        condition=LaunchConfigurationEquals("use_sim_time", "true"),
+        condition=IfCondition(LaunchConfiguration("use_sim_time")),
     )
 
     gateway = Node(
@@ -63,13 +63,6 @@ def generate_launch_description():
             )
         )
 
-    position_visualization = Node(
-        package="crazyflies",
-        executable="position_visualization",
-        name="position_visualization",
-        parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
-    )
-
     pads_config_sim = (
         get_package_share_directory("pad_management") + "/config/pads_config_sim.yaml"
     )
@@ -94,13 +87,31 @@ def generate_launch_description():
     charging_base_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0 0 0 3.14159 0 0 world ChargingBase20".split(" "),
+        arguments=[
+            "--x", "0",
+            "--y", "0",
+            "--z", "0",
+            "--yaw", "3.14159",
+            "--pitch", "0",
+            "--roll", "0",
+            "--frame-id", "world",
+            "--child-frame-id", "ChargingBase20",
+        ],
     )
 
     pad_circle_tf = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments="0.5 0.8 1.0 0 0 0 ChargingBase20 pad_circle".split(" "),
+        arguments=[
+            "--x", "0.5",
+            "--y", "0.8",
+            "--z", "1.0",
+            "--yaw", "0",
+            "--pitch", "0",
+            "--roll", "0",
+            "--frame-id", "ChargingBase20",
+            "--child-frame-id", "pad_circle",
+        ],
     )
 
     pad_circle = Node(
@@ -116,7 +127,6 @@ def generate_launch_description():
             gateway,
             crazyflies,
             *padflies,
-            position_visualization,
             pad_broadcaster,
             collision_avoidance,
             traffic_controller,

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include <rqt_gui_cpp/plugin.h>
+#include <rqt_gui_cpp/plugin.hpp>
 
 #include "std_msgs/msg/string.hpp"
 

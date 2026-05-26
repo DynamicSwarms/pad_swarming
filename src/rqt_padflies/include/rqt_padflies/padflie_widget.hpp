@@ -149,7 +149,8 @@ class PadflieWidget : public QWidget
   private: 
       //this->setEnabled(m_lifecycle_connection->padflie_is_available());
       
-    void lifecycle_state_changed_callback(lifecycle_msgs::msg::State current_state) {
+    void lifecycle_state_changed_callback(lifecycle_msgs::msg::State current_state) 
+    {
       
     }
 

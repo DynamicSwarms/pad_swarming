@@ -40,7 +40,7 @@ public:
                 node_graph_interface,
                 node_services_interface,
                 pad_name + "/pad_idle_target",
-                rclcpp::QoS(10).get_rmw_qos_profile(),
+                rclcpp::ServicesQoS().keep_last(10),
                 callback_group);
     }
 
@@ -163,8 +163,9 @@ private:
 private: 
     std::string m_prefix;
     std::string m_pad_name;
-    std::shared_ptr<PadflieTF> m_padflie_tf;
     rclcpp::Logger m_logger;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
+
 
     std::shared_ptr<rclcpp_action::Client<PadRightControlActionT>> m_pad_right_control_action_client;
     std::shared_ptr<rclcpp::Client<pad_management_interfaces::srv::PadIdleTarget>> m_pad_idle_target_client;

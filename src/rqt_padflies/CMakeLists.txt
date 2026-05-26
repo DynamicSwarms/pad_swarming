@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(rqt_padflies)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -17,7 +17,7 @@ find_package(std_srvs   REQUIRED)
 find_package(padflies_interfaces REQUIRED)
 find_package(qt_gui_cpp REQUIRED)
 find_package(rqt_gui_cpp REQUIRED)
-find_package(Qt5Widgets REQUIRED)
+find_package(Qt6Widgets REQUIRED)
 find_package(Eigen3 REQUIRED)
 set(manager_plugin_SRCS
   src/manager_plugin.cpp
@@ -41,8 +41,8 @@ set(manager_plugin_UIS
   src/uis/padflie.ui
 )
 
-qt5_wrap_cpp(manager_plugin_MOCS ${manager_plugin_HDRS})
-qt5_wrap_ui(manager_plugin_UIS_H ${manager_plugin_UIS})
+qt6_wrap_cpp(manager_plugin_MOCS ${manager_plugin_HDRS})
+qt6_wrap_ui(manager_plugin_UIS_H ${manager_plugin_UIS})
 
 add_library(${PROJECT_NAME} SHARED
   ${manager_plugin_SRCS}
@@ -56,17 +56,17 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 
-ament_target_dependencies(${PROJECT_NAME}
-  rclcpp
-  rclcpp_lifecycle
-  qt_gui_cpp
-  rqt_gui_cpp
-  std_msgs
-  std_srvs
-  padflies_interfaces)
+target_link_libraries(${PROJECT_NAME}
+  rclcpp::rclcpp
+  rclcpp_lifecycle::rclcpp_lifecycle
+  qt_gui_cpp::qt_gui_cpp
+  rqt_gui_cpp::rqt_gui_cpp
+  std_msgs::std_msgs
+  std_srvs::std_srvs
+  padflies_interfaces::padflies_interfaces)
 
 target_link_libraries(${PROJECT_NAME} 
-  Qt5::Widgets
+  Qt6::Widgets
   Eigen3::Eigen
 )
 
