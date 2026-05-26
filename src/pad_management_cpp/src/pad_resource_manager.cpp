@@ -4,6 +4,11 @@
 #include <iostream>
 #include <ostream>
 
+#include "pluginlib/class_list_macros.hpp"
+
+
+namespace pad_management_cpp
+{
 
 bool 
 PadResourceManager::m_try_lock(uint8_t id)
@@ -46,3 +51,6 @@ PadResourceManager::m_get_associated_position(uint8_t id, geometry_msgs::msg::Po
     position.pose.orientation.w = 1.0;
     return true;
 }
+}  // namespace pad_management_cpp
+
+PLUGINLIB_EXPORT_CLASS(pad_management_cpp::PadResourceManager, IPadResourceManager)

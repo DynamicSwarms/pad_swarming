@@ -1,0 +1,7 @@
+<library path="pad_management_cpp_plugins">
+  <class type="pad_management_cpp::PadResourceManager" base_class_type="IPadResourceManager">
+    <description>
+      Example pad resource manager implementation that provides pad locking and fixed pad positions.
+    </description>
+  </class>
+</library>

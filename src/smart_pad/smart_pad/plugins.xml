@@ -1,0 +1,7 @@
+<library path="smart_pad_plugins">
+  <class type="smart_pad::SmartPadResourceManager" base_class_type="IPadResourceManager">
+    <description>
+      Smart pad implementation of the IPadResourceManager plugin interface.
+    </description>
+  </class>
+</library>
