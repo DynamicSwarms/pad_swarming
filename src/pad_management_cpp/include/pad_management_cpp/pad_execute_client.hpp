@@ -24,7 +24,10 @@ public:
     bool is_finished() const { return m_is_done; }
     uint8_t result() const { return m_result; }
 
-    void send_goal(
+    bool wait_for_action_server_available();
+
+    bool
+    send_goal(
         const std::string & pad_name,
         uint8_t action);
 

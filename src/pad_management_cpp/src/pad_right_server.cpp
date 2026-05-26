@@ -6,6 +6,7 @@ PadRightServer::PadRightServer(
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface, 
     std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
@@ -38,20 +39,45 @@ PadRightServer::PadRightServer(
         m_callback_group
     );
 
+    m_action_server_name = name + "/pad_right_control";
     m_action_server = rclcpp_action::create_server<pad_management_interfaces::action::PadRightControl>(
         node_base_interface,
         node_clock_interface,
         node_logging_interface,
         node_waitables_interface,
-        name + "/pad_right_control",
+        m_action_server_name,
         std::bind(&PadRightServer::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
         std::bind(&PadRightServer::handle_cancel, this, std::placeholders::_1),
         std::bind(&PadRightServer::handle_accepted, this, std::placeholders::_1),
         rcl_action_server_get_default_options(),
         m_callback_group
     );
+
+    auto pub_options = rclcpp::PublisherOptions();
+    pub_options.callback_group = m_callback_group;
+    m_pad_info_publisher = rclcpp::create_publisher<pad_management_interfaces::msg::PadInfo>(
+        node_topics_interface,
+        "pad_management/pad_info",
+        rclcpp::QoS(10).best_effort().keep_last(1),
+        pub_options
+    );
+    m_info_publish_timer = rclcpp::create_timer(
+        node_base_interface,
+        node_timers_interface,
+        node_clock_interface->get_clock(),
+        std::chrono::milliseconds(100), 
+        std::bind(&PadRightServer::publish_info, this),
+        m_callback_group
+    );
 }
 
+void 
+PadRightServer::publish_info()
+{
+    pad_management_interfaces::msg::PadInfo msg;
+    msg.pad_right_control_action_name = m_action_server_name;
+    m_pad_info_publisher->publish(msg);
+}
 
 void 
 PadRightServer::manage_requests()
@@ -70,6 +96,14 @@ rclcpp_action::GoalResponse PadRightServer::handle_goal(
     (void)uuid;
     RCLCPP_INFO(m_logger, "Received goal request with name %s.", goal->name.c_str());
 
+    std::string name = goal->name; // padflieID
+    try {
+        int id = std::stoi(name.substr(7));
+    } catch (const std::exception& e) {
+        RCLCPP_WARN(m_logger, "Failed to extract ID from goal name: %s", goal->name.c_str());
+        return rclcpp_action::GoalResponse::REJECT;
+    }
+
     if (m_request_map->has_name(goal->name)) {
       RCLCPP_INFO(m_logger, "Goal with name %s already exists, rejecting new goal.", goal->name.c_str());
       return rclcpp_action::GoalResponse::REJECT;
@@ -80,15 +114,7 @@ rclcpp_action::GoalResponse PadRightServer::handle_goal(
       return rclcpp_action::GoalResponse::REJECT;
     }
 
-    
-    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-}
-
-void PadRightServer::handle_accepted(
-    const std::shared_ptr<rclcpp_action::ServerGoalHandle<pad_management_interfaces::action::PadRightControl>> goal_handle)
-{
-    std::string name = goal_handle->get_goal()->name; // padflieID
-    m_pad_execute_client = std::make_shared<PadExecuteClient>(
+    m_queued_clients[name] = std::make_shared<PadExecuteClient>(
             name,
             m_node_base_interface,
             m_node_graph_interface,
@@ -97,7 +123,34 @@ void PadRightServer::handle_accepted(
             m_callback_group
         );
 
-    m_request_map->add_request(goal_handle, m_pad_execute_client);
+    if (!m_queued_clients[name]->wait_for_action_server_available()) {
+        RCLCPP_ERROR(m_logger, "PadExecute action server not available, rejecting goal with name %s.", goal->name.c_str());
+        return rclcpp_action::GoalResponse::REJECT;
+    }
+
+    
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+void 
+PadRightServer::handle_accepted(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<pad_management_interfaces::action::PadRightControl>> goal_handle)
+{
+    std::string name = goal_handle->get_goal()->name; // padflieID
+    uint8_t action = goal_handle->get_goal()->action;
+
+    bool success = m_queued_clients[name]->send_goal(name, action);
+    if (!success)
+    {
+        auto result = std::make_shared<pad_management_interfaces::action::PadRightControl::Result>();
+        result->success = false;
+        result->reason = "Failed to send goal to PadExecute action server";
+        goal_handle->abort(result);
+        RCLCPP_ERROR(m_logger, "Failed to send goal to PadExecute action server, aborting request.");
+    }
+
+    m_request_map->add_request(goal_handle, m_queued_clients[name]);
+    m_queued_clients.erase(name);
 }
 
 rclcpp_action::CancelResponse PadRightServer::handle_cancel(

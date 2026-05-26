@@ -18,15 +18,22 @@ PadExecuteClient::PadExecuteClient(
         callback_group);
 }
 
+bool 
+PadExecuteClient::wait_for_action_server_available()
+{
+    return m_action_client->wait_for_action_server(std::chrono::milliseconds(100));
+    RCLCPP_ERROR(m_logger, "Action server not available after waiting");
+}
 
-void 
+
+bool 
 PadExecuteClient::send_goal(
     const std::string & pad_name,
     uint8_t action)
 {
-    if (!this->m_action_client->wait_for_action_server(std::chrono::seconds(5))) {
-        RCLCPP_ERROR(m_logger, "Action server not available after waiting");
-        return;
+    RCLCPP_INFO(m_logger, "Sending goal to padflie %s with action %d", pad_name.c_str(), action);
+    if (!this->m_action_client->action_server_is_ready()) {
+        return false;
     }
 
     auto goal_msg = ActionT::Goal();
@@ -43,6 +50,7 @@ PadExecuteClient::send_goal(
         &PadExecuteClient::result_callback, this, std::placeholders::_1);
 
     m_action_client->async_send_goal(goal_msg, send_goal_options);
+    return true;
 }
 
 void  

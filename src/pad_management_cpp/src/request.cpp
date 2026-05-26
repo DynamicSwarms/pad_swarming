@@ -29,13 +29,12 @@ Request::Request(
     m_pad_execute_client(pad_execute_client)
 {
     try {
-        std::string id_str = m_name.substr(8); // Assuming name is like "/padflieID"
+        std::string id_str = m_name.substr(7); // Assuming name is like "padflieID"
         m_id = std::stoi(id_str);
     } catch (const std::exception& e) {
         RCLCPP_WARN(m_logger, "Failed to extract ID from node name: %s", m_name.c_str());
     }
-
-    pad_execute_client->send_goal(m_name, pad_management_interfaces::action::PadExecute::Goal::ACTION_TAKEOFF);
+ 
 }
 
 Request::~Request()

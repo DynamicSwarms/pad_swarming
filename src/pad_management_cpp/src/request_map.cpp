@@ -54,6 +54,7 @@ void RequestMap::add_request(
 bool RequestMap::manage_requests()
 {
     std::lock_guard<std::mutex> lock(m_request_mutex);
+   
     m_check_cancelations();
     m_check_timeouts();
     m_check_done_status();

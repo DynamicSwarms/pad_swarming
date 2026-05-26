@@ -1,6 +1,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "pad_management_interfaces/action/pad_right_control.hpp"
+#include "pad_management_interfaces/msg/pad_info.hpp"
 
 #include "pad_management_cpp/request_map.hpp"
 #include "pad_management_cpp/pad_execute_client.hpp"
@@ -13,6 +14,7 @@ public:
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
@@ -20,6 +22,8 @@ public:
   );
 
 private:
+    void publish_info();
+
     void manage_requests();
 
     rclcpp_action::GoalResponse handle_goal(
@@ -50,7 +54,11 @@ private:
     int m_requests_counter = 0;
 
     std::shared_ptr<rclcpp::TimerBase> m_execution_timer;
+    std::string m_action_server_name = "";
     std::shared_ptr<rclcpp_action::Server<pad_management_interfaces::action::PadRightControl>> m_action_server;
 
-    std::shared_ptr<PadExecuteClient> m_pad_execute_client;
+    std::shared_ptr<rclcpp::Publisher<pad_management_interfaces::msg::PadInfo>> m_pad_info_publisher;
+    std::shared_ptr<rclcpp::TimerBase> m_info_publish_timer;
+
+    std::unordered_map<std::string, std::shared_ptr<PadExecuteClient>> m_queued_clients;
 };

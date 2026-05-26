@@ -1,9 +1,6 @@
 # Goal - sent by Pad
 string pad_name
 uint8 action 
-
-uint8 ACTION_LAND = 0
-uint8 ACTION_TAKEOFF = 1
 ---
 # Result -sent by CF
 uint8 result
