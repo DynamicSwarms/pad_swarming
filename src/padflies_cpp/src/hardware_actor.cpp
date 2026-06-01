@@ -23,11 +23,11 @@ HardwareActor::HardwareActor(
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
 , m_position_controller(m_dt, 5.0, 2.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
 , m_collision_avoidance_client(
-    std::stoi(cf_prefix.substr(3)), 
+    std::stoi(cf_prefix.substr(2)), // Extract ID from cf_prefix (cfID)
     node_base_interface, 
     node_graph_interface, 
     node_services_interface,
-    node_logging_interface->get_logger()) // Extract ID from cf_prefix (/cfID)
+    node_logging_interface->get_logger())
 , m_hl_commander(
     node_base_interface,
     node_graph_interface,

@@ -8,7 +8,12 @@ find_package(launch_testing_ament_cmake REQUIRED)
 # 
 # add_ros_isolated_launch_test(./test_smart_pad.py)
 
+#add_launch_test(
+#  ./test_smart_pad.py
+#  TARGET test_smart_pad
+#)
+
 add_launch_test(
-  ./test_smart_pad.py
-  TARGET test_smart_pad
+  ./test_padflie.py
+  TARGET test_padflie
 )

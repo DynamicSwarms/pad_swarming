@@ -75,13 +75,13 @@ public:
 
     void
     timer_callback() {
-        std::vector<std::string> other_frames = m_smart_pad_tf->get_other_smart_pads();
-        std::stringstream ss;
-        for (const auto & frame : other_frames) {
-            ss << frame << " ";
-        }
-
-        RCLCPP_INFO(m_logger, "Other smart pads: %s", ss.str().c_str());
+        //std::vector<std::string> other_frames = m_smart_pad_tf->get_other_smart_pads();
+        //std::stringstream ss;
+        //for (const auto & frame : other_frames) {
+        //    ss << frame << " ";
+        //}
+//
+        //RCLCPP_INFO(m_logger, "Other smart pads: %s", ss.str().c_str());
     }
 
     void 

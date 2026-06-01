@@ -16,7 +16,7 @@ PadflieTF::PadflieTF(
 , m_world_frame(world_frame)
 , m_has_pad(false)
 , m_last_position()
-, m_last_position_time(rclcpp::Time(0))
+, m_last_position_time(rclcpp::Time(0, 0, clock->get_clock_type()))
 , m_position_timeout(rclcpp::Duration::from_seconds(1.0))
 , m_tf_buffer(std::make_unique<tf2_ros::Buffer>(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)))
 , m_clock(clock)
@@ -302,7 +302,10 @@ bool PadflieTF::lookup_transform(
     geometry_msgs::msg::TransformStamped & transform)
 {
     try {
-        transform = m_tf_buffer->lookupTransform(target_frame, source_frame, rclcpp::Time(0));
+        transform = m_tf_buffer->lookupTransform(
+            target_frame,
+            source_frame,
+            rclcpp::Time(0, 0, m_clock->get_clock_type()));
         return true;
     } catch (const tf2::LookupException & ex) {
         log("LookupException: %s", ex.what());

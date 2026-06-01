@@ -13,7 +13,7 @@ PadflieCommanderBase::PadflieCommanderBase(
 : m_prefix(prefix)
 , m_cf_prefix(cf_prefix)
 , m_hw_state_controller(node_param_interface)
-, m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix.substr(1), WORLD, node_clock_interface->get_clock(), node_logging_interface->get_logger()))
+, m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix, WORLD, node_clock_interface->get_clock(), node_logging_interface->get_logger()))
 , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
 , m_initial_pad(node_param_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>())
 , m_param_callback_handle(node_param_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
@@ -116,7 +116,10 @@ void PadflieCommanderBase::m_on_state_callback()
     bool canfly = m_hw_state_controller.canfly();
     bool tumbled = m_hw_state_controller.is_tumbled();
 
-    if (charged && canfly && !tumbled)
+    Eigen::Vector3d position;
+    bool position_available = m_padflie_tf->get_cf_position(position);
+
+    if (charged && canfly && !tumbled && position_available)
     {
         auto msg = std_msgs::msg::String();
         msg.data = m_prefix;

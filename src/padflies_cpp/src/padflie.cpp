@@ -21,8 +21,8 @@ public:
   Padflie(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
   : rclcpp_lifecycle::LifecycleNode("padflie", options)
   , m_cf_id(declare_parameter("id", rclcpp::ParameterValue(0xE7), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
-  , m_prefix("/padflie" + std::to_string(m_cf_id))
-  , m_cf_prefix("/cf" + std::to_string(m_cf_id))
+  , m_prefix("padflie" + std::to_string(m_cf_id))
+  , m_cf_prefix("cf" + std::to_string(m_cf_id))
   {
     if (false) 
     { 
