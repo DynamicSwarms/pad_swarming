@@ -89,13 +89,48 @@ public:
     }
 
 private:
-  bool m_try_lock(uint8_t id) override;
+  bool m_try_lock(uint8_t id) override
+  {
+    if (m_locks.find(id) != m_locks.end()) {
+        RCLCPP_WARN(m_logger, "Pad %u already has a lock entry", static_cast<unsigned>(id));
+        return false;
+    }
 
-  void m_release(uint8_t id, uint8_t result) override;
+    std::unique_lock<std::mutex> lock(m_lock_mutex, std::defer_lock);
+    if (!lock.try_lock()) {
+        return false;
+    }
 
-  bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override;
+    m_locks.emplace(id, std::move(lock));
+    return true;
+  }
 
-  std::string get_pad_name(uint8_t id) const;
+  void m_release(uint8_t id, uint8_t result) override
+  {
+    (void)result;
+    auto it = m_locks.find(id);
+    if (it == m_locks.end()) {
+        RCLCPP_WARN(m_logger, "Release requested for unlocked pad %u", static_cast<unsigned>(id));
+        return;
+    }
+
+    m_locks.erase(it);
+  }
+
+  bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override
+  {
+    position.header.frame_id = get_pad_name(id);
+    position.pose.position.x = 0.0;
+    position.pose.position.y = 0.0;
+    position.pose.position.z = 0.0;
+    position.pose.orientation.x = 0.0;
+    position.pose.orientation.y = 0.0;
+    position.pose.orientation.z = 0.0;
+    position.pose.orientation.w = 1.0;
+    return true;
+  }
+
+  std::string get_pad_name(uint8_t id) const {return "smart_pad_" + std::to_string(id);}
 
   std::unordered_map<uint8_t, std::unique_lock<std::mutex>> m_locks;
   std::mutex m_lock_mutex;

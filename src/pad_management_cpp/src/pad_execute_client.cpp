@@ -9,13 +9,16 @@ PadExecuteClient::PadExecuteClient(
     rclcpp::CallbackGroup::SharedPtr callback_group)
 : m_logger(node_logging_interface->get_logger().get_child("PadExecuteClient[" + name + "]"))
 {
+    std::string action_name = name + "/pad_execute";
     m_action_client = rclcpp_action::create_client<ActionT>(
         node_base_interface,
         node_graph_interface,
         node_logging_interface,
         node_waitables_interface,
-        name + "/pad_execute",
+        action_name,
         callback_group);
+
+    RCLCPP_DEBUG(m_logger, "Created action client for %s", action_name.c_str());
 }
 
 bool 

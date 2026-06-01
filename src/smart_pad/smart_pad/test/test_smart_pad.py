@@ -67,7 +67,7 @@ class TestLockService(unittest.TestCase):
     def setUpClass(cls):
         # Create a service client for the Lock service
         rclpy.init()
-        cls.node = rclpy.create_node('test_lock_service_client')
+        cls.node = rclpy.create_node('test_smart_pads_node')
         cls.info_sub = cls.node.create_subscription(
             PadInfo,
             'pad_management/pad_info',
@@ -104,7 +104,6 @@ class TestLockService(unittest.TestCase):
         pad_right_goal.name = "padflie1"
         pad_right_goal.action = PadRightControl.Goal.ACTION_TAKEOFF
 
-
         future = action_client.send_goal_async(pad_right_goal)
         rclpy.spin_until_future_complete(self.node, future)
         goal_handle = future.result()
@@ -112,83 +111,99 @@ class TestLockService(unittest.TestCase):
         self.assertFalse(goal_handle.accepted, 'Goal should be rejected, since we dont have execute client')
 
     def test_pad_right_control_action_with_execute_client(self):
+        padflie_name = "padflie1"
+        smart_pad_name = "smart_pad_0"
+
+        executor = rclpy.executors.MultiThreadedExecutor()
+        executor.add_node(self.node)
+
         action_client = ActionClient(
             self.node,
             PadRightControl,
-            'smart_pad_0/pad_right_control',
+            f'{smart_pad_name}/pad_right_control',
             callback_group=rclpy.callback_groups.MutuallyExclusiveCallbackGroup()
         )
 
-        state = {
-            "goal_received": False,
-            "cancel_received": False,
-            "executed": False,
-        }
-        def goal_cb(goal_request):
-            state.update({"goal_received": True})
-            return GoalResponse.ACCEPT
-        
-        def cancel_cb(goal_handle):
-            state.update({"cancel_received": True})
-            return CancelResponse.ACCEPT
-        
+        on_allowed_event = threading.Event()
 
-        def execute_cb(goal_handle):
-            state["executed"] = True
-
-            time.sleep(0.5)  
-            result = PadExecute.Result()
-            result.result = PadExecute.Result.RESULT_ON_PAD
-            goal_handle.succeed()
-            return result
-        
-        action_server = ActionServer(
-            self.node,
-            PadExecute,
-            'padflie1/pad_execute',
-            execute_callback=execute_cb,
-            goal_callback=goal_cb,
-            cancel_callback=cancel_cb,
-            callback_group=rclpy.callback_groups.MutuallyExclusiveCallbackGroup()
+        action_server, state = self.create_pad_execute_server(
+            padflie_name, PadExecute.Result.RESULT_ON_PAD, on_allowed_event
         )
-        self.assertTrue(action_client.wait_for_server(timeout_sec=5.0), 'PadRightControl action server not available')
 
 
+        self.assertTrue(action_client.wait_for_server(timeout_sec=0.3), 'PadRightControl action server not available')
+
+        _feedback_received = False
         def feedback_cb(feedback_msg):
+            nonlocal _feedback_received
+            _feedback_received = True
             if feedback_msg.feedback.status == PadRightControl.Feedback.STATUS_ACQUIRED_RIGHT:
                 result = PadExecute.Result()
                 result.result = PadExecute.Result.RESULT_ON_PAD
-
+                on_allowed_event.set()  # Signal the execute callback to proceed with execution
 
         pad_right_goal = PadRightControl.Goal()
-        pad_right_goal.name = "padflie1"
+        pad_right_goal.name = padflie_name
         pad_right_goal.action = PadRightControl.Goal.ACTION_TAKEOFF
         send_goal_future = action_client.send_goal_async(pad_right_goal, feedback_callback=feedback_cb)
-        rclpy.spin_until_future_complete(self.node, send_goal_future)
+        rclpy.spin_until_future_complete(self.node, send_goal_future, executor=executor)
         goal_handle = send_goal_future.result()
         self.assertTrue(goal_handle is not None, 'Failed to send goal to PadRightControl action server')
         self.assertTrue(goal_handle.accepted, 'Goal should be accepted, since we have execute client')
         
-        def right_control_result_cb(future):
-            result = future.result().result
-            self.assertTrue(result.success, 'PadRightControl action did not succeed')
-
-            self.assertTrue(state["goal_received"], 'Pad Execute callback was not called')
-            self.assertTrue(state["executed"], 'Pad Execute callback was not called')
-
         result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(right_control_result_cb)
 
-        rclpy.spin_until_future_complete(self.node, result_future, timeout_sec=1.0)
-        self.assertTrue(result_future.result() is not None, 'Failed to get result from PadRightControl action server')
-        print("done")
-      
+        rclpy.spin_until_future_complete(self.node, result_future, executor=executor, timeout_sec=1.0)
+        self.assertTrue(result_future.result() is not None, 'Failed to get result from PadRightControl action server')     
+
+        self.assertTrue(state["goal_received"], 'Pad Execute callback was not called')
+        self.assertTrue(state["executed"], 'Pad Execute callback was not called')
+        self.assertTrue(_feedback_received, 'Did not receive feedback from PadRightControl action server')        
+        self.assertTrue(on_allowed_event.is_set(), 'Execute callback never received rights to execute')
+
+        self.assertTrue(result_future.result().result.success, 'PadRightControl action did not succeed')
+
 
     def test_all_info_received(self):
         # Wait for some time to receive pad info messages
         rclpy.spin_once(self.node, timeout_sec=5.0)
         self.assertGreaterEqual(len(self.infos_received), 1, 'Did not receive any PadInfo messages')
     
+
+    def create_pad_execute_server(self, padflie_name, result_code, on_allowed_event):
+        state = {
+            "goal_received": False,
+            "cancel_received": False,
+            "executed": False,
+        }
+
+        def goal_cb(goal_request):
+            state["goal_received"] = True
+            return GoalResponse.ACCEPT
+
+        def cancel_cb(goal_handle):
+            state["cancel_received"] = True
+            return CancelResponse.ACCEPT
+
+        def execute_cb(goal_handle):
+            state["executed"] = True
+            on_allowed_event.wait(timeout=0.3)
+            result = PadExecute.Result()
+            result.result = result_code
+            goal_handle.succeed()
+            return result
+
+        server = ActionServer(
+            self.node,
+            PadExecute,
+            "padflie1/pad_execute",
+            execute_callback=execute_cb,
+            goal_callback=goal_cb,
+            cancel_callback=cancel_cb,
+            callback_group=rclpy.callback_groups.MutuallyExclusiveCallbackGroup(),
+        )
+
+        return server, state
         
 @launch_testing.post_shutdown_test()
 class TestSmartPadShutdown(unittest.TestCase):
