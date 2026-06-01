@@ -7,7 +7,8 @@ from unittest import result
 
 from launch import LaunchDescription
 import launch
-from launch_ros.actions import Node
+from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.descriptions import ComposableNode
 
 import launch_testing
 
@@ -24,11 +25,10 @@ def generate_test_description():
     smart_pad_tfs = []
     for i in range(5):
         smart_pads.append(
-            Node(
+            ComposableNode(
                 package='pad_management_cpp',
-                executable='pad_right_provider',
+                plugin='PadRightActionServerNode',
                 name=f'smart_pad_{i}',
-                output='screen',
                 parameters=[
                     {
                         'pad_resource_manager_plugin': 'smart_pad::SmartPadResourceManager',
@@ -37,7 +37,6 @@ def generate_test_description():
                 ]
             )
         )
-
         smart_pad_tfs.append(
             Node(
                 package='tf2_ros',
@@ -55,13 +54,19 @@ def generate_test_description():
             )
         )
 
+    smart_pad_container = ComposableNodeContainer(
+        name='smart_pad_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container_mt',
+        output='screen',
+        composable_node_descriptions=smart_pads,
+    )
+
     return LaunchDescription([
-        *smart_pads,
+        smart_pad_container,
         *smart_pad_tfs,
-        launch.actions.TimerAction(
-            period=2.0,
-            actions=[launch_testing.actions.ReadyToTest()]
-        ),
+        launch_testing.actions.ReadyToTest(),
     ])
 
 
@@ -72,6 +77,8 @@ class TestLockService(unittest.TestCase):
         # Create a service client for the Lock service
         rclpy.init()
         cls.node = rclpy.create_node('test_smart_pads_node')
+        cls.executor = rclpy.executors.MultiThreadedExecutor()
+        cls.executor.add_node(cls.node)
         cls.info_sub = cls.node.create_subscription(
             PadInfo,
             'pad_management/pad_info',
@@ -83,12 +90,26 @@ class TestLockService(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        cls.executor.remove_node(cls.node)
+        cls.executor.shutdown(wait_for_threads=True)
         cls.node.destroy_node()
+
+        del cls.executor
         rclpy.shutdown()
 
     @classmethod
     def pad_info_callback(cls, msg):
         cls.infos_received.append(msg.pad_right_control_action_name)
+    
+    def test_all_smart_pads_available(self):
+        # Wait for the nodes to be up and running
+        timeout = time.time() + 5.0  # 5 second timeout
+        while time.time() < timeout:
+            if len(self.infos_received) >= 5:
+                break
+            rclpy.spin_once(self.node, timeout_sec=0.1, executor=self.executor)
+        
+        self.assertGreaterEqual(len(self.infos_received), 5, 'Not all smart pads are available')
 
     def test_lock_service_available(self):
         # Wait for the service to be available
@@ -109,7 +130,7 @@ class TestLockService(unittest.TestCase):
         pad_right_goal.action = PadRightControl.Goal.ACTION_TAKEOFF
 
         future = action_client.send_goal_async(pad_right_goal)
-        rclpy.spin_until_future_complete(self.node, future)
+        rclpy.spin_until_future_complete(self.node, future, executor=self.executor, timeout_sec=0.4)
         goal_handle = future.result()
         self.assertTrue(goal_handle is not None, 'Failed to send goal to PadRightControl action server')
         self.assertFalse(goal_handle.accepted, 'Goal should be rejected, since we dont have execute client')
@@ -117,9 +138,6 @@ class TestLockService(unittest.TestCase):
     def test_pad_right_control_action_with_execute_client(self):
         padflie_name = "padflie1"
         smart_pad_name = "smart_pad_0"
-
-        executor = rclpy.executors.MultiThreadedExecutor()
-        executor.add_node(self.node)
 
         action_client = ActionClient(
             self.node,
@@ -150,14 +168,14 @@ class TestLockService(unittest.TestCase):
         pad_right_goal.name = padflie_name
         pad_right_goal.action = PadRightControl.Goal.ACTION_TAKEOFF
         send_goal_future = action_client.send_goal_async(pad_right_goal, feedback_callback=feedback_cb)
-        rclpy.spin_until_future_complete(self.node, send_goal_future, executor=executor)
+        rclpy.spin_until_future_complete(self.node, send_goal_future, executor=self.executor, timeout_sec=1.0)
         goal_handle = send_goal_future.result()
         self.assertTrue(goal_handle is not None, 'Failed to send goal to PadRightControl action server')
         self.assertTrue(goal_handle.accepted, 'Goal should be accepted, since we have execute client')
         
         result_future = goal_handle.get_result_async()
 
-        rclpy.spin_until_future_complete(self.node, result_future, executor=executor, timeout_sec=3.0)
+        rclpy.spin_until_future_complete(self.node, result_future, executor=self.executor, timeout_sec=1.0)
         self.assertTrue(result_future.result() is not None, 'Failed to get result from PadRightControl action server')     
 
         self.assertTrue(state["goal_received"], 'Pad Execute callback was not called')
@@ -167,10 +185,12 @@ class TestLockService(unittest.TestCase):
 
         self.assertTrue(result_future.result().result.success, 'PadRightControl action did not succeed')
 
+        action_client.destroy()
+        action_server.destroy()
 
     def test_all_info_received(self):
         # Wait for some time to receive pad info messages
-        rclpy.spin_once(self.node, timeout_sec=5.0)
+        rclpy.spin_once(self.node, timeout_sec=5.0, executor=self.executor)
         self.assertGreaterEqual(len(self.infos_received), 1, 'Did not receive any PadInfo messages')
     
 

@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
 
@@ -27,13 +28,32 @@ target_link_libraries(pad_management_cpp_plugins
   pluginlib::pluginlib
 )
 
-add_executable(pad_right_provider 
+add_library(pad_right_provider_component SHARED
   src/pad_right_provider.cpp
   src/request.cpp
   src/request_map.cpp
   src/pad_right_server.cpp
   src/pad_execute_client.cpp
-  )
+)
+
+target_include_directories(pad_right_provider_component PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(pad_right_provider_component PUBLIC c_std_99 cxx_std_20)
+target_link_libraries(pad_right_provider_component
+  geometry_msgs::geometry_msgs
+  pluginlib::pluginlib
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  rclcpp_components::component
+  pad_management_interfaces::pad_management_interfaces
+)
+
+rclcpp_components_register_nodes(pad_right_provider_component "PadRightActionServerNode")
+
+add_executable(pad_right_provider 
+  src/pad_right_provider_main.cpp
+)
 
 target_include_directories(pad_right_provider PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -41,14 +61,11 @@ target_include_directories(pad_right_provider PUBLIC
 target_compile_features(pad_right_provider PUBLIC c_std_99 cxx_std_20)  # Require C99 and C++20
 
 target_link_libraries(pad_right_provider
-  geometry_msgs::geometry_msgs
+  pad_right_provider_component
   rclcpp::rclcpp
-  rclcpp_action::rclcpp_action
-  pluginlib::pluginlib
-  pad_management_interfaces::pad_management_interfaces
 )
 
-install(TARGETS pad_management_cpp_plugins pad_right_provider
+install(TARGETS pad_management_cpp_plugins pad_right_provider_component pad_right_provider
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

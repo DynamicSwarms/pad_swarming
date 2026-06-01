@@ -10,6 +10,9 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>geometry_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_components</depend>
   <depend>pad_management_interfaces</depend>
   <depend>pluginlib</depend>
   <test_depend>ament_lint_auto</test_depend>
