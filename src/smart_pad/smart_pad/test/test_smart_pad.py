@@ -4,8 +4,9 @@ import time
 import unittest
 from unittest import result
 
-from launch import LaunchDescription
 
+from launch import LaunchDescription
+import launch
 from launch_ros.actions import Node
 
 import launch_testing
@@ -21,7 +22,7 @@ from pad_management_interfaces.action import PadRightControl, PadExecute
 def generate_test_description():
     smart_pads = []
     smart_pad_tfs = []
-    for i in range(2):
+    for i in range(5):
         smart_pads.append(
             Node(
                 package='pad_management_cpp',
@@ -42,7 +43,7 @@ def generate_test_description():
                 package='tf2_ros',
                 executable='static_transform_publisher',
                 arguments=[
-                    '--x', f'{1.0 + i*0.5}',
+                    '--x', f'{1.0 + i*0.4}',
                     '--y', '1.2',
                     '--z', '0.05',
                     '--yaw', '0',
@@ -57,7 +58,10 @@ def generate_test_description():
     return LaunchDescription([
         *smart_pads,
         *smart_pad_tfs,
-        launch_testing.actions.ReadyToTest(),
+        launch.actions.TimerAction(
+            period=2.0,
+            actions=[launch_testing.actions.ReadyToTest()]
+        ),
     ])
 
 
@@ -153,7 +157,7 @@ class TestLockService(unittest.TestCase):
         
         result_future = goal_handle.get_result_async()
 
-        rclpy.spin_until_future_complete(self.node, result_future, executor=executor, timeout_sec=1.0)
+        rclpy.spin_until_future_complete(self.node, result_future, executor=executor, timeout_sec=3.0)
         self.assertTrue(result_future.result() is not None, 'Failed to get result from PadRightControl action server')     
 
         self.assertTrue(state["goal_received"], 'Pad Execute callback was not called')

@@ -11,11 +11,13 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(pad_management_cpp REQUIRED)
+find_package(pad_management_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 find_package(smart_pad_interfaces REQUIRED)
@@ -38,6 +40,8 @@ target_link_libraries(
   tf2_eigen::tf2_eigen
   tf2_geometry_msgs::tf2_geometry_msgs
   smart_pad_interfaces::smart_pad_interfaces
+  visualization_msgs::visualization_msgs
+  pad_management_interfaces::pad_management_interfaces
 )
 
 install(TARGETS smart_pad_plugins
