@@ -1,19 +1,22 @@
-#ifndef PADFLIE_BEHAVIORS_BASE__PADFLIE_BEHAVIORS_BASE_HPP_
-#define PADFLIE_BEHAVIORS_BASE__PADFLIE_BEHAVIORS_BASE_HPP_
-
+#pragma once
 #include "padflie_behaviors_base/visibility_control.h"
+#include "padflies_cpp/I_padflie_behavior_plugin.hpp"
 
 namespace padflie_behaviors_base
 {
 
-class PadflieBehaviorsBase
+class PadflieBehaviorsBase : public padflies_cpp::IPadflieBehaviorPlugin
 {
 public:
-  PadflieBehaviorsBase();
+   PadflieBehaviorsBase()
+  : padflies_cpp::IPadflieBehaviorPlugin()
+  {
+  }
 
-  virtual ~PadflieBehaviorsBase();
+  void registerNodes(BT::BehaviorTreeFactory & factory) override; 
+
+
 };
 
 }  // namespace padflie_behaviors_base
 
-#endif  // PADFLIE_BEHAVIORS_BASE__PADFLIE_BEHAVIORS_BASE_HPP_

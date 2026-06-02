@@ -6,6 +6,11 @@
 #include "padflies_cpp/hardware_actor.hpp"
 #include "padflies_cpp/pad_client_factory.hpp"
 #include "padflies_cpp/pad_execute_server.hpp"
+
+#include "pluginlib/class_loader.hpp"
+
+#include "padflies_cpp/I_padflie_behavior_plugin.hpp"
+
 class RoutineFactory
 {
 public:
@@ -27,6 +32,7 @@ public:
 
 private: 
     BT::BehaviorTreeFactory m_bt_factory;
+    pluginlib::ClassLoader<padflies_cpp::IPadflieBehaviorPlugin> m_behavior_plugin_loader;
 
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> m_node_timers_interface;

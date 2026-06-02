@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(padflie_behaviors_base)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -21,13 +21,14 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
 
-add_library(padflie_behaviors_base src/padflie_behaviors_base.cpp)
+add_library(padflie_behaviors_base SHARED src/padflie_behaviors_base.cpp)
 target_compile_features(padflie_behaviors_base PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 target_include_directories(padflie_behaviors_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:include>
+  ${padflies_cpp_INCLUDE_DIRS})
 target_link_libraries(
-  padflie_behaviors_base::padflie_behaviors_base
+  padflie_behaviors_base
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   behaviortree_cpp::behaviortree_cpp
@@ -36,8 +37,8 @@ target_link_libraries(
   tf2_ros::tf2_ros
   tf2_eigen::tf2_eigen
   crazyflie_interfaces::crazyflie_interfaces
-  "padflies_cpp"
-  "pluginlib"
+  ${padflies_cpp_LIBRARIES}
+  pluginlib::pluginlib
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
@@ -78,6 +79,6 @@ ament_export_targets(
   export_${PROJECT_NAME}
 )
 
-pluginlib_export_plugin_description_file(padflie_behaviors_base plugins.xml)
+pluginlib_export_plugin_description_file(padflies_cpp plugins.xml)
 
 ament_package()

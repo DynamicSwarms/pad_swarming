@@ -155,7 +155,7 @@ public:
             m_logger);
 
         RCLCPP_INFO(m_logger, "Waiting for action server %s to be available...", "megapad");
-        if (!m_pad_client->is_action_server_available(std::chrono::seconds(1))) 
+        if (!m_pad_client->wait_for_action_server(std::chrono::milliseconds(100))) 
         {
             RCLCPP_ERROR(m_logger, "Action server %s not available after waiting", "megapad");
             respond_to_takeoff_command(false);

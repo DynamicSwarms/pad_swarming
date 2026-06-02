@@ -15,11 +15,18 @@ RoutineFactory::RoutineFactory(
     rclcpp::Logger logger,
     const std::string & xml_file)
   : m_bt_factory()
+  , m_behavior_plugin_loader("padflies_cpp", "padflies_cpp::IPadflieBehaviorPlugin")
   , m_node_base_interface(node_base_interface)
   , m_node_timers_interface(node_timers_interface)
   , m_node_clock_interface(node_clock_interface)
   , m_logger(logger)
   {
+    const auto plugin_name = "padflie_behaviors_base::PadflieBehaviorsBase";
+    auto behavior_plugin = m_behavior_plugin_loader.createSharedInstance(plugin_name);
+    behavior_plugin->registerNodes(m_bt_factory);
+
+
+
     m_bt_factory.registerNodeType<ChoosePad>("ChoosePad",logger,  pad_client_factory);
     m_bt_factory.registerNodeType<GetPadRight>("GetPadRight", logger, pad_execute_server);
     m_bt_factory.registerNodeType<HoldPadRight>("HoldPadRight", logger, pad_execute_server);

@@ -24,6 +24,8 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
 find_package(behaviortree_cpp REQUIRED)
+find_package(pluginlib REQUIRED)
+
 
 add_executable(padflie src/padflie.cpp)
 target_include_directories(padflie PUBLIC
@@ -73,13 +75,16 @@ target_link_libraries(padflie_deps
   tf2_geometry_msgs::tf2_geometry_msgs
   collision_avoidance_interfaces::collision_avoidance_interfaces
   std_srvs::std_srvs
-  behaviortree_cpp::behaviortree_cpp)
+  behaviortree_cpp::behaviortree_cpp
+  pluginlib::pluginlib
+)
 
 
 target_link_libraries(padflie
   padflie_deps)
 
 install(TARGETS padflie_deps
+  EXPORT export_padflie_behavior_plugins
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )
@@ -93,21 +98,23 @@ install(DIRECTORY behaviors
 
 
 # Behavior Plugins Shared Library
-add_library(padflie_behavior_plugins INTERFACE)
+add_library(padflie_behavior_plugins SHARED
+  src/behaviors/behaviors.cpp
+)
 add_library(
   padflie_behavior_plugins::padflie_behavior_plugins
   ALIAS padflie_behavior_plugins
 )
-target_compile_features(padflie_behavior_plugins INTERFACE c_std_99 cxx_std_17)
-target_include_directories(padflie_behavior_plugins INTERFACE
+target_compile_features(padflie_behavior_plugins PUBLIC c_std_99 cxx_std_17)
+target_include_directories(padflie_behavior_plugins PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(padflie_behavior_plugins INTERFACE
-  ${pluginlib_TARGETS}
+target_link_libraries(padflie_behavior_plugins PRIVATE
+  padflie_deps
 )
 
-target_link_libraries(padflie_behavior_plugins INTERFACE
+target_link_libraries(padflie_behavior_plugins PUBLIC
   rclcpp::rclcpp
   behaviortree_cpp::behaviortree_cpp
 )
@@ -128,7 +135,7 @@ install(EXPORT export_padflie_behavior_plugins
 )
 
 ament_export_include_directories(include)
-
+ament_export_libraries(padflie_behavior_plugins)
 ament_export_targets(
   export_padflie_behavior_plugins
 )

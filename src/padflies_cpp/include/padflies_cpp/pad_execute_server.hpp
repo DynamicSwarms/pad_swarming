@@ -78,6 +78,7 @@ private:
         const rclcpp_action::GoalUUID & uuid,
         std::shared_ptr<const PadExecuteActionT::Goal> goal)
     {
+        (void)uuid;
         m_result_sent = false;// New goal, reset result
 
         m_goal_received = true;
@@ -90,6 +91,7 @@ private:
     rclcpp_action::CancelResponse handle_pad_execute_cancel(
         const std::shared_ptr<PadExecuteGoalHandleT> goal_handle)
     {
+        (void)goal_handle;
         RCLCPP_INFO(m_logger, "Received request to cancel goal");
         m_goal_cancelled = true;
         return rclcpp_action::CancelResponse::ACCEPT;

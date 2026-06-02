@@ -87,6 +87,7 @@ def generate_test_description():
         package='padflies_cpp',
         executable='padflie',
         name='padflie0',
+        # prefix=["gdbserver localhost:3000"],
         parameters=[
             {
                 'id': 0,

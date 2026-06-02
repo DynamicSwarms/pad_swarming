@@ -44,8 +44,12 @@ public:
                 callback_group);
     }
 
-    bool is_action_server_available(std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
+    bool wait_for_action_server(std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
         return m_pad_right_control_action_client->wait_for_action_server(timeout);
+    }
+
+    bool is_action_server_available() {
+        return m_pad_right_control_action_client->action_server_is_ready();
     }
 
     bool get_pad_idle_target(

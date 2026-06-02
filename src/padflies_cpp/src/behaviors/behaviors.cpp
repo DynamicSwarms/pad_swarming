@@ -2,6 +2,7 @@
 
 #include "padflies_cpp/pad_execute_server.hpp"
 #include "padflies_cpp/pad_client.hpp"
+#include "padflies_cpp/pad_client_factory.hpp"
 #include "Eigen/Dense"
 #include "padflies_cpp/hardware_actor.hpp"
 
@@ -93,20 +94,21 @@ public:
 
         std::string pad_name = m_pad_client->get_pad_name();
         m_pad_execute_server->set_selected_pad_name(pad_name);
-
-        if (m_pad_client->is_action_server_available()) {
-            m_pad_client->send_request(m_action);
-            return BT::NodeStatus::RUNNING;
-        } else {
-            RCLCPP_ERROR(m_logger, "PadRight action server not available!");
-            return BT::NodeStatus::FAILURE;
-        }
+        return BT::NodeStatus::RUNNING;
     }
 
 
 
     BT::NodeStatus onRunning() override
     {
+        if (!m_request_sent)
+        {
+            if (m_pad_client->is_action_server_available()) {
+                m_pad_client->send_request(m_action);
+                m_request_sent = true;
+            }   
+        }
+    
         if (!m_pad_client->goal_responded()) return BT::NodeStatus::RUNNING;
         if (!m_pad_client->goal_accepted()) {
             RCLCPP_ERROR(m_logger, "PadRight goal rejected!");
@@ -141,7 +143,10 @@ public:
 
     void onHalted() override
     {
-        if (m_pad_client) {
+        if (m_pad_client && !m_pad_client->is_action_server_available()){
+            RCLCPP_WARN(m_logger, "Halted but PadRight action server is not available, maybe that is the reason");
+        }
+        if (m_pad_client && m_request_sent) {
             m_pad_client->cancel_goal();
         }
         RCLCPP_INFO(m_logger, "GetPadRight halted, goal cancelled if it was sent.");
@@ -152,7 +157,10 @@ private:
 
     std::shared_ptr<PadClient> m_pad_client;
     uint8_t m_action;
+
+    bool m_request_sent = false;
 };
+
 class HasPadRight : public BT::ConditionNode
 {
 public: 

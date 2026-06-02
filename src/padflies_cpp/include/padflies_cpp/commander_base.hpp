@@ -62,7 +62,7 @@ class PadflieCommanderBase{
          */
         virtual void m_configure_commander(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) {};
+        ) {(void)node;};
         /**
          * Gets called when base commander finished configuration. 
          * hw_state_controller is connected and starts listening to hardware state
@@ -80,7 +80,7 @@ class PadflieCommanderBase{
          */
         virtual void m_activate_commander(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) {};
+        ) {(void)node;};
         /**
          * Gets called when base commander finished activation. 
          * hardware_actor is available
@@ -97,7 +97,7 @@ class PadflieCommanderBase{
         virtual void m_deactivate_commander(
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
             bool force
-        ) {};
+        ) {(void)node; (void)force;};
         /*
          * Gets called when base commander finished deactivation. 
          * hardware_actor is no longer available
