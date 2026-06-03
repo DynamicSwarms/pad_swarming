@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(padflie_behaviors_base)
+project(padflie_behaviors)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -21,14 +21,14 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
 
-add_library(padflie_behaviors_base SHARED src/padflie_behaviors_base.cpp)
-target_compile_features(padflie_behaviors_base PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-target_include_directories(padflie_behaviors_base PUBLIC
+add_library(padflie_behaviors SHARED src/padflie_behaviors.cpp)
+target_compile_features(padflie_behaviors PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_include_directories(padflie_behaviors PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${padflies_cpp_INCLUDE_DIRS})
 target_link_libraries(
-  padflie_behaviors_base
+  padflie_behaviors
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   behaviortree_cpp::behaviortree_cpp
@@ -43,14 +43,14 @@ target_link_libraries(
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(padflie_behaviors_base PRIVATE "PADFLIE_BEHAVIORS_BASE_BUILDING_LIBRARY")
+target_compile_definitions(padflie_behaviors PRIVATE "padflie_behaviors_BUILDING_LIBRARY")
 
 install(
   DIRECTORY include/
   DESTINATION include
 )
 install(
-  TARGETS padflie_behaviors_base
+  TARGETS padflie_behaviors
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -73,7 +73,7 @@ ament_export_include_directories(
   include
 )
 ament_export_libraries(
-  padflie_behaviors_base
+  padflie_behaviors
 )
 ament_export_targets(
   export_${PROJECT_NAME}

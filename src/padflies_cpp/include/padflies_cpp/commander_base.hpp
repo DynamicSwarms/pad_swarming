@@ -15,6 +15,7 @@
 #include "padflies_interfaces/msg/padflie_info.hpp"
 
 #include "std_srvs/srv/trigger.hpp"
+#include "padflies_cpp/node_interfaces_bundle.hpp"
 
 
 class CommanderException : public std::runtime_error {
@@ -28,10 +29,7 @@ class PadflieCommanderBase{
         PadflieCommanderBase(
             const std::string & prefix,
             const std::string & cf_prefix,
-            std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
-            std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
-            std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
-            std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface
+            padflies_cpp::NodeInterfacesBundle node_interfaces_bundle
         );
 
         virtual ~PadflieCommanderBase();

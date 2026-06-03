@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 #include "collision_avoidance_interfaces/srv/collision_avoidance.hpp"
 

@@ -24,32 +24,30 @@ public:
   , m_prefix("padflie" + std::to_string(m_cf_id))
   , m_cf_prefix("cf" + std::to_string(m_cf_id))
   {
+    padflies_cpp::NodeInterfacesBundle node_interfaces_bundle{
+      this->get_node_base_interface(),
+      this->get_node_topics_interface(),
+      this->get_node_services_interface(),
+      this->get_node_parameters_interface(),
+      this->get_node_timers_interface(),
+      this->get_node_clock_interface(),
+      this->get_node_logging_interface(),
+      this->get_node_graph_interface(),
+      this->get_node_waitables_interface()
+    };
+
     if (false) 
     { 
       m_padflie_commander = std::make_unique<ActionCommander>(
           m_prefix,
           m_cf_prefix,
-          this->get_node_base_interface(),
-          this->get_node_parameters_interface(),
-          this->get_node_timers_interface(),
-          this->get_node_clock_interface(),
-          this->get_node_waitables_interface(),
-          this->get_node_graph_interface(),
-          this->get_node_services_interface(),
-          this->get_node_logging_interface()
+          node_interfaces_bundle
       );
     } else {
       m_padflie_commander = std::make_unique<PadflieCommander>(
         m_prefix,
         m_cf_prefix,
-        this->get_node_base_interface(),
-        this->get_node_parameters_interface(),
-        this->get_node_timers_interface(),
-        this->get_node_clock_interface(),
-        this->get_node_waitables_interface(),
-        this->get_node_graph_interface(),
-        this->get_node_services_interface(),
-        this->get_node_logging_interface()
+        node_interfaces_bundle
       );
     }
 

@@ -16,31 +16,24 @@ public:
     ActionCommander(
         const std::string & prefix,
         const std::string & cf_prefix,
-        std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
-        std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
-    : PadflieCommanderBase(prefix, cf_prefix, node_base_interface, node_param_interface, node_clock_interface, node_logging_interface)
+        padflies_cpp::NodeInterfacesBundle node_interfaces_bundle)
+    : PadflieCommanderBase(prefix, cf_prefix, node_interfaces_bundle)
     , m_prefix(prefix)
-    , m_logger(node_logging_interface->get_logger())
-    , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
-    , m_node_base_interface(node_base_interface)
-    , m_node_graph_interface(node_graph_interface)
-    , m_node_services_interface(node_services_interface)
-    , m_node_logging_interface(node_logging_interface)
-    , m_node_waitables_interface(node_waitables_interface)
-    , m_node_clock_interface(node_clock_interface)
-    , m_node_timers_interface(node_timers_interface)
+    , m_logger(node_interfaces_bundle.logging_interface->get_logger())
+    , m_callback_group(node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
+    , m_node_base_interface(node_interfaces_bundle.base_interface)
+    , m_node_graph_interface(node_interfaces_bundle.graph_interface)
+    , m_node_services_interface(node_interfaces_bundle.services_interface)
+    , m_node_logging_interface(node_interfaces_bundle.logging_interface)
+    , m_node_waitables_interface(node_interfaces_bundle.waitables_interface)
+    , m_node_clock_interface(node_interfaces_bundle.clock_interface)
+    , m_node_timers_interface(node_interfaces_bundle.timers_interface)
     {
         m_pad_execute_action_server = rclcpp_action::create_server<PadExecuteActionT>(
-                node_base_interface,
-                node_clock_interface,
-                node_logging_interface,
-                node_waitables_interface,
+                node_interfaces_bundle.base_interface,
+                node_interfaces_bundle.clock_interface,
+                node_interfaces_bundle.logging_interface,
+                node_interfaces_bundle.waitables_interface,
                 prefix + "/pad_execute",
                 std::bind(&ActionCommander::handle_pad_execute_goal, this, std::placeholders::_1, std::placeholders::_2),
                 std::bind(&ActionCommander::handle_pad_execute_cancel, this, std::placeholders::_1),

@@ -1,4 +1,5 @@
 #include "padflies_cpp/hardware_actor.hpp"
+#include "padflies_cpp/collision_avoidance_client.hpp"
 
 static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callback_groups;
 // https://github.com/ros2/rclcpp/pull/2683/commits/86d831375e8a7acdc55272866e04f4c214002414
@@ -23,11 +24,12 @@ HardwareActor::HardwareActor(
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
 , m_position_controller(m_dt, 5.0, 2.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
 , m_collision_avoidance_client(
-    std::stoi(cf_prefix.substr(2)), // Extract ID from cf_prefix (cfID)
-    node_base_interface, 
-    node_graph_interface, 
-    node_services_interface,
-    node_logging_interface->get_logger())
+    std::make_unique<CollisionAvoidanceClient>(
+        std::stoi(cf_prefix.substr(2)), // Extract ID from cf_prefix (cfID)
+        node_base_interface, 
+        node_graph_interface, 
+        node_services_interface,
+        node_logging_interface->get_logger()))
 , m_hl_commander(
     node_base_interface,
     node_graph_interface,
@@ -223,7 +225,7 @@ HardwareActor::m_ll_command_timer_callback()
         bool collision = false;
         if (collision_avoidance)
         {
-            m_collision_avoidance_client.get_collision_avoidance_target(position, target_position, collision);
+            m_collision_avoidance_client->get_collision_avoidance_target(position, target_position, collision);
         }
 
         m_position_controller.safe_command_position(position, target_position, collision);

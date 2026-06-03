@@ -1,5 +1,5 @@
-<library path="padflie_behaviors_base">
-  <class type="padflie_behaviors_base::PadflieBehaviorsBase"
+<library path="padflie_behaviors">
+  <class type="padflie_behaviors::PadflieBehaviors"
          base_class_type="padflies_cpp::IPadflieBehaviorPlugin">
     <description>
       Registers padflie behavior tree nodes through the IPadflieBehaviorPlugin interface.

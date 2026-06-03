@@ -1,0 +1,8 @@
+<library path="simpleflie_behaviors">
+  <class type="simpleflie_behaviors::SimpleflieBehaviors"
+         base_class_type="padflies_cpp::IPadflieBehaviorPlugin">
+    <description>
+      Provides takeoff and landing behaviors, which are hl takeoff and land commands only. 
+    </description>
+  </class>
+</library>

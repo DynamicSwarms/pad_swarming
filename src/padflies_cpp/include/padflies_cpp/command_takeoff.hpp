@@ -15,7 +15,7 @@ public:
       const std::shared_ptr<std_srvs::srv::Trigger::Request> request      
     ) :
         TriggerCommand(
-            routine_factory->create_routine("TakeoffBehavior"),
+            routine_factory->create_takeoff_routine(),
             takeoff_service_handle,
             request_id,
             request

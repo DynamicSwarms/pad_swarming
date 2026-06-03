@@ -14,7 +14,7 @@ public:
       const std::shared_ptr<rmw_request_id_t> request_id,
       const std::shared_ptr<std_srvs::srv::Trigger::Request> request)
     : TriggerCommand(
-        routine_factory->create_routine("LandBehavior"),
+        routine_factory->create_land_routine(),
         land_service_handle,
         request_id,
         request)

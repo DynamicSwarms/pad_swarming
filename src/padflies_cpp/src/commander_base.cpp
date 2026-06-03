@@ -5,20 +5,17 @@
 PadflieCommanderBase::PadflieCommanderBase(
     const std::string & prefix,
     const std::string & cf_prefix,
-    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface
+    padflies_cpp::NodeInterfacesBundle node_interfaces_bundle
 )
 : m_prefix(prefix)
 , m_cf_prefix(cf_prefix)
-, m_hw_state_controller(node_param_interface)
-, m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix, WORLD, node_clock_interface->get_clock(), node_logging_interface->get_logger()))
-, m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
-, m_initial_pad(node_param_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>())
-, m_param_callback_handle(node_param_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
-, m_node_clock_interface(node_clock_interface)
-, m_logger(node_logging_interface->get_logger())
+, m_hw_state_controller(node_interfaces_bundle.parameters_interface)
+, m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix, WORLD, node_interfaces_bundle.clock_interface->get_clock(), node_interfaces_bundle.logging_interface->get_logger()))
+, m_callback_group(node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
+, m_initial_pad(node_interfaces_bundle.parameters_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>())
+, m_param_callback_handle(node_interfaces_bundle.parameters_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
+, m_node_clock_interface(node_interfaces_bundle.clock_interface)
+, m_logger(node_interfaces_bundle.logging_interface->get_logger())
 {
     if (!m_initial_pad.empty()) {
         m_padflie_tf->set_pad(m_initial_pad);

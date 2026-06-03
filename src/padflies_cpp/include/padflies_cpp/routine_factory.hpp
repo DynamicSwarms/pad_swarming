@@ -9,33 +9,56 @@
 
 #include "pluginlib/class_loader.hpp"
 
+#include "padflies_cpp/node_interfaces_bundle.hpp"
 #include "padflies_cpp/I_padflie_behavior_plugin.hpp"
 
 class RoutineFactory
 {
 public:
     RoutineFactory(
+      padflies_cpp::NodeInterfacesBundle node_interfaces_bundle,
+      rclcpp::Logger logger);
+    ~RoutineFactory() = default;
+
+    void set_padflie_shared_ptrs(
       std::shared_ptr<HardwareActor> hardware_actor,
       std::shared_ptr<PadflieTF> padflie_tf,
       std::shared_ptr<PadExecuteServer> pad_execute_server,
-      std::shared_ptr<PadClientFactory> pad_client_factory,
-      std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
-      std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
-      std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
-      rclcpp::Logger logger,
-      const std::string & xml_file = std::string("/home/winni/ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/behaviors.xml")
+      std::shared_ptr<PadClientFactory> pad_client_factory
     );
-    ~RoutineFactory();
 
-    std::shared_ptr<Routine> 
-    create_routine(const std::string& tree_name);
+    std::shared_ptr<Routine>
+    create_takeoff_routine();
+
+    std::shared_ptr<Routine>
+    create_land_routine();
+
 
 private: 
-    BT::BehaviorTreeFactory m_bt_factory;
-    pluginlib::ClassLoader<padflies_cpp::IPadflieBehaviorPlugin> m_behavior_plugin_loader;
+    void m_register_base_nodes(
+      BT::BehaviorTreeFactory & factory,
+      std::shared_ptr<HardwareActor> hardware_actor,
+      std::shared_ptr<PadflieTF> padflie_tf,
+      std::shared_ptr<PadExecuteServer> pad_execute_server,
+      std::shared_ptr<PadClientFactory> pad_client_factory
+    );
 
-    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
-    std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> m_node_timers_interface;
-    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> m_node_clock_interface;
+    rcl_interfaces::msg::SetParametersResult 
+        m_set_parameters_callback(const std::vector<rclcpp::Parameter> & parameters);
+
+    bool m_set_plugin(const std::string & plugin_name);
+private: 
+    pluginlib::ClassLoader<padflies_cpp::IPadflieBehaviorPlugin> m_behavior_plugin_loader;
+    std::shared_ptr<padflies_cpp::IPadflieBehaviorPlugin> p_plugin;
+
+    std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle; 
+
+    padflies_cpp::NodeInterfacesBundle m_node_interfaces_bundle;
     rclcpp::Logger m_logger;
-  };
+
+  private: 
+    std::shared_ptr<HardwareActor> m_hardware_actor;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
+    std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<PadClientFactory> m_pad_client_factory;    
+};

@@ -7,49 +7,46 @@
 PadflieCommander::PadflieCommander(
     const std::string & prefix,
     const std::string & cf_prefix,
-    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
-: PadflieCommanderBase(prefix, cf_prefix, node_base_interface, node_param_interface, node_clock_interface, node_logging_interface)
+    padflies_cpp::NodeInterfacesBundle node_interfaces_bundle
+)
+: PadflieCommanderBase(prefix, cf_prefix, node_interfaces_bundle)
 , ICommandContext()
-, m_node_base_interface(node_base_interface)
-, m_node_timers_interface(node_timers_interface)
-, m_node_clock_interface(node_clock_interface)
+, m_node_base_interface(node_interfaces_bundle.base_interface)
+, m_node_timers_interface(node_interfaces_bundle.timers_interface)
+, m_node_clock_interface(node_interfaces_bundle.clock_interface)
 , m_pad_execute_server(std::make_shared<PadExecuteServer>(
     prefix,
-    node_base_interface,
-    node_clock_interface,
-    node_logging_interface,
-    node_waitables_interface,
-    node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)))
+    node_interfaces_bundle.base_interface,
+    node_interfaces_bundle.clock_interface,
+    node_interfaces_bundle.logging_interface,
+    node_interfaces_bundle.waitables_interface,
+    node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)))
 , m_pad_client_factory(std::make_shared<PadClientFactory>(
     prefix,
     m_padflie_tf,
-    node_base_interface,
-    node_graph_interface,
-    node_logging_interface,
-    node_waitables_interface,
-    node_services_interface,
-    node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive),
+    node_interfaces_bundle.base_interface,
+    node_interfaces_bundle.graph_interface,
+    node_interfaces_bundle.logging_interface,
+    node_interfaces_bundle.waitables_interface,
+    node_interfaces_bundle.services_interface,
+    node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive),
     m_logger))
 , m_pad_control(std::make_shared<PadControl>(
     prefix,
-    node_base_interface,
-    node_graph_interface,
-    node_services_interface,
-    node_waitables_interface,
-    node_logging_interface))
-, m_clock(node_clock_interface->get_clock())
+    node_interfaces_bundle.base_interface,
+    node_interfaces_bundle.graph_interface,
+    node_interfaces_bundle.services_interface,
+    node_interfaces_bundle.waitables_interface,
+    node_interfaces_bundle.logging_interface))
+, m_routine_factory(std::make_shared<RoutineFactory>(
+    node_interfaces_bundle,
+    m_logger))
+, m_clock(node_interfaces_bundle.clock_interface->get_clock())
 {
     m_command_queue_timer = rclcpp::create_timer(
-        node_base_interface,
-        node_timers_interface,
-        node_clock_interface->get_clock(),
+        node_interfaces_bundle.base_interface,
+        node_interfaces_bundle.timers_interface,
+        node_interfaces_bundle.clock_interface->get_clock(),
         std::chrono::milliseconds(100), // 10 Hz
         std::bind(&PadflieCommander::m_command_queue_execute, this),
         m_callback_group
@@ -147,17 +144,6 @@ PadflieCommander::m_activate_commander(
 
 void PadflieCommander::m_on_commander_activated() 
 {
-    m_routine_factory = std::make_shared<RoutineFactory>(
-        m_hardware_actor, 
-        m_padflie_tf,
-        m_pad_execute_server,
-        m_pad_client_factory,
-        m_node_base_interface,
-        m_node_timers_interface,
-        m_node_clock_interface, 
-        m_logger);
-    
-
     m_state = m_hw_state_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
 }
 
@@ -167,7 +153,6 @@ PadflieCommander::m_deactivate_commander(
     bool force) 
 { 
     m_pad_control->destroy_connection(node);
-    m_routine_factory.reset();
 }
 
 void PadflieCommander::m_on_commander_deactivated() 
@@ -189,6 +174,7 @@ PadflieCommander::m_handle_takeoff_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {
     RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
+    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
     std::shared_ptr<Command> command = std::make_shared<TakeoffCommand>(
         m_routine_factory,
         service_handle,
@@ -208,6 +194,7 @@ PadflieCommander::m_handle_land_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {   
     RCLCPP_INFO(m_logger, "Land command received for %s", m_cf_prefix.c_str());
+    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
     std::shared_ptr<Command> command = std::make_shared<LandCommand>(
         m_routine_factory,
         service_handle,

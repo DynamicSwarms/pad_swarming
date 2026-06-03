@@ -1,12 +1,10 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
 #include "padflies_cpp/yaw_controller.hpp"
 #include "padflies_cpp/position_controller.hpp"
-#include "padflies_cpp/collision_avoidance_client.hpp"
 
 #include "padflies_cpp/hl_commander_minimal.hpp"
 #include "padflies_cpp/ll_commander_minimal.hpp"
@@ -40,6 +38,8 @@ struct PoseTarget
     bool use_yaw;
     bool collision_avoidance;
 };
+
+class CollisionAvoidanceClient;
 
 class HardwareActor
 {
@@ -144,7 +144,7 @@ private: // Internal state for ll_commander_callback
 
     YawController m_yaw_controller;
     PositionController m_position_controller;
-    CollisionAvoidanceClient m_collision_avoidance_client;
+    std::unique_ptr<CollisionAvoidanceClient> m_collision_avoidance_client;
 
     HighLevelCommanderMinimal m_hl_commander;
     LowLevelCommanderMinimal m_ll_commander;
