@@ -79,6 +79,11 @@ ament_export_targets(
   export_${PROJECT_NAME}
 )
 
+# Install behavior tree files so they are available at runtime
+install(DIRECTORY config
+  DESTINATION share/${PROJECT_NAME})
+
+
 pluginlib_export_plugin_description_file(padflies_cpp plugins.xml)
 
 ament_package()

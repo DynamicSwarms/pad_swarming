@@ -132,15 +132,11 @@ public:
 private:
   bool m_try_lock(uint8_t id) override
   {
-    if (m_locks.find(id) != m_locks.end()) {
-        RCLCPP_WARN(m_logger, "Pad %u already has a lock entry", static_cast<unsigned>(id));
+    m_current_lock = std::unique_lock<std::mutex>(m_lock_mutex, std::defer_lock);
+    if (!m_current_lock.try_lock()) {
         return false;
     }
-
-    std::unique_lock<std::mutex> lock(m_lock_mutex, std::defer_lock);
-    if (!lock.try_lock()) {
-        return false;
-    }
+    m_current_locker_id = id;
 
     std::lock_guard<std::mutex> locking_lock(m_locking_mutex);
     if (m_currently_locked) {
@@ -165,7 +161,8 @@ private:
     }
 
     RCLCPP_INFO(m_logger, "Lock acquired for pad %u", static_cast<unsigned>(id));
-    m_locks.emplace(id, std::move(lock));
+    
+
     m_smart_pad_visualization->set_state(1); // Set to locked state
     return true;
   }
@@ -173,17 +170,16 @@ private:
   void m_release(uint8_t id, uint8_t result) override
   {
     (void)result;
-    auto it = m_locks.find(id);
-    if (it == m_locks.end()) {
+    if (m_current_locker_id != id) {
         RCLCPP_WARN(m_logger, "Release requested for unlocked pad %u", static_cast<unsigned>(id));
         return;
     }
+    m_current_lock.unlock();
 
     std::lock_guard<std::mutex> lock(m_locking_mutex);
     m_current_smart_pad_neighbors_lock.reset();
     m_currently_locked = false;
 
-    m_locks.erase(it);
 
     if (result == pad_management_interfaces::action::PadExecute::Result::RESULT_ON_PAD)
     {
@@ -214,6 +210,11 @@ private:
 
   std::string get_pad_name(uint8_t id) const {return "smart_pad_" + std::to_string(id);}
 
+  std::vector<std::string> get_pad_tf_names() override
+  {
+    return {"smart_pad_" + std::to_string(m_id)};
+  }
+
 
 private: 
     std::mutex m_locking_mutex;
@@ -222,7 +223,8 @@ private:
 
 
 private: 
-  std::unordered_map<uint8_t, std::unique_lock<std::mutex>> m_locks;
+  std::unique_lock<std::mutex> m_current_lock;
+  int m_current_locker_id;
   std::mutex m_lock_mutex;
 
 

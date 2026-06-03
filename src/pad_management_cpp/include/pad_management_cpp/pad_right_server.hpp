@@ -39,6 +39,7 @@ private:
 
 
 private: 
+    IPadResourceManager & m_pad_resource_manager;
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> m_node_timers_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> m_node_graph_interface;

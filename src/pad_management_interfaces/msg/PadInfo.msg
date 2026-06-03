@@ -1,2 +1,4 @@
+string node_name
 string pad_idle_target_service_name
 string pad_right_control_action_name
+string[] pad_tf_names

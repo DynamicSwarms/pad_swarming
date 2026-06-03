@@ -1,33 +1,90 @@
 #include "padflie_behaviors/padflie_behaviors.hpp"
-
+#include <ament_index_cpp/get_package_share_path.hpp>
 namespace padflie_behaviors
 {
 
-class ChoosePadDefault : public BT::SyncActionNode
+class ChoosePad : public BT::StatefulActionNode
 {
 public:
-  ChoosePadDefault(
+  ChoosePad(
     const std::string& name,
     const BT::NodeConfig& config,
-    rclcpp::Logger logger)
-  : BT::SyncActionNode(name, config)
+    rclcpp::Logger logger, 
+    std::shared_ptr<ListOfPadInfos> list_of_pad_infos,
+    std::shared_ptr<PadflieTF> padflie_tf,
+    std::shared_ptr<PadClientFactory> pad_client_factory)
+  : BT::StatefulActionNode(name, config)
   , m_logger(logger.get_child(name))
+  , m_list_of_pad_infos(list_of_pad_infos)
+  , m_padflie_tf(padflie_tf)
+  , m_pad_client_factory(pad_client_factory)
   {
   }
 
   static BT::PortsList providedPorts()
   {
-    return {};
+    return {
+      BT::OutputPort<std::shared_ptr<PadClient>>("pad_client")
+    };
   }
 
-  BT::NodeStatus tick() override
+  BT::NodeStatus findClosestPad()
   {
-    RCLCPP_INFO(m_logger, "ChoosePadDefault ticked");
+    std::map<std::string, PadInfo> pad_infos;
+    m_list_of_pad_infos->get_all_pad_infos(pad_infos);
+
+    if (pad_infos.empty()) {
+        RCLCPP_ERROR(m_logger, "No pads available in ChoosePad node!");
+        return BT::NodeStatus::RUNNING;  // Keep running until at least one pad is available
+    }
+  
+    auto closest_pad_it = pad_infos.end();
+    double closest_distance = std::numeric_limits<double>::max();
+    for (const auto& [node_name, pad_info] : pad_infos) {
+      for (const std::string& tf_name : pad_info.pad_tf_names) {
+        Eigen::Affine3d my_pose, pad_pose;
+        if (!m_padflie_tf->get_cf_pose(my_pose)) return BT::NodeStatus::RUNNING;
+        if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) return BT::NodeStatus::RUNNING;
+
+        double distance = (my_pose.translation() - pad_pose.translation()).norm();
+        if (distance < closest_distance) {
+            closest_distance = distance;
+            closest_pad_it = pad_infos.find(node_name);
+        }
+      }
+    }
+
+    if (closest_pad_it == pad_infos.end()) {
+        RCLCPP_ERROR(m_logger, "No valid pads found in ChoosePad node!");
+        return BT::NodeStatus::RUNNING;  // Keep running until at least one valid pad is available
+    }
+
+    std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(closest_pad_it->second.node_name);
+    setOutput("pad_client", pad_client);
+    RCLCPP_INFO(m_logger, "Chosen pad: %s with node name: %s", closest_pad_it->second.pad_right_control_action_name.c_str(), closest_pad_it->second.node_name.c_str());
     return BT::NodeStatus::SUCCESS;
+  }
+
+  void onHalted() override
+  {
+    RCLCPP_INFO(m_logger, "ChoosePad node halted");
+  }
+
+  BT::NodeStatus onStart() override
+  {
+    return findClosestPad();
+  }
+
+  BT::NodeStatus onRunning() override
+  {
+    return findClosestPad();
   }
 
 private:
   rclcpp::Logger m_logger;
+  std::shared_ptr<ListOfPadInfos> m_list_of_pad_infos;
+  std::shared_ptr<PadClientFactory> m_pad_client_factory;
+  std::shared_ptr<PadflieTF> m_padflie_tf;
 };
 
 
@@ -39,12 +96,18 @@ PadflieBehaviors::getTakeoffTree(
   std::shared_ptr<PadExecuteServer> pad_execute_server,
   std::shared_ptr<PadClientFactory> pad_client_factory)
 {
-  factory.registerNodeType<ChoosePadDefault>(
-    "ChoosePadDefault",
-  m_logger);
-  factory.registerBehaviorTreeFromFile("/home/winni/ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/behaviors.xml");
+  factory.registerNodeType<ChoosePad>(
+    "ChoosePad",
+    m_logger,
+    m_list_of_pad_infos,
+    padflie_tf,
+    pad_client_factory);
+  std::string share_dir = ament_index_cpp::get_package_share_path("padflie_behaviors");
+  std::string xml_path = share_dir + "/config/behaviors.xml";
+  RCLCPP_INFO(m_logger, "Loading behavior tree XML from: %s", xml_path.c_str());
+  factory.registerBehaviorTreeFromFile(xml_path);
   return factory.createTree("TakeoffBehavior");
-  RCLCPP_INFO(m_logger, "Registered ChoosePadDefault behavior in PadflieBehaviorsBase plugin and created Takeoff tree");
+  RCLCPP_INFO(m_logger, "Registered ChoosePad behavior in PadflieBehaviorsBase plugin and created Takeoff tree");
 }
 
 
@@ -56,12 +119,17 @@ PadflieBehaviors::getLandTree(
   std::shared_ptr<PadExecuteServer> pad_execute_server,
   std::shared_ptr<PadClientFactory> pad_client_factory)
 {
-  factory.registerNodeType<ChoosePadDefault>(
-    "ChoosePadDefault",
-  m_logger);
-  factory.registerBehaviorTreeFromFile("/home/winni/ds/pad_swarming/install/padflies_cpp/share/padflies_cpp/behaviors/behaviors.xml");
+  factory.registerNodeType<ChoosePad>(
+    "ChoosePad",
+    m_logger,
+    m_list_of_pad_infos,
+    padflie_tf,
+    pad_client_factory);
+  std::string share_dir = ament_index_cpp::get_package_share_path("padflie_behaviors");
+  std::string xml_path = share_dir + "/config/behaviors.xml";
+  factory.registerBehaviorTreeFromFile(xml_path);
   return factory.createTree("LandBehavior");
-  RCLCPP_INFO(m_logger, "Registered ChoosePadDefault behavior in PadflieBehaviorsBase plugin and created Land tree");
+  RCLCPP_INFO(m_logger, "Registered ChoosePad behavior in PadflieBehaviorsBase plugin and created Land tree");
 }
 
 

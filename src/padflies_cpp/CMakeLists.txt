@@ -92,11 +92,6 @@ install(TARGETS padflie_deps
 install(TARGETS padflie
   DESTINATION lib/${PROJECT_NAME})
 
-# Install behavior files so they are available at runtime
-install(DIRECTORY behaviors
-  DESTINATION share/${PROJECT_NAME})
-
-
 # Install headers
 install(DIRECTORY include/
   DESTINATION include

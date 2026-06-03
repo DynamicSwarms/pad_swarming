@@ -47,7 +47,7 @@ def generate_test_description():
                 executable='static_transform_publisher',
                 parameters=[{"use_sim_time": True}],
                 arguments=[
-                    '--x', f'{1.0 + i*0.4}',
+                    '--x', f'{1.0 - i*0.4}',
                     '--y', '1.2',
                     '--z', '0.05',
                     '--yaw', '0',
@@ -64,6 +64,7 @@ def generate_test_description():
         namespace='',
         package='rclcpp_components',
         executable='component_container_mt',
+        # prefix=["gdbserver localhost:3000"],
         output='screen',
         composable_node_descriptions=smart_pads,
     )
@@ -93,6 +94,7 @@ def generate_test_description():
                 'id': 0,
                 'pad_id': 0,
                 'use_sim_time': True,
+                "behavior_plugin_name": "padflie_behaviors::PadflieBehaviors",
             }
         ],
     )

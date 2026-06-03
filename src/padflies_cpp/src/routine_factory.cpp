@@ -76,7 +76,6 @@ RoutineFactory::m_register_base_nodes(
   std::shared_ptr<PadClientFactory> pad_client_factory
 )
 {
-  factory.registerNodeType<ChoosePad>("ChoosePad",m_logger,  pad_client_factory);
   factory.registerNodeType<GetPadRight>("GetPadRight", m_logger, m_pad_execute_server);
   factory.registerNodeType<HoldPadRight>("HoldPadRight", m_logger, m_pad_execute_server);
   factory.registerNodeType<ReleasePadRight>("ReleasePadRight", m_logger, m_pad_execute_server);

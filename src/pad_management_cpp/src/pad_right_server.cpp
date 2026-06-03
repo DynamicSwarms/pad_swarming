@@ -11,71 +11,75 @@ PadRightServer::PadRightServer(
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface, 
     std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> node_waitables_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
-:   m_node_base_interface(node_base_interface),
-    m_node_timers_interface(node_timers_interface),
-    m_node_graph_interface(node_graph_interface),
-    m_node_logging_interface(node_logging_interface),
-    m_node_waitables_interface(node_waitables_interface),
-    m_max_requests(node_param_interface->declare_parameter(
-        "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>()),
-    m_max_hold_time(duration_from_seconds(node_param_interface->declare_parameter(
-        "max_hold_time", rclcpp::ParameterValue(40.0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<double>())),
-    m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)),
-    m_logger(node_logging_interface->get_logger()),
-    m_request_map(std::make_unique<RequestMap>(
-        pad_resource_manager,
-        m_max_requests, 
-        m_max_hold_time,
-        node_clock_interface,
-        node_logging_interface->get_logger().get_child("RequestServer")
-    ))
-{
-    m_execution_timer = rclcpp::create_timer(
-        node_base_interface,
-        node_timers_interface,
-        node_clock_interface->get_clock(),
-        std::chrono::milliseconds(100),
-        std::bind(&PadRightServer::manage_requests, this),
-        m_callback_group
-    );
+    : m_pad_resource_manager(pad_resource_manager)
+    , m_node_base_interface(node_base_interface)
+    , m_node_timers_interface(node_timers_interface)
+    , m_node_graph_interface(node_graph_interface)
+    , m_node_logging_interface(node_logging_interface)
+    , m_node_waitables_interface(node_waitables_interface)
+    , m_max_requests(node_param_interface->declare_parameter(
+            "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
+    , m_max_hold_time(duration_from_seconds(node_param_interface->declare_parameter(
+            "max_hold_time", rclcpp::ParameterValue(40.0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<double>())),
+        m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)),
+        m_logger(node_logging_interface->get_logger()),
+        m_request_map(std::make_unique<RequestMap>(
+            pad_resource_manager,
+            m_max_requests, 
+            m_max_hold_time,
+            node_clock_interface,
+            node_logging_interface->get_logger().get_child("RequestServer")
+        ))
+    {
+        m_execution_timer = rclcpp::create_timer(
+            node_base_interface,
+            node_timers_interface,
+            node_clock_interface->get_clock(),
+            std::chrono::milliseconds(100),
+            std::bind(&PadRightServer::manage_requests, this),
+            m_callback_group
+        );
 
-    m_action_server_name = name + "/pad_right_control";
-    m_action_server = rclcpp_action::create_server<pad_management_interfaces::action::PadRightControl>(
-        node_base_interface,
-        node_clock_interface,
-        node_logging_interface,
-        node_waitables_interface,
-        m_action_server_name,
-        std::bind(&PadRightServer::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
-        std::bind(&PadRightServer::handle_cancel, this, std::placeholders::_1),
-        std::bind(&PadRightServer::handle_accepted, this, std::placeholders::_1),
-        rcl_action_server_get_default_options(),
-        m_callback_group
-    );
+        m_action_server_name = name + "/pad_right_control";
+        m_action_server = rclcpp_action::create_server<pad_management_interfaces::action::PadRightControl>(
+            node_base_interface,
+            node_clock_interface,
+            node_logging_interface,
+            node_waitables_interface,
+            m_action_server_name,
+            std::bind(&PadRightServer::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+            std::bind(&PadRightServer::handle_cancel, this, std::placeholders::_1),
+            std::bind(&PadRightServer::handle_accepted, this, std::placeholders::_1),
+            rcl_action_server_get_default_options(),
+            m_callback_group
+        );
 
-    auto pub_options = rclcpp::PublisherOptions();
-    pub_options.callback_group = m_callback_group;
-    m_pad_info_publisher = rclcpp::create_publisher<pad_management_interfaces::msg::PadInfo>(
-        node_topics_interface,
-        "pad_management/pad_info",
-        rclcpp::QoS(10).best_effort().keep_last(1),
-        pub_options
-    );
-    m_info_publish_timer = rclcpp::create_timer(
-        node_base_interface,
-        node_timers_interface,
-        node_clock_interface->get_clock(),
-        std::chrono::milliseconds(100), 
-        std::bind(&PadRightServer::publish_info, this),
-        m_callback_group
-    );
-}
+        auto pub_options = rclcpp::PublisherOptions();
+        pub_options.callback_group = m_callback_group;
+        m_pad_info_publisher = rclcpp::create_publisher<pad_management_interfaces::msg::PadInfo>(
+            node_topics_interface,
+            "pad_management/pad_info",
+            rclcpp::QoS(1).reliable().transient_local(),
+            pub_options
+        );
+        publish_info();
+        //m_info_publish_timer = rclcpp::create_timer(
+        //    node_base_interface,
+        //    node_timers_interface,
+        //    node_clock_interface->get_clock(),
+        //    std::chrono::milliseconds(100), 
+        //    std::bind(&PadRightServer::publish_info, this),
+        //    m_callback_group
+        //);
+    }
 
 void 
 PadRightServer::publish_info()
 {
     pad_management_interfaces::msg::PadInfo msg;
+    msg.node_name = m_node_base_interface->get_name();
     msg.pad_right_control_action_name = m_action_server_name;
+    msg.pad_tf_names = m_pad_resource_manager.get_pad_tf_names();
     m_pad_info_publisher->publish(msg);
 }
 

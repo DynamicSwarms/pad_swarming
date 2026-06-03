@@ -43,6 +43,8 @@ public:
         return m_get_associated_position(id, position);
     }
 
+    virtual std::vector<std::string> get_pad_tf_names() = 0;
+
 private: 
     virtual bool m_try_lock(uint8_t id) = 0;
 
@@ -50,6 +52,7 @@ private:
     virtual void m_release(uint8_t id, uint8_t result) = 0;
 
     virtual bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) = 0;
+
 
     std::mutex m_mutex;
 };
