@@ -9,7 +9,7 @@ data_files=[
 ]
 
 data_files.append(('share/' + package_name + '/launch', ['launch/smart_pad.launch.py']))
-
+data_files.append(('share/' + package_name + '/launch', ['launch/smart_pad_detection.launch.py']))
 setup(
     name=package_name,
     version='0.0.0',
