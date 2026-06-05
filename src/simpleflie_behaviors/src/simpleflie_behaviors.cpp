@@ -1,5 +1,5 @@
 #include "simpleflie_behaviors/simpleflie_behaviors.hpp"
-
+using namespace std::chrono_literals;
 namespace simpleflie_behaviors
 {
 
@@ -26,6 +26,7 @@ public:
   BT::NodeStatus tick() override
   {
     m_hardware_actor->takeoff(1.0, 0.0, 4.0);
+    std::this_thread::sleep_for(1s);
     return BT::NodeStatus::SUCCESS;
   }
 
@@ -57,6 +58,7 @@ public:
   BT::NodeStatus tick() override
   {
     m_hardware_actor->land(0.0, 0.0, 4.0);
+    std::this_thread::sleep_for(1s);
     return BT::NodeStatus::SUCCESS;
   }
 

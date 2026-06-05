@@ -104,7 +104,7 @@ PadflieCommander::is_healthy() const
 bool 
 PadflieCommander::get_home_state() const 
 {
-    return true; //return m_state == CommanderState::WAITING_FOR_TAKEOFF_RIGHTS;
+    return m_state == CommanderState::FLYING;
 }
 
 bool 
