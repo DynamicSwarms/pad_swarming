@@ -12,6 +12,15 @@ RoutineFactory::RoutineFactory(
   , m_node_interfaces_bundle(node_interfaces_bundle)
   , m_logger(logger)
   {
+      m_change_plugin_timer = rclcpp::create_timer(
+        m_node_interfaces_bundle.base_interface,
+        m_node_interfaces_bundle.timers_interface,
+        m_node_interfaces_bundle.clock_interface->get_clock(),
+        std::chrono::milliseconds(0), // One-shot timer to trigger immediately
+        std::bind(&RoutineFactory::m_set_plugin, this)
+    );
+
+
     // Declaring will automatically load the default plugin.
     m_node_interfaces_bundle.parameters_interface->declare_parameter("behavior_plugin_name", rclcpp::ParameterValue("simpleflie_behaviors::SimpleflieBehaviors")); 
   }
@@ -99,26 +108,30 @@ RoutineFactory::m_set_parameters_callback(const std::vector<rclcpp::Parameter> &
   for (const auto& param : parameters) 
   {
     if (param.get_name() == "behavior_plugin_name") {
-      if (!m_set_plugin(param.as_string())) {
+      if (m_behavior_plugin_loader.isClassAvailable(param.as_string()))
+      {
+          result.successful = true;
+          m_plugin_name = param.as_string(); 
+          m_change_plugin_timer->reset(); 
+      } else {
         result.successful = false;
-        result.reason = "Failed to load behavior plugin: " + param.as_string();
-        RCLCPP_ERROR(m_logger, "%s", result.reason.c_str());
+        result.reason = "Plugin not found";  
+        RCLCPP_ERROR(m_logger, "Plugin '%s' not found in plugin loader", param.as_string().c_str());
       }
     }
   }
   return result;
 }
 
-bool 
-RoutineFactory::m_set_plugin(const std::string & plugin_name)
+void 
+RoutineFactory::m_set_plugin()
 {
+  m_change_plugin_timer->cancel(); // OneShot Timer -> cancel after trigger
   try {
-    p_plugin = m_behavior_plugin_loader.createSharedInstance(plugin_name, m_node_interfaces_bundle, m_logger);
-    RCLCPP_INFO(m_logger, "Successfully loaded behavior plugin: %s", plugin_name.c_str());
-    return true;
+    p_plugin = m_behavior_plugin_loader.createSharedInstance(m_plugin_name, m_node_interfaces_bundle, m_logger);
+    RCLCPP_INFO(m_logger, "Successfully loaded behavior plugin: %s", m_plugin_name.c_str());
   } catch (const pluginlib::PluginlibException & ex) {
-    RCLCPP_ERROR(m_logger, "Failed to load behavior plugin: %s. Exception: %s", plugin_name.c_str(), ex.what());
-    return false;
+    RCLCPP_ERROR(m_logger, "Failed to load behavior plugin: %s. Exception: %s", m_plugin_name.c_str(), ex.what());
   }
 }
     

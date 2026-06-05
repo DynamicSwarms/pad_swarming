@@ -46,12 +46,14 @@ private:
     rcl_interfaces::msg::SetParametersResult 
         m_set_parameters_callback(const std::vector<rclcpp::Parameter> & parameters);
 
-    bool m_set_plugin(const std::string & plugin_name);
+    void m_set_plugin();
 private: 
     pluginlib::ClassLoader<padflies_cpp::IPadflieBehaviorPlugin> m_behavior_plugin_loader;
     std::shared_ptr<padflies_cpp::IPadflieBehaviorPlugin> p_plugin;
 
     std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle; 
+    std::shared_ptr<rclcpp::TimerBase> m_change_plugin_timer;
+    std::string m_plugin_name;
 
     padflies_cpp::NodeInterfacesBundle m_node_interfaces_bundle;
     rclcpp::Logger m_logger;

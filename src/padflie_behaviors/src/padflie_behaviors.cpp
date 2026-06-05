@@ -10,7 +10,7 @@ public:
     const std::string& name,
     const BT::NodeConfig& config,
     rclcpp::Logger logger, 
-    std::shared_ptr<ListOfPadInfos> list_of_pad_infos,
+    std::shared_ptr<PadInfos> list_of_pad_infos,
     std::shared_ptr<PadflieTF> padflie_tf,
     std::shared_ptr<PadClientFactory> pad_client_factory)
   : BT::StatefulActionNode(name, config)
@@ -28,14 +28,14 @@ public:
     };
   }
 
-  BT::NodeStatus findClosestPad()
+  bool findClosestPad(std::string & closest_pad_name)
   {
     std::map<std::string, PadInfo> pad_infos;
     m_list_of_pad_infos->get_all_pad_infos(pad_infos);
 
     if (pad_infos.empty()) {
         RCLCPP_ERROR(m_logger, "No pads available in ChoosePad node!");
-        return BT::NodeStatus::RUNNING;  // Keep running until at least one pad is available
+        return false;
     }
   
     auto closest_pad_it = pad_infos.end();
@@ -43,8 +43,8 @@ public:
     for (const auto& [node_name, pad_info] : pad_infos) {
       for (const std::string& tf_name : pad_info.pad_tf_names) {
         Eigen::Affine3d my_pose, pad_pose;
-        if (!m_padflie_tf->get_cf_pose(my_pose)) return BT::NodeStatus::RUNNING;
-        if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) return BT::NodeStatus::RUNNING;
+        if (!m_padflie_tf->get_cf_pose(my_pose)) return false;
+        if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) return false;
 
         double distance = (my_pose.translation() - pad_pose.translation()).norm();
         if (distance < closest_distance) {
@@ -56,13 +56,12 @@ public:
 
     if (closest_pad_it == pad_infos.end()) {
         RCLCPP_ERROR(m_logger, "No valid pads found in ChoosePad node!");
-        return BT::NodeStatus::RUNNING;  // Keep running until at least one valid pad is available
+        return false;  // Keep running until at least one valid pad is available
     }
 
-    std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(closest_pad_it->second.node_name);
-    setOutput("pad_client", pad_client);
+    closest_pad_name = closest_pad_it->second.node_name;
     RCLCPP_INFO(m_logger, "Chosen pad: %s with node name: %s", closest_pad_it->second.pad_right_control_action_name.c_str(), closest_pad_it->second.node_name.c_str());
-    return BT::NodeStatus::SUCCESS;
+    return true;
   }
 
   void onHalted() override
@@ -72,17 +71,45 @@ public:
 
   BT::NodeStatus onStart() override
   {
-    return findClosestPad();
+    std::string closest_pad_name;
+    
+    std::string current_pad_name = m_list_of_pad_infos->get_current_pad_name();
+    if (!current_pad_name.empty()) {
+      std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(current_pad_name);
+      setOutput("pad_client", pad_client);
+
+      m_list_of_pad_infos->set_current_pad_name(current_pad_name); 
+      return BT::NodeStatus::SUCCESS;
+    } else if (findClosestPad(closest_pad_name)) {
+      std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(closest_pad_name);
+      setOutput("pad_client", pad_client);
+      m_list_of_pad_infos->set_current_pad_name(closest_pad_name);
+
+      return BT::NodeStatus::SUCCESS;
+    } else {
+      return BT::NodeStatus::RUNNING; 
+    }
+
+    return BT::NodeStatus::RUNNING;
   }
 
   BT::NodeStatus onRunning() override
   {
-    return findClosestPad();
+    std::string closest_pad_name;
+    if (findClosestPad(closest_pad_name)) {
+      std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(closest_pad_name);
+      setOutput("pad_client", pad_client);
+      m_list_of_pad_infos->set_current_pad_name(closest_pad_name);
+
+      return BT::NodeStatus::SUCCESS;
+    } else {
+      return BT::NodeStatus::RUNNING; 
+    }
   }
 
 private:
   rclcpp::Logger m_logger;
-  std::shared_ptr<ListOfPadInfos> m_list_of_pad_infos;
+  std::shared_ptr<PadInfos> m_list_of_pad_infos;
   std::shared_ptr<PadClientFactory> m_pad_client_factory;
   std::shared_ptr<PadflieTF> m_padflie_tf;
 };
@@ -119,6 +146,7 @@ PadflieBehaviors::getLandTree(
   std::shared_ptr<PadExecuteServer> pad_execute_server,
   std::shared_ptr<PadClientFactory> pad_client_factory)
 {
+  m_list_of_pad_infos->set_current_pad_name("");
   factory.registerNodeType<ChoosePad>(
     "ChoosePad",
     m_logger,

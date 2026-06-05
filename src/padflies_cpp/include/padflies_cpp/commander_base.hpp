@@ -158,8 +158,6 @@ class PadflieCommanderBase{
         std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
 
     private:
-
-        std::string m_initial_pad;        
         std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle; 
     protected:
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> m_node_clock_interface;

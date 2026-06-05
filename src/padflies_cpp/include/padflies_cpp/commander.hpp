@@ -83,9 +83,9 @@ class PadflieCommander
         
 
         std::shared_ptr<PadControl> m_pad_control;
+        std::shared_ptr<RoutineFactory> m_routine_factory;
         std::shared_ptr<rclcpp::Clock> m_clock;
 
-        std::shared_ptr<RoutineFactory> m_routine_factory;
 
         CommanderState m_state = CommanderState::UNCONFIGURED;
 

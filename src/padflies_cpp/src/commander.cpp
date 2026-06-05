@@ -69,6 +69,7 @@ PadflieCommander::m_command_queue_execute()
             m_command_queue.pop();
             return;
         }
+        RCLCPP_INFO(m_logger, "Starting command with target state %d", static_cast<int>(command->get_target_state()));
         command->start();  
         m_state = command->get_working_state();
     }
@@ -153,6 +154,19 @@ PadflieCommander::m_deactivate_commander(
     bool force) 
 { 
     m_pad_control->destroy_connection(node);
+    
+    if (force) return;
+
+    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
+    std::shared_ptr<Command> command = std::make_shared<LandCommand>(m_routine_factory);
+    
+    {
+        std::lock_guard<std::mutex> lock(m_command_queue_mutex);
+        m_command_queue.push(command);
+    }
+    RCLCPP_INFO(m_logger, "Deactivating commander, landing padflie %s", m_cf_prefix.c_str());
+    command->wait_until_finished();
+
 }
 
 void PadflieCommander::m_on_commander_deactivated() 

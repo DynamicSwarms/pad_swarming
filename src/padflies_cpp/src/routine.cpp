@@ -11,13 +11,16 @@ Routine::Routine(
   )
     : m_logger(logger.get_child("RoutineExecutor"))
     , m_behavior_tree(std::move(routine))
+    , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
   {
     m_timer = rclcpp::create_timer(
         node_base_interface,
         node_timers_interface,
         node_clock_interface->get_clock(),
         std::chrono::milliseconds(100),
-        std::bind(&Routine::m_timer_callback, this));
+        std::bind(&Routine::m_timer_callback, this),
+        m_callback_group
+      );
   }
 
   void 
@@ -39,7 +42,6 @@ Routine::Routine(
       if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE || status == BT::NodeStatus::SKIPPED) {
           m_tree_is_running = false;
           RCLCPP_INFO(m_logger, "Behavior tree finished with status: %s", toStr(status).c_str());
-          
           if (m_on_finished_callback) {
             m_on_finished_callback(status == BT::NodeStatus::SUCCESS);
           }

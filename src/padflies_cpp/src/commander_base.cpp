@@ -12,17 +12,10 @@ PadflieCommanderBase::PadflieCommanderBase(
 , m_hw_state_controller(node_interfaces_bundle.parameters_interface)
 , m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix, WORLD, node_interfaces_bundle.clock_interface->get_clock(), node_interfaces_bundle.logging_interface->get_logger()))
 , m_callback_group(node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
-, m_initial_pad(node_interfaces_bundle.parameters_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>())
 , m_param_callback_handle(node_interfaces_bundle.parameters_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
 , m_node_clock_interface(node_interfaces_bundle.clock_interface)
 , m_logger(node_interfaces_bundle.logging_interface->get_logger())
-{
-    if (!m_initial_pad.empty()) {
-        m_padflie_tf->set_pad(m_initial_pad);
-    } else {
-    // TODO
-    }
-  
+{ 
     m_hw_state_controller.set_on_state_callback(
         std::bind(&PadflieCommanderBase::m_on_state_callback, this));
     m_hw_state_controller.set_on_charged_callback(

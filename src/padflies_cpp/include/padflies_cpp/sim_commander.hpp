@@ -30,6 +30,7 @@ private:
         const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
         const std::shared_ptr<rmw_request_id_t> request_id,
         const std::shared_ptr<std_srvs::srv::Trigger::Request> req) override {
+        (void)req;
         auto response = std_srvs::srv::Trigger::Response();
         response.success = true;
         response.message = "Takeoff command received";
@@ -52,6 +53,7 @@ private:
         const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
         const std::shared_ptr<rmw_request_id_t> request_id,
         const std::shared_ptr<std_srvs::srv::Trigger::Request> req) override {
+        (void)req;
         auto response = std_srvs::srv::Trigger::Response();
         response.success = true;
         response.message = "Land command received";

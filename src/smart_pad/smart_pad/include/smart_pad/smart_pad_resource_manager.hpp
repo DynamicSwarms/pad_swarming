@@ -10,6 +10,7 @@
 #include "smart_pad/smart_pad_neighbors.hpp"
 #include "smart_pad_visualization.hpp"
 #include "smart_pad/smart_pad_neighbors_lock.hpp"
+#include "smart_pad/smart_pad_pad_idle_target_service.hpp"
 
 #include "smart_pad_interfaces/srv/lock.hpp"
 #include <Eigen/Dense>
@@ -68,7 +69,13 @@ public:
             "~/lock",
             std::bind(&SmartPadResourceManager::lock_service_callback, this, std::placeholders::_1, std::placeholders::_2),
             rclcpp::ServicesQoS(), 
-            m_lock_service_callback_group
+            m_lock_service_callback_group);
+
+        m_pad_idle_target_service = std::make_shared<SmartPadPadIdleTargetService>(
+            node_iface_bundle.base_interface,
+            node_iface_bundle.services_interface,
+            m_smart_pad_tf,
+            m_logger
         );
 
     }
@@ -197,7 +204,7 @@ private:
 
   bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override
   {
-    position.header.frame_id = get_pad_name(id);
+    position.header.frame_id = get_pad_name(m_id);
     position.pose.position.x = 0.0;
     position.pose.position.y = 0.0;
     position.pose.position.z = 0.0;
@@ -205,6 +212,7 @@ private:
     position.pose.orientation.y = 0.0;
     position.pose.orientation.z = 0.0;
     position.pose.orientation.w = 1.0;
+
     return true;
   }
 
@@ -243,6 +251,8 @@ private:
 
     std::shared_ptr<rclcpp::CallbackGroup> m_lock_service_callback_group;
     std::shared_ptr<rclcpp::Service<smart_pad_interfaces::srv::Lock>> m_lock_service;
+
+    std::shared_ptr<SmartPadPadIdleTargetService> m_pad_idle_target_service;
 };
 
 }  // namespace smart_pad

@@ -88,11 +88,10 @@ def generate_test_description():
         package='padflies_cpp',
         executable='padflie',
         name='padflie0',
-        #prefix=["gdbserver localhost:3000"],
+        # prefix=["gdbserver localhost:3000"],
         parameters=[
             {
                 'id': 0,
-                'pad_id': 0,
                 'use_sim_time': True,
                 "behavior_plugin_name": "padflie_behaviors::PadflieBehaviors",
             }
@@ -173,7 +172,7 @@ class TestLockService(unittest.TestCase):
             time.sleep(0.1)
         return False
 
-    def activate_deactivate_padflie(self, activate: bool):
+    def activate_deactivate_padflie(self, activate: bool, wait_time_sec=1.0):
         client = self.node.create_client(
             ChangeState,
             '/padflie0/change_state'
@@ -186,38 +185,38 @@ class TestLockService(unittest.TestCase):
         req.transition.id = Transition.TRANSITION_ACTIVATE if activate else Transition.TRANSITION_DEACTIVATE
 
         future = client.call_async(req)
-        self.assertTrue(self.wait_for_future(future, timeout_sec=1.0), "ChangeState service call for /padflie0 timed out")                   
+        self.assertTrue(self.wait_for_future(future, timeout_sec=wait_time_sec), "ChangeState service call for /padflie0 timed out")                   
 
         self.assertTrue(future.done(), "ChangeState service for /padflie0 timed out")
         self.assertTrue(future.result() is not None, "No result from ChangeState service for /padflie0")
         self.assertTrue(future.result().success, "Failed to activate padflie")
 
-#    def test_padflie_lifecycle(self):
-#        # Wait at most 5 seconds for padflie lifecycle to reach ACTIVE or INACTIVE
-#        client = self.node.create_client(GetState, '/padflie0/get_state')
-#        start_time = time.time()
-#        timeout = 5.0
-#        # wait for service availability
-#        client.wait_for_service(timeout_sec=1.0)
-#        self.assertTrue(client.service_is_ready(), "GetState service for /padflie0 not available")
-#
-#        configured = False
-#        while time.time() - start_time < timeout:
-#            try:
-#                req = GetState.Request()
-#                future = client.call_async(req)
-#                rclpy.spin_until_future_complete(self.node, future, timeout_sec=0.1, executor=self.executor)
-#                if future.done() and future.result() is not None:
-#                    state = future.result().current_state
-#                    if state.id is State.PRIMARY_STATE_INACTIVE:
-#                        configured = True
-#                        break
-#            except Exception:
-#                pass
-#            time.sleep(0.1)
-#
-#        self.assertTrue(configured, "padflie lifecycle not in INACTIVE/ACTIVE within timeout")
-#
+    def test_padflie_lifecycle(self):
+        # Wait at most 5 seconds for padflie lifecycle to reach ACTIVE or INACTIVE
+        client = self.node.create_client(GetState, '/padflie0/get_state')
+        start_time = time.time()
+        timeout = 5.0
+        # wait for service availability
+        client.wait_for_service(timeout_sec=1.0)
+        self.assertTrue(client.service_is_ready(), "GetState service for /padflie0 not available")
+
+        configured = False
+        while time.time() - start_time < timeout:
+            try:
+                req = GetState.Request()
+                future = client.call_async(req)
+                self.wait_for_future(future, timeout_sec=1.0)
+                if future.done() and future.result() is not None:
+                    state = future.result().current_state
+                    if state.id is State.PRIMARY_STATE_INACTIVE:
+                        configured = True
+                        break
+            except Exception:
+                pass
+            time.sleep(0.1)
+
+        self.assertTrue(configured, "padflie lifecycle not in INACTIVE/ACTIVE within timeout")
+
     def test_padflie_activation(self):
         self.assertTrue(self.padflie_available.wait(timeout=1.0), "padflie0 did not become available within timeout")
 
@@ -241,7 +240,7 @@ class TestLockService(unittest.TestCase):
         self.assertTrue(future.done() and future.result() is not None, "Failed to call Trigger service for /padflie0")
         self.assertTrue(future.result().success, "Failed to initiate takeoff for padflie")
 
-        self.activate_deactivate_padflie(activate=False)
+        self.activate_deactivate_padflie(activate=False, wait_time_sec=10.0) # Flie lands
         self.padflie_available.clear()
 
 @launch_testing.post_shutdown_test()

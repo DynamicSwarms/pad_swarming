@@ -71,7 +71,7 @@ PadExecuteClient::feedback_callback(
     GoalHandlePtr goal_handle,
     const std::shared_ptr<const ActionT::Feedback> feedback)
 {
-    RCLCPP_INFO(m_logger, "Received feedback from padflie: %d", feedback->status);
+    RCLCPP_DEBUG(m_logger, "Received feedback from padflie: %d", feedback->status);
 }
 
 void 
