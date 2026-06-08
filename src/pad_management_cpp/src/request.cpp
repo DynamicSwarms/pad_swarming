@@ -118,8 +118,6 @@ Request::publish_feedback(
 
         feedback->target_pose = geometry_msgs::msg::PoseStamped();
         m_resource_manager.get_associated_position(m_id, feedback->target_pose);
-
-
     } else {
         feedback->status = PadRightControlActionT::Feedback::STATUS_WAITING_FOR_RIGHT;
         feedback->time_remaining = duration_to_seconds(expected_wait_time);

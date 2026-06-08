@@ -68,9 +68,11 @@ public:
 
     BT::NodeStatus onRunning() override
     {
+        RCLCPP_DEBUG(m_logger, "GetPadRight running, waiting to acquire right and for Execute goal...");
         if (!m_request_sent)
         {
             if (m_pad_client->is_action_server_available()) {
+                RCLCPP_INFO(m_logger, "PadRight action server is available, sending goal...");
                 m_pad_client->send_request(m_action);
                 m_request_sent = true;
             }   
@@ -520,7 +522,7 @@ public:
 
     BT::NodeStatus onRunning() override
     {
-        RCLCPP_DEBUG(m_logger, "Approaching IDLE position...");
+        RCLCPP_INFO(m_logger, "Approaching IDLE position...");
 
         Eigen::Affine3d my_pose;
         if (!m_padflie_tf->get_cf_pose(my_pose))
@@ -547,7 +549,7 @@ public:
         idle_pose_target.collision_avoidance = true;
 
         m_hardware_actor->set_pose_target(idle_pose_target);
-        return BT::NodeStatus::SUCCESS;
+        return BT::NodeStatus::RUNNING;
     }
 
 
@@ -610,6 +612,7 @@ public:
         
         geometry_msgs::msg::PoseStamped close_target_pose = m_pad_client->get_target_pose();
         close_target_pose.pose.position.z += 0.5; // hover 0.5m above the target pose
+        
         PoseTarget close_target;
         close_target.frame_id = close_target_pose.header.frame_id;
         tf2::fromMsg(close_target_pose.pose, close_target.pose);
@@ -620,9 +623,19 @@ public:
         Eigen::Vector3d position; 
         if (m_padflie_tf->get_cf_position(position))
         {
-            if ((position - close_target.pose.translation()).norm() < 0.5) {
-                RCLCPP_DEBUG(m_logger, "Reached CLOSE position!");
-                return BT::NodeStatus::SUCCESS;
+            geometry_msgs::msg::PoseStamped close_target_world_frame;
+            if (m_padflie_tf->transform_pose_stamped(close_target_pose, "world", close_target_world_frame))
+            {
+                Eigen::Affine3d close_target_world_affine = Eigen::Affine3d::Identity();
+                tf2::fromMsg(close_target_world_frame.pose, close_target_world_affine);
+
+                if ((position - close_target_world_affine.translation()).norm() < 0.5) {
+                    RCLCPP_DEBUG(m_logger, "Reached CLOSE position!");
+                    return BT::NodeStatus::SUCCESS;
+                }
+            } else {
+                RCLCPP_ERROR(m_logger, "Error transforming CLOSE target pose to world frame!");
+                return BT::NodeStatus::FAILURE;
             }
         } else {
             RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");

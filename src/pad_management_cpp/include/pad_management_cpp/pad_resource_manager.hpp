@@ -11,8 +11,9 @@ class PadResourceManager : public IPadResourceManager
 {
 public:
     explicit PadResourceManager(pad_management_cpp::NodeInterfacesBundle node_interfaces_bundle) 
+    : m_logger(node_interfaces_bundle.logging_interface->get_logger().get_child("PadResourceManager"))
     {
-        RCLCPP_INFO(rclcpp::get_logger("PadResourceManager"), "PadResourceManager constructor called.");
+        RCLCPP_INFO(m_logger, "PadResourceManager constructor called.");
     }
 
     bool m_try_lock(uint8_t id) override;
@@ -25,7 +26,7 @@ public:
     {
         // For simplicity, we assume that the pad TF names are "pad_0", "pad_1", ..., "pad_255"
         std::vector<std::string> tf_names;
-        for (uint8_t i = 0; i < 256; ++i) {
+        for (int i = 0; i < 256; ++i) {
             tf_names.push_back(get_pad_name(i));
         }
         return tf_names;
@@ -36,9 +37,9 @@ public:
     }
 
 private: 
-    std::unordered_map<uint8_t, std::unique_lock<std::mutex>> m_locks;
+    int m_current_hodler = -1;
 
-    
+    rclcpp::Logger m_logger;
     std::mutex m_mutex;
 };
 

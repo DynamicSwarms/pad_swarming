@@ -33,10 +33,16 @@ def generate_padflies(backend: str):
                 parameters=[
                     {
                         "id": id,
+                        "behavior_plugin_name": "padflie_behaviors::PadflieBehaviors", # simpleflie_behaviors::SimpleflieBehaviors
                         "initial_pad": "megapad"
                     }
                 ],
             )
+
+    yield Node(
+        package="pad_management_cpp",
+        executable="pad_right_provider"
+    )
 
 def simulation_group():
     simulation_gateway = Node(
@@ -215,11 +221,6 @@ def generate_launch_description():
         package="collision_avoidance", executable="collision_avoidance_node"
     )
 
-    traffic_controller = Node(
-        package="pad_management", executable="pad_traffic_controller"
-    )
-
-
     pad_circle = Node(
         package="pad_management",
         executable="pad_land_circle",
@@ -233,7 +234,6 @@ def generate_launch_description():
             simulation_elements,
             pad_broadcaster,
             collision_avoidance,
-            traffic_controller,
             pad_circle,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(

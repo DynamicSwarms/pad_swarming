@@ -44,7 +44,7 @@ public:
       for (const std::string& tf_name : pad_info.pad_tf_names) {
         Eigen::Affine3d my_pose, pad_pose;
         if (!m_padflie_tf->get_cf_pose(my_pose)) return false;
-        if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) return false;
+        if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) continue;
 
         double distance = (my_pose.translation() - pad_pose.translation()).norm();
         if (distance < closest_distance) {
@@ -75,6 +75,7 @@ public:
     
     std::string current_pad_name = m_list_of_pad_infos->get_current_pad_name();
     if (!current_pad_name.empty()) {
+      RCLCPP_INFO(m_logger, "Current pad already set to %s, using it.", current_pad_name.c_str());
       std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(current_pad_name);
       setOutput("pad_client", pad_client);
 

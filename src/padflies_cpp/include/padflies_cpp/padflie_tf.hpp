@@ -103,6 +103,12 @@ public:
         const geometry_msgs::msg::PoseStamped & pose_stamped,
         Eigen::Vector3d & position,
         double & yaw);
+
+    bool transform_pose_stamped(
+        const geometry_msgs::msg::PoseStamped & pose,
+        const std::string & target_frame,
+        geometry_msgs::msg::PoseStamped & transformed_pose);
+
 private: 
 
     bool transform_point_stamped(
@@ -110,11 +116,7 @@ private:
         const std::string & target_frame,
         geometry_msgs::msg::PointStamped & transformed_point);
 
-    bool transform_pose_stamped(
-        const geometry_msgs::msg::PoseStamped & pose,
-        const std::string & target_frame,
-        geometry_msgs::msg::PoseStamped & transformed_pose);
-
+  
     bool lookup_transform(
         const std::string & target_frame,
         const std::string & source_frame,

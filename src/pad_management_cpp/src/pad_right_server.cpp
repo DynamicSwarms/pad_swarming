@@ -18,18 +18,17 @@ PadRightServer::PadRightServer(
     , m_node_logging_interface(node_logging_interface)
     , m_node_waitables_interface(node_waitables_interface)
     , m_max_requests(node_param_interface->declare_parameter(
-            "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
+        "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
     , m_max_hold_time(duration_from_seconds(node_param_interface->declare_parameter(
-            "max_hold_time", rclcpp::ParameterValue(40.0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<double>())),
-        m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive)),
-        m_logger(node_logging_interface->get_logger()),
-        m_request_map(std::make_unique<RequestMap>(
-            pad_resource_manager,
-            m_max_requests, 
-            m_max_hold_time,
-            node_clock_interface,
-            node_logging_interface->get_logger().get_child("RequestServer")
-        ))
+        "max_hold_time", rclcpp::ParameterValue(40.0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<double>()))
+    , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
+    , m_logger(node_logging_interface->get_logger())
+    , m_request_map(std::make_unique<RequestMap>(
+        pad_resource_manager,
+        m_max_requests, 
+        m_max_hold_time,
+        node_clock_interface,
+        node_logging_interface->get_logger().get_child("RequestServer")))
     {
         m_execution_timer = rclcpp::create_timer(
             node_base_interface,

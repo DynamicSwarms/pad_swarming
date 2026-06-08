@@ -8,12 +8,13 @@
         <SendFeedback pad_client="{client}"
                       status="{status}"/>
         <TimeoutROS timeout_ms="20000">
-          <ParallelAll max_failures="1">
+          <Parallel failure_count="1"
+                    success_count="1">
             <ApproachIDLE pad_client="{client}"
                           status="{status}"/>
             <GetPadRight pad_client="{client}"
                          action="LAND"/>
-          </ParallelAll>
+          </Parallel>
         </TimeoutROS>
       </ReactiveSequence>
       <TryFinally>
