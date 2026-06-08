@@ -1,5 +1,4 @@
 #include "padflies_cpp/commander_base.hpp"
-#include "padflies_cpp/pad_control.hpp"
 #include "padflies_cpp/routine.hpp"
 #include "padflies_cpp/routine_factory.hpp"
 
@@ -82,7 +81,6 @@ class PadflieCommander
         std::shared_ptr<PadClientFactory> m_pad_client_factory;
         
 
-        std::shared_ptr<PadControl> m_pad_control;
         std::shared_ptr<RoutineFactory> m_routine_factory;
         std::shared_ptr<rclcpp::Clock> m_clock;
 

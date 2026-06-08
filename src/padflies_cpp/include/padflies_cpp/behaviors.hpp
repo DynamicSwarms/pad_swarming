@@ -11,41 +11,6 @@
 
 using namespace std::chrono_literals;
 
-class ChoosePad : public BT::SyncActionNode
-{
-public: 
-    ChoosePad(
-        const std::string& name, 
-        const BT::NodeConfig& config,
-        rclcpp::Logger logger,
-        std::shared_ptr<PadClientFactory> pad_client_factory)
-    : BT::SyncActionNode(name, config)
-    , m_logger(logger.get_child(name))
-    , m_pad_client_factory(pad_client_factory)
-    {
-    }
-
-    static BT::PortsList providedPorts()
-    {
-        return {
-            BT::OutputPort<std::shared_ptr<PadClient>>("pad_client")
-        };
-    }
-
-    BT::NodeStatus tick() override
-    {
-        RCLCPP_INFO(m_logger, "Choosing a pad and creating PadClient...");
-        std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client("megapad");
-    
-        setOutput("pad_client", pad_client);
-        return BT::NodeStatus::SUCCESS;
-    }
-    
-private: 
-    rclcpp::Logger m_logger;
-    std::shared_ptr<PadClientFactory> m_pad_client_factory;
-};
-
 class GetPadRight : public BT::StatefulActionNode
 {
 public: 

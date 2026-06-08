@@ -27,6 +27,8 @@ public:
       std::shared_ptr<PadClientFactory> pad_client_factory
     );
 
+    void reset_padflie_shared_ptrs();
+
     std::shared_ptr<Routine>
     create_takeoff_routine();
 

@@ -31,13 +31,6 @@ PadflieCommander::PadflieCommander(
     node_interfaces_bundle.services_interface,
     node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive),
     m_logger))
-, m_pad_control(std::make_shared<PadControl>(
-    prefix,
-    node_interfaces_bundle.base_interface,
-    node_interfaces_bundle.graph_interface,
-    node_interfaces_bundle.services_interface,
-    node_interfaces_bundle.waitables_interface,
-    node_interfaces_bundle.logging_interface))
 , m_routine_factory(std::make_shared<RoutineFactory>(
     node_interfaces_bundle,
     m_logger))
@@ -76,6 +69,7 @@ PadflieCommander::m_command_queue_execute()
 
     if (command->is_finished()) {
         m_state = command->get_target_state();
+        RCLCPP_INFO(m_logger, "Command finished with target state %d", static_cast<int>(command->get_target_state()));
         m_command_queue.pop();
     }
 }
@@ -104,7 +98,7 @@ PadflieCommander::is_healthy() const
 bool 
 PadflieCommander::get_home_state() const 
 {
-    return m_state == CommanderState::FLYING;
+    return m_state != CommanderState::FLYING;
 }
 
 bool 
@@ -131,6 +125,7 @@ PadflieCommander::m_configure_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
 }
+
 void PadflieCommander::m_on_commander_configured() 
 {
     m_state = CommanderState::CONFIGURED;
@@ -140,11 +135,11 @@ void
 PadflieCommander::m_activate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
-    //m_pad_control->create_connection("megapad");
 }
 
 void PadflieCommander::m_on_commander_activated() 
 {
+    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
     m_state = m_hw_state_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
 }
 
@@ -152,12 +147,9 @@ void
 PadflieCommander::m_deactivate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     bool force) 
-{ 
-    m_pad_control->destroy_connection(node);
-    
+{    
     if (force) return;
 
-    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
     std::shared_ptr<Command> command = std::make_shared<LandCommand>(m_routine_factory);
     
     {
@@ -171,6 +163,7 @@ PadflieCommander::m_deactivate_commander(
 
 void PadflieCommander::m_on_commander_deactivated() 
 {
+    m_routine_factory->reset_padflie_shared_ptrs();
     m_state = CommanderState::CONFIGURED;
 }
 
@@ -188,7 +181,6 @@ PadflieCommander::m_handle_takeoff_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {
     RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
-    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
     std::shared_ptr<Command> command = std::make_shared<TakeoffCommand>(
         m_routine_factory,
         service_handle,
@@ -208,7 +200,6 @@ PadflieCommander::m_handle_land_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {   
     RCLCPP_INFO(m_logger, "Land command received for %s", m_cf_prefix.c_str());
-    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf, m_pad_execute_server, m_pad_client_factory);
     std::shared_ptr<Command> command = std::make_shared<LandCommand>(
         m_routine_factory,
         service_handle,

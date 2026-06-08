@@ -50,6 +50,16 @@ RoutineFactory::set_padflie_shared_ptrs(
   m_pad_client_factory = pad_client_factory;
 }
 
+void 
+RoutineFactory::reset_padflie_shared_ptrs()
+{
+
+  m_hardware_actor.reset();
+  m_padflie_tf.reset();
+  m_pad_execute_server.reset();
+  m_pad_client_factory.reset();
+}
+
 std::shared_ptr<Routine>
 RoutineFactory::create_takeoff_routine()
 {

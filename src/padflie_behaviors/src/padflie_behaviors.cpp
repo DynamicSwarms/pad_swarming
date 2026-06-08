@@ -134,7 +134,6 @@ PadflieBehaviors::getTakeoffTree(
   RCLCPP_INFO(m_logger, "Loading behavior tree XML from: %s", xml_path.c_str());
   factory.registerBehaviorTreeFromFile(xml_path);
   return factory.createTree("TakeoffBehavior");
-  RCLCPP_INFO(m_logger, "Registered ChoosePad behavior in PadflieBehaviorsBase plugin and created Takeoff tree");
 }
 
 
@@ -157,7 +156,6 @@ PadflieBehaviors::getLandTree(
   std::string xml_path = share_dir + "/config/behaviors.xml";
   factory.registerBehaviorTreeFromFile(xml_path);
   return factory.createTree("LandBehavior");
-  RCLCPP_INFO(m_logger, "Registered ChoosePad behavior in PadflieBehaviorsBase plugin and created Land tree");
 }
 
 

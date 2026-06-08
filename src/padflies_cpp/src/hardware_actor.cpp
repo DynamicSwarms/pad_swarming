@@ -58,6 +58,8 @@ HardwareActor::HardwareActor(
         std::bind(&HardwareActor::m_ll_command_timer_callback, this),
         m_callback_groups[cf_prefix]
     );
+
+    RCLCPP_INFO(m_logger, "HardwareActor initialized.");
 }
 
 HardwareActor::~HardwareActor()
