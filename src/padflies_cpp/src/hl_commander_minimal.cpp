@@ -56,13 +56,13 @@ HighLevelCommanderMinimal::~HighLevelCommanderMinimal()
 void HighLevelCommanderMinimal::takeoff(
     double height,
     double duration_seconds,
-    double yaw,
+    double yaw_rad,
     double group_mask)
 {
     auto req = std::make_shared<crazyflie_interfaces::srv::Takeoff::Request>();
     req->height = height;
     req->duration = rclcpp::Duration::from_seconds(duration_seconds);
-    req->yaw = yaw;
+    req->yaw = yaw_rad;
     req->group_mask = group_mask;
 
     m_takeoff_client->async_send_request(req);
@@ -71,13 +71,13 @@ void HighLevelCommanderMinimal::takeoff(
 void HighLevelCommanderMinimal::land(
     double target_height,
     double duration_seconds,
-    double yaw,
+    double yaw_rad,
     double group_mask)
 {
     auto req = std::make_shared<crazyflie_interfaces::srv::Land::Request>();
     req->height = target_height;
     req->duration = rclcpp::Duration::from_seconds(duration_seconds);
-    req->yaw = yaw;
+    req->yaw = yaw_rad;
     req->group_mask = group_mask;
 
     m_land_client->async_send_request(req);
@@ -85,7 +85,7 @@ void HighLevelCommanderMinimal::land(
 
 void HighLevelCommanderMinimal::go_to(
     const Eigen::Vector3d & position,
-    double yaw,
+    double yaw_rad,
     double duration_seconds,
     bool relative,
     double group_mask)
@@ -94,7 +94,7 @@ void HighLevelCommanderMinimal::go_to(
     req->goal.x = position.x();
     req->goal.y = position.y();
     req->goal.z = position.z();
-    req->yaw = yaw;
+    req->yaw = yaw_rad;
     req->duration = rclcpp::Duration::from_seconds(duration_seconds);
     req->relative = relative;
     req->group_mask = group_mask;

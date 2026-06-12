@@ -7,11 +7,7 @@ from rclpy.client import Client
 from dataclasses import dataclass
 from threading import Lock
 
-from crazyflie_webots_gateway_interfaces.srv import WebotsCrazyflie
-from crazyflie_hardware_gateway_interfaces.srv import (
-    AddCrazyflie as AddHardwareCrazyflie,
-    RemoveCrazyflie as RemoveHardwareCrazyflie,
-)
+from crazyflie_interfaces.srv import AddCrazyflie, RemoveCrazyflie
 
 from lifecycle_msgs.msg import State as LifecycleState, TransitionEvent
 
@@ -31,7 +27,6 @@ class CreationFlie:
 
 class BackendType(Enum):
     HARDWARE = auto()
-    WEBOTS = auto()
 
 
 class Creator:
@@ -49,33 +44,28 @@ class Creator:
 
         if self.backend == BackendType.HARDWARE:
             self.add_client: Client = self._node.create_client(
-                AddHardwareCrazyflie,
+                AddCrazyflie,
                 "crazyflie_hardware_gateway/add_crazyflie",
                 callback_group=MutuallyExclusiveCallbackGroup(),
                 # We might want to make this reentrant in the future,
                 # but at the moment the gateway isnt parallel as well
             )
             self.remove_client: Client = self._node.create_client(
-                RemoveHardwareCrazyflie,
+                RemoveCrazyflie,
                 "crazyflie_hardware_gateway/remove_crazyflie",
                 callback_group=MutuallyExclusiveCallbackGroup(),
             )
-        if self.backend == BackendType.WEBOTS:
-            self.add_client: Client = self._node.create_client(
-                WebotsCrazyflie,
-                "crazyflie_webots_gateway/add_crazyflie",
-                callback_group=MutuallyExclusiveCallbackGroup(),
-            )
-            self.remove_client: Client = self._node.create_client(
-                WebotsCrazyflie,
-                "crazyflie_webots_gateway/remove_crazyflie",
-                callback_group=MutuallyExclusiveCallbackGroup(),
-            )
-
-        if not self.add_client.wait_for_service(timeout_sec=0.5):
-            self._node.get_logger().info("Gateway not reachable! (ADD)")
-        if not self.remove_client.wait_for_service(timeout_sec=0.5):
-            self._node.get_logger().info("Gateway not reachable! (REMOVE)")
+        #if self.backend == BackendType.WEBOTS:
+        #    self.add_client: Client = self._node.create_client(
+        #        WebotsCrazyflie,
+        #        "crazyflie_webots_gateway/add_crazyflie",
+        #        callback_group=MutuallyExclusiveCallbackGroup(),
+        #    )
+        #    self.remove_client: Client = self._node.create_client(
+        #        WebotsCrazyflie,
+        #        "crazyflie_webots_gateway/remove_crazyflie",
+        #        callback_group=MutuallyExclusiveCallbackGroup(),
+        #    )
 
         self._transition_event_subscriptions: Dict[int, Subscription] = {}
         self._transition_event_callback_group = MutuallyExclusiveCallbackGroup()
@@ -109,6 +99,10 @@ class Creator:
         flie: Optional[CreationFlie] = None
         with self.add_queue_lock:
             if len(self.add_queue):
+                if not self.add_client.wait_for_service(timeout_sec=0.1):
+                    self._node.get_logger().error("Gateway not reachable! Cannot create Crazyflie.")
+                    return
+
                 flie = self.add_queue.pop()
         if flie is None:
             return
@@ -146,17 +140,13 @@ class Creator:
 
     def _interpret_add_response(
         self,
-        response: "Union[AddHardwareCrazyflie.Response | WebotsCrazyflie.Response]",
+        response: AddCrazyflie.Response,
     ) -> "tuple[bool, str]":
-        if self.backend == BackendType.HARDWARE:
-            return response.success, response.msg
-        if self.backend == BackendType.WEBOTS:
-            return response.success, ""
-        return False
-
+        return response.success, response.msg
+    
     def _interpret_remove_response(
         self,
-        response: "Union[RemoveHardwareCrazyflie.Response | WebotsCrazyflie.Response]",
+        response: RemoveCrazyflie.Response,
     ) -> "tuple[bool, str]":
         if self.backend == BackendType.HARDWARE:
             return response.success, response.msg
@@ -166,32 +156,22 @@ class Creator:
 
     def _create_add_request(
         self, flie: CreationFlie
-    ) -> "Union[AddHardwareCrazyflie.Request | WebotsCrazyflie.Request]":
+        ) -> AddCrazyflie.Request:
         if self.backend == BackendType.HARDWARE:
-            req = AddHardwareCrazyflie.Request()
-            req.id = flie.cf_id
-            req.channel = flie.cf_channel
+            request = AddCrazyflie.Request()
+            request.uri = f"radio://0/{flie.cf_channel}/2/E7E7E7E7{flie.cf_id:02X}"
             (
-                req.initial_position.x,
-                req.initial_position.y,
-                req.initial_position.z,
+                request.initial_pose.position.x,
+                request.initial_pose.position.y,
+                request.initial_pose.position.z,
             ) = flie.initial_position
-            req.type = flie.type
-            return req
-        if self.backend == BackendType.WEBOTS:
-            req = WebotsCrazyflie.Request()
-            req.id = flie.cf_id
-            return req
+            request.type = flie.type
+            return request
 
+       
     def _create_remove_request(
         self, flie: CreationFlie
-    ) -> "Union[RemoveHardwareCrazyflie.Request | WebotsCrazyflie.Request]":
-        if self.backend == BackendType.HARDWARE:
-            req = RemoveHardwareCrazyflie.Request()
-            req.id = flie.cf_id
-            req.channel = flie.cf_channel
-            return req
-        if self.backend == BackendType.WEBOTS:
-            req = WebotsCrazyflie.Request()
-            req.id = flie.cf_id
-            return req
+    ) -> RemoveCrazyflie.Request:
+        request = RemoveCrazyflie.Request()
+        request.uri = f"radio://0/{flie.cf_channel}/2/E7E7E7E7{flie.cf_id:02X}"
+        return request

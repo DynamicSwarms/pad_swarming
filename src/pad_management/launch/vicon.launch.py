@@ -20,12 +20,14 @@ def generate_padflies(backend: str):
     if backend == "simulation":
         yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sim.yaml"
     elif backend == "hardware":
-        yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_hardware.yaml"
+        yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_vicon.yaml"
 
     with open(yaml_file, "r") as file:
         flies = yaml.safe_load(file)["flies"]
         for flie in flies:
             id = flie["id"]
+            if id >= 0xC0:
+                continue
             yield Node(
                 package="padflies_cpp",
                 executable="padflie",
@@ -97,11 +99,11 @@ def simulation_group():
     return [simulation_gateway, crazyflies, pad_circle, charging_base]
 
 def hardware_group():
-    hardware_gateway_dir = get_package_share_directory("crazyflie_hardware_gateway")
 
     hardware_gateway = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [hardware_gateway_dir, "/launch/crazyflie_hardware_gateway.launch.py"]
+            [get_package_share_directory("crazyflie_hardware_bringup"),
+             "/launch/hardware.launch.py"]
         ),
         launch_arguments={
             "crazyflie_configuration_yaml": get_package_share_directory(
@@ -143,12 +145,12 @@ def hardware_group():
     point_finder = Node(
         package="pad_management",
         executable="point_finder",
-        parameters=[{"point_cloud_topic_name": "combined_cloud"}],
+        parameters=[{"point_cloud_topic_name": "pointCloud2"}],
     )
 
     flies_hardware_yaml = (
         get_package_share_directory("pad_management")
-        + "/config/flies_config_hardware.yaml"
+        + "/config/flies_config_vicon.yaml"
     )
 
     creator = Node(
@@ -196,7 +198,7 @@ def generate_launch_description():
 
     pads_hardware_yaml = (
         get_package_share_directory("pad_management")
-        + "/config/pads_config_hardware.yaml"
+        + "/config/pads_config_vicon.yaml"
     )
 
     pads_simulation_yaml = (

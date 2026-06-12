@@ -140,12 +140,13 @@ HardwareActor::go_to(
         
     m_transition_to_high_level_commander();
 
-    const double yaw_deg =
-        std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0)) * 180.0 / M_PI;
+    //const double yaw_deg =
+    //    std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0)) * 180.0 / M_PI;
 
+    double yaw = std::atan2(target_pose.rotation()(1, 0), target_pose.rotation()(0, 0));
     m_hl_commander.go_to(
         target_pose.translation(), 
-        yaw_deg,                   
+        yaw,                   
         duration,                   
         relative);
     return true;
@@ -154,28 +155,28 @@ HardwareActor::go_to(
 bool
 HardwareActor::land(
     double height, 
-    double yaw, 
+    double yaw_rad, 
     double duration)
 {
     if (m_state == ActorState::ERROR_STATE)
         return false;
     m_transition_to_high_level_commander();
 
-    m_hl_commander.land(height, duration, yaw);
+    m_hl_commander.land(height, duration, yaw_rad);
     return true;
 }
 
 bool
 HardwareActor::takeoff(
     double height,
-    double yaw,
+    double yaw_rad,
     double duration)
 {
     if (m_state == ActorState::ERROR_STATE)
         return false;
     m_transition_to_high_level_commander();
     
-    m_hl_commander.takeoff(height, duration, yaw);
+    m_hl_commander.takeoff(height, duration, yaw_rad);
     return true;
 }
 

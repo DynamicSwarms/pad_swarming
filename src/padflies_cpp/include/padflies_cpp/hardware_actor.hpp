@@ -72,12 +72,12 @@ public:
 
     bool land(
         double height, 
-        double yaw_degrees, 
+        double yaw_rad, 
         double duration);
 
     bool takeoff(
         double height, 
-        double yaw_degrees, 
+        double yaw_rad, 
         double duration
     );
 

@@ -348,7 +348,6 @@ public:
         geometry_msgs::msg::PoseStamped target_pose = m_pad_client->get_target_pose();
         Eigen::Affine3d target_remote_frame;
         
-        
         tf2::fromMsg(target_pose.pose, target_remote_frame);
         if (m_padflie_tf->affine3d_transform(
             target_remote_frame, 
@@ -413,6 +412,7 @@ public:
             return BT::NodeStatus::FAILURE;
         }
 
+
         //RCLCPP_INFO(m_logger, "Target pose in world frame: [%f, %f, %f]", target_world_frame.translation().x(), target_world_frame.translation().y(), target_world_frame.translation().z());
         switch (m_state) {
             case LandState::INIT:
@@ -436,7 +436,7 @@ public:
 
                 m_hardware_actor->land(
                     (target_world_frame * Eigen::Translation3d(0, 0, -0.5)).translation().z(),
-                    std::atan2(target_world_frame.rotation()(1,0), target_world_frame.rotation()(0,0)) * 180.0 / M_PI,
+                    std::atan2(target_world_frame.rotation()(1,0), target_world_frame.rotation()(0,0)),
                     3.0);
                 m_state = LandState::DONE;
                 break;

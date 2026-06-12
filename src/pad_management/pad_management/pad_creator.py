@@ -67,6 +67,9 @@ class PadCreator(Node):
             file = open(yaml_file, "r")
             flies += yaml.safe_load(file)["flies"]
 
+        flies = list(filter(lambda flie: flie["id"] < 0xC0, flies))  # Filter out padflies
+        self.get_logger().info(f"Pad Creator starting filtered out all flies with ID >= 0xC0")
+
         flies = np.random.permutation(flies)
         # Randomly permutate to add them in new order every time the system gets restarted.
         self.flies = cycle(flies)
@@ -89,15 +92,6 @@ class PadCreator(Node):
                 self.hardware_creator = Creator(
                     self,
                     BackendType.HARDWARE,
-                    self.on_add_callback,
-                    self.on_failure_callback,
-                )
-                break
-        for flie in flies:
-            if "channel" not in flie.keys():
-                self.webots_creator = Creator(
-                    self,
-                    BackendType.WEBOTS,
                     self.on_add_callback,
                     self.on_failure_callback,
                 )
@@ -126,7 +120,7 @@ class PadCreator(Node):
 
             if self.retries[cf_id] > MAX_RETRIES:
                 if self.retries[cf_id] == MAX_RETRIES:
-                    self.get_logger().warn(
+                    self.get_logger().error(
                         f"Max retries reached for {cf_id}. Giving up."
                     )
                 return
@@ -148,7 +142,7 @@ class PadCreator(Node):
                     type="tracked",
                 )
             else:
-                self.webots_creator.enqueue_creation(cf_id=cf_id)
+                self.get_logger().warn(f"Fly {cf_id} has no channel defined.")
 
             self.retries[cf_id] += 1
             self.added.append(cf_id)

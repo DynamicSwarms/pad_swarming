@@ -111,7 +111,7 @@ bool PadflieTF::get_affine3d_transform(
     geometry_msgs::msg::TransformStamped transform;
     if (lookup_transform(target_frame, source_frame, transform))
     {
-        
+        return true;
     } 
     return false;
 }

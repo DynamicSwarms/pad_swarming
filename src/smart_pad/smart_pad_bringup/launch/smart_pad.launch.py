@@ -1,5 +1,6 @@
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
@@ -8,13 +9,15 @@ def generate_launch_description():
     smart_pad_tfs = []
     for i in range(2):
         smart_pads.append(
-            Node(
-                package='smart_pad',
-                executable='smart_pad',
+            ComposableNode(
+                package='pad_management_cpp',
+                plugin='PadRightActionServerNode',
                 name=f'smart_pad_{i}',
-                output='screen',
                 parameters=[
-                    {"id": i}
+                    {
+                        'pad_resource_manager_plugin': 'smart_pad::SmartPadResourceManager',
+                        'id': i
+                    }
                 ]
             )
         )
@@ -36,8 +39,17 @@ def generate_launch_description():
             )
         )
 
+    smart_pad_container = ComposableNodeContainer(
+        name='smart_pad_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container_mt',
+        output='screen',
+        composable_node_descriptions=smart_pads,
+    )
+
 
     return LaunchDescription([
-        *smart_pads,
+        smart_pad_container,
         *smart_pad_tfs,
     ])
