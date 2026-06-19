@@ -36,7 +36,8 @@ def generate_padflies(backend: str):
                     {
                         "id": id,
                         "behavior_plugin_name": "padflie_behaviors::PadflieBehaviors", # simpleflie_behaviors::SimpleflieBehaviors
-                        "initial_pad": "megapad"
+                        "initial_pad": "megapad",
+                        "battery_voltage_charged": 4.1,
                     }
                 ],
             )

@@ -3,6 +3,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
+#include "padflies_cpp/hardware_parameter_controller.hpp"
+
 #include "padflies_cpp/yaw_controller.hpp"
 #include "padflies_cpp/position_controller.hpp"
 
@@ -81,6 +83,8 @@ public:
         double duration
     );
 
+    void reset_kalman_to(Eigen::Affine3d & pose);
+
     void fail_safe(std::string reason);
    
 public:
@@ -124,7 +128,7 @@ private:
     ActorState m_state;
     ActorMode m_mode;
     double m_dt;
-    double m_current_yaw;
+    double m_current_yaw = 0.0;
 
 private: // Targets 
     PoseTarget m_target_pose;
@@ -145,6 +149,8 @@ private: // Internal state for ll_commander_callback
     YawController m_yaw_controller;
     PositionController m_position_controller;
     std::unique_ptr<CollisionAvoidanceClient> m_collision_avoidance_client;
+
+    std::shared_ptr<HardwareParameterController> m_hardware_parameter_controller;
 
     HighLevelCommanderMinimal m_hl_commander;
     LowLevelCommanderMinimal m_ll_commander;

@@ -32,8 +32,14 @@ public:
   {
     std::map<std::string, PadInfo> pad_infos;
     m_list_of_pad_infos->get_all_pad_infos(pad_infos);
+    RCLCPP_INFO(m_logger, "Finding closest pad among %zu pad infos", pad_infos.size());
 
-    if (pad_infos.empty()) {
+    bool any_available = false;
+    for (const auto& [node_name, pad_info] : pad_infos) {
+        if (pad_info.available) any_available = true;
+    }
+
+    if (!any_available) {
         RCLCPP_ERROR(m_logger, "No pads available in ChoosePad node!");
         return false;
     }
@@ -41,13 +47,28 @@ public:
     auto closest_pad_it = pad_infos.end();
     double closest_distance = std::numeric_limits<double>::max();
     for (const auto& [node_name, pad_info] : pad_infos) {
+      RCLCPP_INFO(m_logger, "Checking padinfo from node: %s, available: %s, pad_tf_names size: %zu", 
+                  node_name.c_str(), 
+                  pad_info.available ? "true" : "false", 
+                  pad_info.pad_tf_names.size());
+      if (!pad_info.available) continue;
+      
+
       for (const std::string& tf_name : pad_info.pad_tf_names) {
         Eigen::Affine3d my_pose, pad_pose;
         if (!m_padflie_tf->get_cf_pose(my_pose)) return false;
         if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) continue;
 
+        RCLCPP_INFO(m_logger, "Pad %s has TF %s with pose translation: [%f, %f, %f], and we are at pose translation: [%f, %f, %f]", 
+                    node_name.c_str(), 
+                    tf_name.c_str(),
+                    pad_pose.translation().x(), pad_pose.translation().y(), pad_pose.translation().z(),
+                    my_pose.translation().x(), my_pose.translation().y(), my_pose.translation().z());
+                    
+
         double distance = (my_pose.translation() - pad_pose.translation()).norm();
         if (distance < closest_distance) {
+            RCLCPP_INFO(m_logger, "Found closer pad: %s with distance: %f", node_name.c_str(), distance);
             closest_distance = distance;
             closest_pad_it = pad_infos.find(node_name);
         }

@@ -38,6 +38,7 @@ set(PADFLIE_DEPS
   src/hl_commander_minimal.cpp
   src/ll_commander_minimal.cpp
   src/hardware_state_controller.cpp
+  src/hardware_parameter_controller.cpp
   src/commander.cpp
   src/commander_base.cpp
   src/pad_control.cpp

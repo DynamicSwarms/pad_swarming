@@ -88,22 +88,19 @@ void PadflieTF::set_pad(const std::string & pad_name)
 bool PadflieTF::get_world_affine3d(
     const std::string & frame_id,
     Eigen::Affine3d & affine)
-{
+{    
     geometry_msgs::msg::TransformStamped transform;
-    if (lookup_transform(frame_id, m_world_frame, transform)) {
-        Eigen::Translation3d translation(transform.transform.translation.x,
-                                        transform.transform.translation.y,
-                                        transform.transform.translation.z);
-        Eigen::Quaterniond rotation(transform.transform.rotation.w,
-                                    transform.transform.rotation.x,
-                                    transform.transform.rotation.y,
-                                    transform.transform.rotation.z);
-        affine = translation * rotation;
+    if (lookup_transform(m_world_frame, frame_id, transform)) {
+        Eigen::Affine3d src = Eigen::Affine3d::Identity();
+        tf2::doTransform(src, affine, transform);
         return true;
     }
     return false;
 }
-bool PadflieTF::get_affine3d_transform(
+
+
+bool 
+PadflieTF::get_affine3d_transform(
     const std::string & target_frame,
     const std::string & source_frame,
     Eigen::Affine3d & affine)

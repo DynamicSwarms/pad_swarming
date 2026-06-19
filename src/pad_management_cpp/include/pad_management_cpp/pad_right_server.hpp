@@ -22,7 +22,7 @@ public:
   );
 
 private:
-    void publish_info();
+    void publish_info(bool available);
 
     void manage_requests();
 

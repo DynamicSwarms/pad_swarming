@@ -58,7 +58,7 @@ private:
     geometry_msgs::msg::TransformStamped transform;
     transform.header.stamp = now();
     transform.header.frame_id = parent_frame_;
-    transform.child_frame_id = "pad_" + std::to_string(pad_index);
+    transform.child_frame_id = "smart_pad_" + std::to_string(pad_index);
     transform.transform.translation.x = position.x;
     transform.transform.translation.y = position.y;
     transform.transform.translation.z = position.z;
@@ -78,7 +78,7 @@ private:
     geometry_msgs::msg::TransformStamped transform;
     transform.header.stamp = now();
     transform.header.frame_id = parent_frame_;
-    transform.child_frame_id = "pad_" + std::to_string(pad_index);
+    transform.child_frame_id = "smart_pad_" + std::to_string(pad_index);
     transform.transform.translation.x = position.x;
     transform.transform.translation.y = position.y;
     transform.transform.translation.z = position.z;
@@ -174,7 +174,7 @@ private:
         q.setRPY(0.0, 0.0, angle_rad);
 
         Point mid_point = middle_pt;
-        RCLCPP_INFO(this->get_logger(), "--- Pad erkannt --- ID: %d, X: %f, Y: %f, Z: %f, Yaw: %f",
+        RCLCPP_DEBUG(this->get_logger(), "--- Pad erkannt --- ID: %d, X: %f, Y: %f, Z: %f, Yaw: %f",
                     id, mid_point.x, mid_point.y, mid_point.z, angle_rad * 180.0 / M_PI);
 
         publishPadTf(static_cast<std::size_t>(id), mid_point, q);

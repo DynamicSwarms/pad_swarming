@@ -876,24 +876,30 @@ public:
 
         switch (m_state) {
             case TakeoffState::INIT:
+                RCLCPP_INFO(m_logger, "Starting takeoff routine... resetting Kalman filter...");
+                m_hardware_actor->reset_kalman_to(target_world_frame);
+
+                m_state = TakeoffState::PHASE1;
+                break;
+            case TakeoffState::PHASE1:
                 RCLCPP_INFO(m_logger, "Starting takeoff routine... moving up to clear the pad...");
                 m_hardware_actor->go_to(
                     Eigen::Affine3d::Identity() * Eigen::Translation3d(0,0, 0.1),
                     3.0,
                     true); // relative move up by 0.1m from current position
-                m_state = TakeoffState::PHASE1;
+                m_state = TakeoffState::PHASE2;
                 break;
-            case TakeoffState::PHASE1:
-                RCLCPP_INFO(m_logger, "Phase 1: Moving higher...");
+            case TakeoffState::PHASE2:
+                RCLCPP_INFO(m_logger, "Phase 2: Moving higher...");
                 m_hardware_actor->go_to(
                     Eigen::Affine3d::Identity() * Eigen::Translation3d(0,0, 0.6),
                     1.5,
                     true); // relative move up by 0.1m from current position
                 setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_LEFT_PAD);
-                m_state = TakeoffState::PHASE2;
+                m_state = TakeoffState::PHASE3;
                 break;
-            case TakeoffState::PHASE2:
-                RCLCPP_INFO(m_logger, "Phase 2: Final ascent...");
+            case TakeoffState::PHASE3:
+                RCLCPP_INFO(m_logger, "Phase 3: Final ascent...");
                 {
                     PoseTarget takeoff_target;
                     takeoff_target.frame_id = "world";
@@ -939,6 +945,7 @@ private:
         INIT,
         PHASE1,
         PHASE2,
+        PHASE3,
         DONE 
     };
     TakeoffState m_state = TakeoffState::INIT;
@@ -946,6 +953,7 @@ private:
         {TakeoffState::INIT, rclcpp::Duration(0s)},
         {TakeoffState::PHASE1, rclcpp::Duration(250ms)},
         {TakeoffState::PHASE2, rclcpp::Duration(250ms)},
+        {TakeoffState::PHASE3, rclcpp::Duration(250ms)},
         {TakeoffState::DONE, rclcpp::Duration(1250ms)}
     };
     rclcpp::Time m_phase_start_time;

@@ -45,6 +45,19 @@ public:
 
     virtual std::vector<std::string> get_pad_tf_names() = 0;
 
+
+    void update_availability(bool available)
+    {
+        if (m_on_change_callback) {
+            m_on_change_callback(available);
+        }
+    }
+
+    void set_on_change_callback(std::function<void(bool)> callback)
+    {
+        m_on_change_callback = callback;
+    }
+
 private: 
     virtual bool m_try_lock(uint8_t id) = 0;
 
@@ -53,7 +66,7 @@ private:
 
     virtual bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) = 0;
 
-
+    std::function<void(bool)> m_on_change_callback;
     std::mutex m_mutex;
 };
 

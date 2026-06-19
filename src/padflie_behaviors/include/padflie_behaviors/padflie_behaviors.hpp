@@ -15,6 +15,7 @@ struct PadInfo
     std::string pad_idle_target_service_name;
     std::string pad_right_control_action_name;
     std::vector<std::string> pad_tf_names;
+    bool available;
 };
 
 class PadInfos
@@ -32,8 +33,14 @@ public:
             .node_name = msg->node_name,
             .pad_idle_target_service_name = msg->pad_idle_target_service_name,
             .pad_right_control_action_name = msg->pad_right_control_action_name,
-            .pad_tf_names = msg->pad_tf_names
+            .pad_tf_names = msg->pad_tf_names,
+            .available = msg->available
         };
+
+        RCLCPP_DEBUG(rclcpp::get_logger("PadInfos"), "Updated pad info for node: %s, available: %s, pad_tf_names size: %zu", 
+                    msg->node_name.c_str(), 
+                    msg->available ? "true" : "false", 
+                    msg->pad_tf_names.size());
     };
 
     void get_all_pad_infos(std::map<std::string, PadInfo> & pad_infos){

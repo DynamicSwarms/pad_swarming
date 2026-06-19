@@ -1,5 +1,5 @@
 #include "pad_management_cpp/pad_right_server.hpp"
-
+using std::placeholders::_1;
 PadRightServer::PadRightServer(
     const std::string & name,
     IPadResourceManager & pad_resource_manager,
@@ -58,27 +58,23 @@ PadRightServer::PadRightServer(
         m_pad_info_publisher = rclcpp::create_publisher<pad_management_interfaces::msg::PadInfo>(
             node_topics_interface,
             "pad_management/pad_info",
-            rclcpp::QoS(1).reliable().transient_local(),
+            rclcpp::QoS(10).reliable().transient_local(),
             pub_options
         );
-        publish_info();
-        //m_info_publish_timer = rclcpp::create_timer(
-        //    node_base_interface,
-        //    node_timers_interface,
-        //    node_clock_interface->get_clock(),
-        //    std::chrono::milliseconds(100), 
-        //    std::bind(&PadRightServer::publish_info, this),
-        //    m_callback_group
-        //);
+        
+        
+        m_pad_resource_manager.set_on_change_callback(std::bind(&PadRightServer::publish_info, this, _1));
+        publish_info(true);
     }
 
 void 
-PadRightServer::publish_info()
+PadRightServer::publish_info(bool available)
 {
     pad_management_interfaces::msg::PadInfo msg;
     msg.node_name = m_node_base_interface->get_name();
     msg.pad_right_control_action_name = m_action_server_name;
     msg.pad_tf_names = m_pad_resource_manager.get_pad_tf_names();
+    msg.available = available;
     m_pad_info_publisher->publish(msg);
 }
 

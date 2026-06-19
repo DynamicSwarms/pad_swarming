@@ -46,6 +46,12 @@ HardwareActor::HardwareActor(
 , m_padflie_tf(padflie_tf)
 , m_logger(node_logging_interface->get_logger())
 {
+    m_hardware_parameter_controller = std::make_shared<HardwareParameterController>(
+        node_base_interface, 
+        node_graph_interface, 
+        node_services_interface, 
+        cf_prefix, 
+        m_logger);
     if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
         m_callback_groups[cf_prefix] = node_base_interface->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -181,6 +187,43 @@ HardwareActor::takeoff(
 }
 
 void
+HardwareActor::reset_kalman_to(Eigen::Affine3d & pose)
+{
+    rcl_interfaces::msg::ParameterValue send_external_position_value;
+    rcl_interfaces::msg::ParameterValue send_external_pose_value;
+    if (m_hardware_parameter_controller->get_parameter("send_external_position", send_external_position_value) &&
+        m_hardware_parameter_controller->get_parameter("send_external_pose", send_external_pose_value) &&
+        send_external_position_value.type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL &&
+        send_external_pose_value.type == rcl_interfaces::msg::ParameterType::PARAMETER_BOOL &&
+        send_external_position_value.bool_value 
+        && !send_external_pose_value.bool_value)
+    {
+        double pad_yaw = std::atan2(pose.rotation()(1, 0), pose.rotation()(0, 0));
+
+                
+
+        rclcpp::Parameter kalmanInitialX("kalman.initialX", pose.translation().x());
+        rclcpp::Parameter kalmanInitialY("kalman.initialY", pose.translation().y());
+        rclcpp::Parameter kalmanInitialZ("kalman.initialZ", pose.translation().z());
+        rclcpp::Parameter kalmanInitialYaw("kalman.initialYaw", pad_yaw);
+        std::vector<rcl_interfaces::msg::Parameter> params;
+        params.push_back(kalmanInitialX.to_parameter_msg());
+        params.push_back(kalmanInitialY.to_parameter_msg());
+        params.push_back(kalmanInitialZ.to_parameter_msg());
+        params.push_back(kalmanInitialYaw.to_parameter_msg());
+        m_hardware_parameter_controller->set_parameters(params);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
+        std::vector<rcl_interfaces::msg::Parameter> kalman_params;
+        rclcpp::Parameter kalmanReset("kalman.resetEstimation", 1);
+        kalman_params.push_back(kalmanReset.to_parameter_msg());
+        m_hardware_parameter_controller->set_parameters(kalman_params);
+        m_current_yaw = pad_yaw;
+    } else {
+        RCLCPP_WARN(m_logger, "Did not reset Kalman");  
+    }
+}
+
+void
 HardwareActor::m_ll_command_timer_callback()
 {
     if (m_state == ActorState::LOW_LEVEL_COMMANDER)
@@ -203,6 +246,7 @@ HardwareActor::m_ll_command_timer_callback()
         bool collision_avoidance;
 
         unpack_pose_target(m_target_pose, set_target_pose, use_yaw, collision_avoidance);
+
         Eigen::Vector3d target_position;
         double target_yaw;
         if (!m_padflie_tf->pose_stamped_to_world_position_and_yaw(set_target_pose, target_position, target_yaw))
@@ -224,6 +268,14 @@ HardwareActor::m_ll_command_timer_callback()
         }
         if (!use_yaw) target_yaw = m_fixed_yaw_target;
 
+        if (!std::isfinite(target_yaw))
+        {
+            RCLCPP_WARN(m_logger, "Target yaw is not finite. The set_target_pose is: (%f, %f, %f), quaternion: (%f, %f, %f, %f) ,frame_id: %s", 
+                        set_target_pose.pose.position.x, set_target_pose.pose.position.y, set_target_pose.pose.position.z,
+                        set_target_pose.pose.orientation.x, set_target_pose.pose.orientation.y, set_target_pose.pose.orientation.z, set_target_pose.pose.orientation.w,
+                        set_target_pose.header.frame_id.c_str());
+            target_yaw = m_fixed_yaw_target; // Use current yaw
+        }
 
         bool collision = false;
         if (collision_avoidance)
@@ -233,14 +285,16 @@ HardwareActor::m_ll_command_timer_callback()
 
         m_position_controller.safe_command_position(position, target_position, collision);
         double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
+        RCLCPP_INFO(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", m_current_yaw, target_yaw, safe_yaw);
+        m_current_yaw = safe_yaw; 
+
         
         // This is for race conditions and should be removed if possible.
         if (m_state == ActorState::LOW_LEVEL_COMMANDER)
         {
-            m_ll_commander.cmd_position(target_position, safe_yaw);
+            m_ll_commander.cmd_position(target_position, safe_yaw * 180.0 / M_PI);
         }
         
-        m_current_yaw = safe_yaw; 
     }
 }
 

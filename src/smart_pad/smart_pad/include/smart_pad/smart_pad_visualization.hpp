@@ -6,6 +6,15 @@
 class SmartPadVisualization
 {
 public:
+    enum class VisualizationState {
+        AVAILABLE = 0,
+        NEIGHBOR_LOCKED = 1,
+        OCCUPIED = 2,
+        NEIGHBOR_LOCKED_AND_OCCUPIED = 3,
+        ERROR = 4
+    };
+
+public:
     SmartPadVisualization(
         uint8_t id,
         std::string pad_name,
@@ -57,12 +66,11 @@ public:
 
         marker_array_msg.markers.push_back(marker);
         m_marker_publisher->publish(marker_array_msg);
-        RCLCPP_INFO(m_logger, "Published marker for pad %s with state %u", m_pad_name.c_str(), m_state);
     }
 
-    void set_state(uint8_t state)
+    void set_state(SmartPadVisualization::VisualizationState state)
     {
-        RCLCPP_INFO(m_logger, "Setting state to %u", state);
+        RCLCPP_DEBUG(m_logger, "Setting state to %u", state);
         bool state_changed = (state != m_state);
         m_state = state;
         if (state_changed) {
@@ -72,12 +80,14 @@ public:
     }
 
 private: 
-    std_msgs::msg::ColorRGBA state_to_color(uint8_t state) const {
+    std_msgs::msg::ColorRGBA state_to_color(SmartPadVisualization::VisualizationState state) const {
         auto color = std_msgs::msg::ColorRGBA();
         switch (state) {
-            case 0: return make_color(0.0, 1.0, 0.0, 0.5); // Green for available
-            case 1: return make_color(1.0, 1.0, 0.0, 0.5); // Yellow for locked
-            case 2: return make_color(1.0, 0.0, 0.0, 0.5); // Red for occupied
+            case SmartPadVisualization::VisualizationState::AVAILABLE: return make_color(0.0, 1.0, 0.0, 0.5); // Green for available
+            case SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED: return make_color(1.0, 0.5, 0.0, 0.5); // Orange for neighbor locked
+            case SmartPadVisualization::VisualizationState::OCCUPIED: return make_color(0.0, 0.0, 1.0, 0.5); // Blue for occupied
+            case SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED_AND_OCCUPIED: return make_color(1.0, 0.0, 1.0, 0.5); // Magenta for neighbor locked and occupied
+            case SmartPadVisualization::VisualizationState::ERROR: return make_color(1.0, 0.0, 0.0, 0.5); // Red for error
             default: return make_color(1.0, 1.0, 1.0, 0.5); // White for unknown
         }
     }
@@ -92,7 +102,7 @@ private:
     }
 
 private: 
-    uint8_t m_state = 0;
+    SmartPadVisualization::VisualizationState m_state = SmartPadVisualization::VisualizationState::AVAILABLE;
 
 private:
     uint8_t m_id;
