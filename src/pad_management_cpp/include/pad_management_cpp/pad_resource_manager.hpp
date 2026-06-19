@@ -16,7 +16,7 @@ public:
         RCLCPP_INFO(m_logger, "PadResourceManager constructor called.");
     }
 
-    bool m_try_lock(uint8_t id) override;
+    bool m_try_lock(uint8_t id, uint8_t action) override;
 
     void m_release(uint8_t id, uint8_t result) override;
 

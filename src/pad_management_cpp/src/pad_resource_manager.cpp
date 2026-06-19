@@ -11,7 +11,7 @@ namespace pad_management_cpp
 {
 
 bool 
-PadResourceManager::m_try_lock(uint8_t id)
+PadResourceManager::m_try_lock(uint8_t id, uint8_t action)
 {
     if (m_current_hodler == -1) {
         m_current_hodler = id;
@@ -21,18 +21,6 @@ PadResourceManager::m_try_lock(uint8_t id)
         RCLCPP_INFO(m_logger, "Lock already held by cf %d, cannot acquire for cf %d", m_current_hodler, id);
         return false;
     }
-    // RCLCPP_INFO(m_logger, "Trying to acquire lock for cf %d", id);
-    // if (m_locks.find(id) != m_locks.end()) {
-    //     std::cerr << "should not happen!!! only call once per name" << std::endl;
-    //     return false;
-    // }
-    // std::unique_lock<std::mutex> lock(m_mutex, std::defer_lock);
-    // if (lock.try_lock()) {
-    //     m_locks.emplace(id, std::move(lock));
-    //     return true;
-    // } else {
-    //     return false;
-    // }
 }
 
 void 

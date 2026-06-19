@@ -17,6 +17,7 @@
 #include <Eigen/Dense>
 
 #include "pad_management_interfaces/action/pad_execute.hpp"
+#include "pad_management_interfaces/action/pad_right_control.hpp"
 
 namespace smart_pad
 {
@@ -27,6 +28,8 @@ public:
     explicit SmartPadResourceManager(pad_management_cpp::NodeInterfacesBundle node_iface_bundle)
     : m_node_iface_bundle(node_iface_bundle)
     , m_id(node_iface_bundle.parameters_interface->declare_parameter("id", rclcpp::ParameterValue(0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
+    , p_allow_takeoffs(node_iface_bundle.parameters_interface->declare_parameter("allow_takeoffs", rclcpp::ParameterValue(true)).get<bool>())
+    , p_allow_landings(node_iface_bundle.parameters_interface->declare_parameter("allow_landings", rclcpp::ParameterValue(true)).get<bool>())
     , m_pad_name("smart_pad_" + std::to_string(m_id))
     , m_logger(node_iface_bundle.logging_interface->get_logger())
     {
@@ -79,6 +82,9 @@ public:
             m_logger
         );
 
+        m_param_callback_handle = node_iface_bundle.parameters_interface->add_on_set_parameters_callback(
+            std::bind(&SmartPadResourceManager::m_on_parameters_set, this, std::placeholders::_1));
+
     }
 
     void
@@ -128,8 +134,18 @@ public:
     }
 
 private:
-  bool m_try_lock(uint8_t id) override
+  bool m_try_lock(uint8_t id, uint8_t action) override
   {
+    if ((action == pad_management_interfaces::action::PadRightControl::Goal::ACTION_TAKEOFF && !p_allow_takeoffs ||
+         action == pad_management_interfaces::action::PadRightControl::Goal::ACTION_LAND && !p_allow_landings)) {
+        RCLCPP_WARN(m_logger, "Lock request for cf %u with action %u denied due to configuration (allow_takeoffs: %s, allow_landings: %s)", 
+                    static_cast<unsigned>(id), 
+                    static_cast<unsigned>(action),
+                    p_allow_takeoffs ? "true" : "false",
+                    p_allow_landings ? "true" : "false");
+        return false;
+    }
+
     std::lock_guard<std::mutex> neighbors_change_lock(m_neighbors_locking_change_mutex);
     if (m_locked_by_neighbors)
     {
@@ -217,7 +233,11 @@ private:
 
     void set_availability() 
     {
-        if (m_pad_state == PadState::OCCUPIED || m_pad_state == PadState::ERROR|| m_locked_by_neighbors || m_currently_usage_locked)
+        if (m_pad_state == PadState::OCCUPIED ||
+            m_pad_state == PadState::ERROR ||
+            m_locked_by_neighbors || 
+            m_currently_usage_locked ||
+            p_allow_landings == false)
         {
             RCLCPP_INFO(m_logger, "Pad %s is not available. Occupied: %s, Error: %s, Locked by neighbors: %s, Currently usage locked: %s", 
                         m_pad_name.c_str(), 
@@ -254,6 +274,21 @@ private:
   }
 
 
+    rcl_interfaces::msg::SetParametersResult m_on_parameters_set(const std::vector<rclcpp::Parameter> & parameters) {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+        result.reason = "success";
+        for (const auto & param : parameters) {
+            if (param.get_name() == "allow_takeoffs") {
+                p_allow_takeoffs = param.as_bool();
+                set_availability();
+            } else if (param.get_name() == "allow_landings") {
+                p_allow_landings = param.as_bool();
+                set_availability(); 
+            }
+        }
+        return result;
+    }
 private: 
     std::mutex m_neighbors_locking_change_mutex;
     bool m_locked_by_neighbors = false;
@@ -288,13 +323,16 @@ private:
     std::shared_ptr<SmartPadNeighbors> m_smart_pad_neighbors;
     std::shared_ptr<SmartPadVisualization> m_smart_pad_visualization;
 
-    
     std::shared_ptr<rclcpp::TimerBase> m_timer;
 
     std::shared_ptr<rclcpp::CallbackGroup> m_lock_service_callback_group;
     std::shared_ptr<rclcpp::Service<smart_pad_interfaces::srv::Lock>> m_lock_service;
 
     std::shared_ptr<SmartPadPadIdleTargetService> m_pad_idle_target_service;
+
+    bool p_allow_takeoffs;
+    bool p_allow_landings;
+    std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle; 
 };
 
 }  // namespace smart_pad

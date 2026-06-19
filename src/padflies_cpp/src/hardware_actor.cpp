@@ -285,7 +285,7 @@ HardwareActor::m_ll_command_timer_callback()
 
         m_position_controller.safe_command_position(position, target_position, collision);
         double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
-        RCLCPP_INFO(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", m_current_yaw, target_yaw, safe_yaw);
+        RCLCPP_DEBUG(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", m_current_yaw, target_yaw, safe_yaw);
         m_current_yaw = safe_yaw; 
 
         

@@ -81,7 +81,7 @@ Request::owns_lock() const
 bool 
 Request::try_acquire()
 {
-    if (!m_executing && m_resource_manager.try_lock(m_id)) {
+    if (!m_executing && m_resource_manager.try_lock(m_id, m_goal_handle->get_goal()->action)) {
         m_executing = true;
         m_acquire_time = m_clock->now();
         RCLCPP_INFO(m_logger, "Acquired lock.");

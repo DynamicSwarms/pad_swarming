@@ -26,10 +26,10 @@ public:
 
     virtual ~IPadResourceManager() = default;
 
-    bool try_lock(uint8_t id)
+    bool try_lock(uint8_t id, uint8_t action)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        return m_try_lock(id);
+        return m_try_lock(id, action);
     };
 
     void release(uint8_t id, uint8_t result)
@@ -59,7 +59,7 @@ public:
     }
 
 private: 
-    virtual bool m_try_lock(uint8_t id) = 0;
+    virtual bool m_try_lock(uint8_t id, uint8_t action) = 0;
 
     // result is a uint8_t respresenting a result of pad_execute action
     virtual void m_release(uint8_t id, uint8_t result) = 0;
