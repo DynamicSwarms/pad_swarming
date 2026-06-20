@@ -186,6 +186,8 @@ void PadflieCommanderBase::m_create_control_interface(
         std::bind(&PadflieCommanderBase::m_handle_send_target_command, this, std::placeholders::_1),
         sub_options);
 
+    m_padflie_info_pub = node->create_publisher<padflies_interfaces::msg::PadflieInfo>(
+        m_prefix + "/info", 10, pub_options);
     m_padflie_info_timer = rclcpp::create_timer(
         node_base_interface,
         node_timers_interface,
@@ -194,9 +196,6 @@ void PadflieCommanderBase::m_create_control_interface(
         std::bind(&PadflieCommanderBase::m_handle_info_timer, this),
         m_callback_group
     );
-
-    m_padflie_info_pub = node->create_publisher<padflies_interfaces::msg::PadflieInfo>(
-        m_prefix + "/info", 10, pub_options);
 }
 
 void PadflieCommanderBase::m_remove_control_interface(
