@@ -163,14 +163,12 @@ std::vector<rclcpp_action::GoalUUID>
 RequestMap::m_order_request_map(const RequestStore & request_map)
 {
     std::vector<rclcpp_action::GoalUUID> uuids;
-    uuids.reserve(request_map.size());
 
-    // Collect all UUIDs
+    uuids.reserve(request_map.size());
     for (const auto & kv : request_map) {
         uuids.push_back(kv.first);
     }
 
-    // Sort by acquire_time (earliest first)
     std::sort(uuids.begin(), uuids.end(),
         [&request_map](const GoalUUID & a, const GoalUUID & b)
     {
