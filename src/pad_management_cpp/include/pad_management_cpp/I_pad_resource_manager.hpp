@@ -1,9 +1,15 @@
 #pragma once
-#include "rclcpp/rclcpp.hpp"
-#include <mutex>
 
-#include "geometry_msgs/msg/pose_stamped.hpp"
+#include <chrono>
+#include <cstdint>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <vector>
+
 #include "class_loader/class_loader_core.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "rclcpp/rclcpp.hpp"
 namespace pad_management_cpp
 {
     struct NodeInterfacesBundle
@@ -20,11 +26,49 @@ namespace pad_management_cpp
     };
 }
 
+struct RequestData
+{
+    uint8_t id;
+    uint8_t action;
+};
+
+using AdmissionRequest = RequestData;
+
+struct AdmissionResponse
+{
+    enum class Result
+    {
+        ACCEPTED,
+        REJECTED,
+        PENDING
+    } result;
+    std::string message;
+    std::chrono::milliseconds estimated_wait_time{0};
+};
+
+struct ExecutionHandle
+{
+    uint64_t execution_id;
+};
+
 class IPadResourceManager
 {
 public:
 
     virtual ~IPadResourceManager() = default;
+
+    AdmissionResponse admit_request(const RequestData & request)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_admit_request(request);
+    };
+
+    ExecutionHandle start_execution(const RequestData & request)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_start_execution(request);
+    };
+
 
     bool try_lock(uint8_t id, uint8_t action)
     {
@@ -59,6 +103,19 @@ public:
     }
 
 private: 
+    virtual AdmissionResponse m_admit_request(const RequestData & request)
+    {
+        return m_try_lock(request.id, request.action)
+            ? AdmissionResponse{AdmissionResponse::Result::ACCEPTED, "Accepted", std::chrono::milliseconds(0)}
+            : AdmissionResponse{AdmissionResponse::Result::PENDING, "Pending", std::chrono::milliseconds(0)};
+    }
+
+    virtual ExecutionHandle m_start_execution(const RequestData & request)
+    {
+        (void)request;
+        return ExecutionHandle{0};
+    }
+
     virtual bool m_try_lock(uint8_t id, uint8_t action) = 0;
 
     // result is a uint8_t respresenting a result of pad_execute action

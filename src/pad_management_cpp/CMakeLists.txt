@@ -14,15 +14,12 @@ find_package(rclcpp_components REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
 
-add_library(pad_management_cpp_plugins SHARED
-  src/pad_resource_manager.cpp
-)
-
-target_include_directories(pad_management_cpp_plugins PUBLIC
+add_library(pad_management_cpp_plugins INTERFACE)
+target_include_directories(pad_management_cpp_plugins INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_compile_features(pad_management_cpp_plugins PUBLIC c_std_99 cxx_std_20)
-target_link_libraries(pad_management_cpp_plugins
+target_compile_features(pad_management_cpp_plugins INTERFACE cxx_std_20)
+target_link_libraries(pad_management_cpp_plugins INTERFACE
   rclcpp::rclcpp
   geometry_msgs::geometry_msgs
   pluginlib::pluginlib
@@ -30,10 +27,6 @@ target_link_libraries(pad_management_cpp_plugins
 
 add_library(pad_right_provider_component SHARED
   src/pad_right_provider.cpp
-  src/request.cpp
-  src/request_map.cpp
-  src/pad_right_server.cpp
-  src/pad_execute_client.cpp
 )
 
 target_include_directories(pad_right_provider_component PUBLIC
@@ -77,8 +70,6 @@ install(DIRECTORY include/
 ament_export_include_directories(include)
 ament_export_libraries(pad_management_cpp_plugins)
 ament_export_targets(export_${PROJECT_NAME})
-
-pluginlib_export_plugin_description_file(pad_management_cpp plugins.xml)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
