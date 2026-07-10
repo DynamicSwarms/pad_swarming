@@ -13,9 +13,9 @@
 class PadExecuteClient
 {
 public:
-    using ActionT = pad_management_interfaces::action::PadExecute;
-    using GoalHandleT = rclcpp_action::ClientGoalHandle<ActionT>;
-    using GoalHandlePtr = std::shared_ptr<GoalHandleT>;
+    using PadExecuteActionT = pad_management_interfaces::action::PadExecute;
+    using PadExecuteGoalHandleT = rclcpp_action::ClientGoalHandle<PadExecuteActionT>;
+    using PadExecuteGoalHandlePtr = std::shared_ptr<PadExecuteGoalHandleT>;
 
     PadExecuteClient(
         const std::string & name,
@@ -27,7 +27,7 @@ public:
     : m_logger(node_logging_interface->get_logger().get_child("PadExecuteClient[" + name + "]"))
     {
         std::string action_name = name + "/pad_execute";
-        m_action_client = rclcpp_action::create_client<ActionT>(
+        m_action_client = rclcpp_action::create_client<PadExecuteActionT>(
             node_base_interface,
             node_graph_interface,
             node_logging_interface,
@@ -65,11 +65,11 @@ public:
             return false;
         }
 
-        auto goal_msg = ActionT::Goal();
+        auto goal_msg = PadExecuteActionT::Goal();
         goal_msg.pad_name = pad_name;
         goal_msg.action = action;
 
-        auto send_goal_options = rclcpp_action::Client<ActionT>::SendGoalOptions();
+        auto send_goal_options = rclcpp_action::Client<PadExecuteActionT>::SendGoalOptions();
 
         send_goal_options.goal_response_callback = std::bind(
             &PadExecuteClient::goal_response_callback, this, std::placeholders::_1);
@@ -82,7 +82,7 @@ public:
         return true;
     }
 
-    void goal_response_callback(const GoalHandlePtr & goal_handle)
+    void goal_response_callback(const PadExecuteGoalHandlePtr & goal_handle)
     {
         if (!goal_handle) {
             RCLCPP_ERROR(m_logger, "The padflie rejected the goal");
@@ -92,14 +92,14 @@ public:
     }
 
     void feedback_callback(
-        GoalHandlePtr goal_handle,
-        const std::shared_ptr<const ActionT::Feedback> feedback)
+        PadExecuteGoalHandlePtr goal_handle,
+        const std::shared_ptr<const PadExecuteActionT::Feedback> feedback)
     {
             (void)goal_handle;
             RCLCPP_DEBUG(m_logger, "Received feedback from padflie: %d", feedback->status);
     }
     
-    void result_callback(const GoalHandleT::WrappedResult & result)
+    void result_callback(const PadExecuteGoalHandleT::WrappedResult & result)
     {
         if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
             RCLCPP_INFO(m_logger, "Padflie said: Goal succeeded: %s", result.result->reason.c_str());
@@ -114,7 +114,7 @@ private:
     rclcpp::Logger m_logger; 
 
     bool m_is_done = false;
-    uint8_t m_result = GoalHandleT::Result::RESULT_UNKNOWN;
+    uint8_t m_result = PadExecuteGoalHandleT::Result::RESULT_UNKNOWN;
 
-    std::shared_ptr<rclcpp_action::Client<ActionT>> m_action_client;
+    std::shared_ptr<rclcpp_action::Client<PadExecuteActionT>> m_action_client;
 };
