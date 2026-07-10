@@ -10,7 +10,7 @@
         <mxCell id="jAafpGbV836VoPlRP6r0-2" value="+ admit(AdmissionRequest): AdmissionResponse" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="jAafpGbV836VoPlRP6r0-1" vertex="1">
           <mxGeometry y="26" width="320" height="26" as="geometry" />
         </mxCell>
-        <mxCell id="jAafpGbV836VoPlRP6r0-3" value="+ notifyFinished(&lt;span style=&quot;text-align: center;&quot;&gt;FinishedResponse&lt;/span&gt;)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="jAafpGbV836VoPlRP6r0-1" vertex="1">
+        <mxCell id="jAafpGbV836VoPlRP6r0-3" value="+ notifyFinished()" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="jAafpGbV836VoPlRP6r0-1" vertex="1">
           <mxGeometry y="52" width="320" height="26" as="geometry" />
         </mxCell>
         <mxCell id="jAafpGbV836VoPlRP6r0-4" value="+ field: type" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="jAafpGbV836VoPlRP6r0-1" vertex="1">
