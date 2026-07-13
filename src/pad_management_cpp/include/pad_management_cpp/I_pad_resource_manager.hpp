@@ -68,6 +68,19 @@ namespace pad_management_cpp
     
 
 
+    struct AvailabilityStatus
+    {
+        bool available;
+        enum class ChargingSpeed
+        {
+            NONE,
+            SLOW,
+            FAST
+        } charging_speed;
+        rclcpp::Duration wait_time{rclcpp::Duration::from_seconds(0.0)};
+    };
+
+
 class IPadResourceManager
 {
 public:
@@ -84,20 +97,20 @@ public:
     virtual std::vector<std::string> get_pad_tf_names() = 0;
     virtual bool get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) = 0;
 
-    void update_availability(bool available)
+    void update_availability(AvailabilityStatus status)
     {
         if (m_on_change_callback) {
-            m_on_change_callback(available);
+            m_on_change_callback(status);
         }
     }
 
-    void set_on_change_callback(std::function<void(bool)> callback)
+    void set_on_change_callback(std::function<void(AvailabilityStatus)> callback)
     {
         m_on_change_callback = callback;
     }
 
 private: 
-    std::function<void(bool)> m_on_change_callback;
+    std::function<void(AvailabilityStatus)> m_on_change_callback;
 };
 
 } // namespace pad_management_cpp

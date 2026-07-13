@@ -76,17 +76,33 @@ public:
         );
 
         m_pad_resource_manager.set_on_change_callback(std::bind(&PadRightServer::publish_info, this, std::placeholders::_1));
-        publish_info(true);
+        pad_management_cpp::AvailabilityStatus status;
+        status.charging_speed = pad_management_cpp::AvailabilityStatus::ChargingSpeed::SLOW;
+        status.available = true;
+        status.wait_time = rclcpp::Duration::from_seconds(0.0);
+        publish_info(status);
     }
 
 private:
-    void publish_info(bool available)
+    void publish_info(const pad_management_cpp::AvailabilityStatus & status)
     {
         pad_management_interfaces::msg::PadInfo msg;
         msg.node_name = m_node_base_interface->get_name();
         msg.pad_right_control_action_name = m_action_server_name;
         msg.pad_tf_names = m_pad_resource_manager.get_pad_tf_names();
-        msg.available = available;
+        msg.available = status.available;
+        msg.wait_time = status.wait_time;
+        switch (status.charging_speed) {
+            case pad_management_cpp::AvailabilityStatus::ChargingSpeed::NONE:
+                msg.charging_speed = pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_NONE;
+                break;
+            case pad_management_cpp::AvailabilityStatus::ChargingSpeed::SLOW:
+                msg.charging_speed = pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_SLOW;
+                break;
+            case pad_management_cpp::AvailabilityStatus::ChargingSpeed::FAST:
+                msg.charging_speed = pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_FAST;
+                break;
+        }
         m_pad_info_publisher->publish(msg);
     }
 

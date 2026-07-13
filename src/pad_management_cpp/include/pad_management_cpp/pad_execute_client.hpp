@@ -1,9 +1,12 @@
 #pragma once
 
 #include <chrono>
-#include <functional>
+#include <cstdint>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <utility>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -16,6 +19,13 @@ public:
     using PadExecuteActionT = pad_management_interfaces::action::PadExecute;
     using PadExecuteGoalHandleT = rclcpp_action::ClientGoalHandle<PadExecuteActionT>;
     using PadExecuteGoalHandlePtr = std::shared_ptr<PadExecuteGoalHandleT>;
+
+    struct FeedbackUpdate
+    {
+        uint8_t status;
+        geometry_msgs::msg::PoseStamped current_pose;
+        double battery_percentage;
+    };
 
     PadExecuteClient(
         const std::string & name,
@@ -44,6 +54,14 @@ public:
     
     uint8_t result() const { 
         return m_result; 
+    }
+
+    std::deque<FeedbackUpdate> take_feedback()
+    {
+        std::deque<FeedbackUpdate> feedback;
+        std::lock_guard<std::mutex> lock(m_feedback_mutex);
+        feedback.swap(m_feedback_queue);
+        return feedback;
     }
 
     bool wait_for_action_server_available()
@@ -106,16 +124,15 @@ public:
         PadExecuteGoalHandlePtr goal_handle,
         const std::shared_ptr<const PadExecuteActionT::Feedback> feedback)
     {
-            (void)goal_handle;
-            RCLCPP_DEBUG(m_logger, "Received feedback from padflie: %d", feedback->status);
+        (void)goal_handle;
 
-            if (m_feedback_callback) {
-                m_feedback_callback(feedback->status, feedback->current_pose, feedback->battery_percentage);
-            }
-    }
-    void add_feedback_callback(std::function<void(uint8_t, geometry_msgs::msg::PoseStamped, double)> callback)
-    {
-        m_feedback_callback = callback;
+        FeedbackUpdate update;
+        update.status = feedback->status;
+        update.current_pose = feedback->current_pose;
+        update.battery_percentage = feedback->battery_percentage;
+
+        std::lock_guard<std::mutex> lock(m_feedback_mutex);
+        m_feedback_queue.push_back(std::move(update));
     }
     
     void result_callback(const PadExecuteGoalHandleT::WrappedResult & result)
@@ -135,7 +152,8 @@ private:
     bool m_is_done = false;
     uint8_t m_result = PadExecuteGoalHandleT::Result::RESULT_UNKNOWN;
 
-    std::function<void(uint8_t, geometry_msgs::msg::PoseStamped, double)> m_feedback_callback;
+    std::mutex m_feedback_mutex;
+    std::deque<FeedbackUpdate> m_feedback_queue;
 
     std::shared_ptr<rclcpp_action::Client<PadExecuteActionT>> m_action_client;
 };

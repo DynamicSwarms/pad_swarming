@@ -188,6 +188,8 @@ private:
         {
             m_current_usage_lock_user_id = id;
             m_currently_usage_locked = true;
+            m_current_usage_action = 
+                (action == pad_management_interfaces::action::PadRightControl::Goal::ACTION_TAKEOFF) ? UsageAction::TAKEOFF : UsageAction::LANDING;
         } else {
             RCLCPP_WARN(m_logger, "Failed to acquire usage lock for cf %u", static_cast<unsigned>(handle.id));
             return AccessResponse{AccessResponse::Result::REJECTED, "Failed to acquire usage lock.", rclcpp::Duration(0, 0)};
@@ -228,10 +230,10 @@ private:
 
 void notify_update(const AccessHandle & handle, const ExecuteUpdate & update) override
 {
-    static int last_status = -1;
-    if (update.status != last_status) {
-        RCLCPP_INFO(m_logger, "Received update for cf %u: status %u, battery: %.2f%%", static_cast<unsigned>(handle.id), static_cast<unsigned>(update.status), update.battery_percentage);
-        last_status = update.status;
+    if (m_current_usage_lock_user_id == handle.id) {
+        m_access_requests[handle.id].current_pose = update.current_pose;
+        m_access_requests[handle.id].battery_percentage = update.battery_percentage;
+        // update.status
     }
 }
 
@@ -294,10 +296,12 @@ void update_visualization() {
 
 void set_availability() 
 {
+    AvailabilityStatus status;
+    status.charging_speed = AvailabilityStatus::ChargingSpeed::FAST;
+    
     if (m_pad_state == PadState::OCCUPIED ||
         m_pad_state == PadState::ERROR ||
-        m_locked_by_neighbors || 
-        m_currently_usage_locked ||
+        (m_currently_usage_locked && m_current_usage_action == UsageAction::LANDING) ||
         p_allow_landings == false)
     {
         RCLCPP_INFO(m_logger, "Availability: Pad %s is not available. Occupied: %s, Error: %s, Locked by neighbors: %s, Currently usage locked: %s", 
@@ -306,10 +310,17 @@ void set_availability()
                     m_pad_state == PadState::ERROR ? "true" : "false", 
                     m_locked_by_neighbors ? "true" : "false", 
                     m_currently_usage_locked ? "true" : "false");
-        update_availability(false);
+
+        
+        status.available = false;
     } else {
-        update_availability(true);
+        //         m_locked_by_neighbors || 
+        status.available = true;
+        if (m_locked_by_neighbors) status.wait_time = rclcpp::Duration::from_seconds(5.0 * m_locked_by_list.size());
+        else status.wait_time = rclcpp::Duration::from_seconds(0.0);
     }
+
+    update_availability(status);
 }
 
 
@@ -364,6 +375,12 @@ private:
     std::unique_lock<std::mutex> m_current_usage_lock;
     bool m_currently_usage_locked = false;
     int m_current_usage_lock_user_id;
+    enum class UsageAction {
+        NONE = 0,
+        TAKEOFF = 1,
+        LANDING = 2
+    };
+    UsageAction m_current_usage_action = UsageAction::NONE;
 
     std::shared_ptr<NeighborsLock> m_current_smart_pad_neighbors_lock;
 

@@ -24,7 +24,7 @@ public:
 
     ~HighLevelCommanderMinimal();
 
-    void takeoff(
+    bool takeoff(
         double height,
         double duration_seconds,
         double yaw_rad,
@@ -32,14 +32,14 @@ public:
     );
 
 
-    void land(
+    bool land(
         double target_height,
         double duration_seconds,
         double yaw_rad,
         double group_mask = 0
     );
 
-    void go_to(
+    bool go_to(
         const Eigen::Vector3d & position,
         double yaw_rad,
         double duration_seconds,

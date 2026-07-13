@@ -8,7 +8,6 @@
 #include "padflies_cpp/commander_base.hpp"
 #include "padflies_cpp/commander.hpp"
 #include "padflies_cpp/sim_commander.hpp"
-#include "padflies_cpp/action_commander.hpp"
 
 enum class CrazyflieType {
     HARDWARE,
@@ -36,20 +35,13 @@ public:
       this->get_node_waitables_interface()
     };
 
-    if (false) 
-    { 
-      m_padflie_commander = std::make_unique<ActionCommander>(
-          m_prefix,
-          m_cf_prefix,
-          node_interfaces_bundle
-      );
-    } else {
-      m_padflie_commander = std::make_unique<PadflieCommander>(
-        m_prefix,
-        m_cf_prefix,
-        node_interfaces_bundle
-      );
-    }
+
+    
+    m_padflie_commander = std::make_unique<PadflieCommander>(
+      m_prefix,
+      m_cf_prefix,
+      node_interfaces_bundle
+    );
 
     m_commander_health_check_timer = this->create_wall_timer(
       std::chrono::milliseconds(200),

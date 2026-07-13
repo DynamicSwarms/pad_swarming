@@ -57,6 +57,7 @@ public:
       for (const std::string& tf_name : pad_info.pad_tf_names) {
         Eigen::Affine3d my_pose, pad_pose;
         if (!m_padflie_tf->get_cf_pose(my_pose)) return false;
+        if (!m_padflie_tf->can_transform_world(tf_name)) continue;
         if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) continue;
 
         RCLCPP_INFO(m_logger, "Pad %s has TF %s with pose translation: [%f, %f, %f], and we are at pose translation: [%f, %f, %f]", 
@@ -99,14 +100,10 @@ public:
       RCLCPP_INFO(m_logger, "Current pad already set to %s, using it.", current_pad_name.c_str());
       std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(current_pad_name);
       setOutput("pad_client", pad_client);
-
-      m_list_of_pad_infos->set_current_pad_name(current_pad_name); 
       return BT::NodeStatus::SUCCESS;
     } else if (findClosestPad(closest_pad_name)) {
       std::shared_ptr<PadClient> pad_client = m_pad_client_factory->create_pad_client(closest_pad_name);
       setOutput("pad_client", pad_client);
-      m_list_of_pad_infos->set_current_pad_name(closest_pad_name);
-
       return BT::NodeStatus::SUCCESS;
     } else {
       return BT::NodeStatus::RUNNING; 
@@ -137,6 +134,73 @@ private:
 };
 
 
+
+class ReleasePadRight : public BT::SyncActionNode
+{
+public:
+    ReleasePadRight(
+        const std::string& name,
+        const BT::NodeConfig& config,
+        rclcpp::Logger logger, 
+        std::shared_ptr<PadExecuteServer> server,
+        std::shared_ptr<PadInfos> list_of_pad_infos)
+    : BT::SyncActionNode(name, config)
+    , m_logger(logger.get_child(name))
+    , m_pad_execute_server(server)
+    , m_list_of_pad_infos(list_of_pad_infos)
+    {
+    }
+
+    static BT::PortsList providedPorts()
+    {
+        return {
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
+            BT::InputPort<uint8_t>("status")
+        };
+    }
+
+    BT::NodeStatus tick() override
+    {
+        RCLCPP_INFO(m_logger, "Releasing PadRight...");
+        std::shared_ptr<PadClient> client;
+        uint8_t status;
+         
+        if (!getInput("pad_client", client))
+        { 
+            RCLCPP_ERROR(m_logger, "Error getting input port [client]!");
+            return BT::NodeStatus::FAILURE;
+        }
+     
+        if (!getInput("status", status))
+        { 
+            RCLCPP_ERROR(m_logger, "Error getting input port [status]!");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        if (status == pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDED)
+        {
+            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_ON_PAD);
+            m_list_of_pad_infos->set_current_pad_name(client->get_pad_name()); 
+        } else if (status == pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_CLEARED_PAD) {
+            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_NOT_ON_PAD);
+            m_list_of_pad_infos->set_current_pad_name(""); 
+
+        } else {
+            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_FAILURE);
+            m_list_of_pad_infos->set_current_pad_name(""); 
+
+        }
+
+        return BT::NodeStatus::SUCCESS;
+    }
+
+private: 
+    rclcpp::Logger m_logger;
+    std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<PadInfos> m_list_of_pad_infos;
+};
+
+
 BT::Tree 
 PadflieBehaviors::getTakeoffTree(
   BT::BehaviorTreeFactory & factory,
@@ -151,6 +215,9 @@ PadflieBehaviors::getTakeoffTree(
     m_list_of_pad_infos,
     padflie_tf,
     pad_client_factory);
+  factory.registerNodeType<ReleasePadRight>("ReleasePadRight", m_logger, pad_execute_server, m_list_of_pad_infos);
+
+
   std::string share_dir = ament_index_cpp::get_package_share_path("padflie_behaviors");
   std::string xml_path = share_dir + "/config/behaviors.xml";
   RCLCPP_INFO(m_logger, "Loading behavior tree XML from: %s", xml_path.c_str());
@@ -174,6 +241,8 @@ PadflieBehaviors::getLandTree(
     m_list_of_pad_infos,
     padflie_tf,
     pad_client_factory);
+  factory.registerNodeType<ReleasePadRight>("ReleasePadRight", m_logger, pad_execute_server, m_list_of_pad_infos);
+
   std::string share_dir = ament_index_cpp::get_package_share_path("padflie_behaviors");
   std::string xml_path = share_dir + "/config/behaviors.xml";
   factory.registerBehaviorTreeFromFile(xml_path);

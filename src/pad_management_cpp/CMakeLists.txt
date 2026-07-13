@@ -68,7 +68,6 @@ install(DIRECTORY include/
   DESTINATION include)
 
 ament_export_include_directories(include)
-ament_export_libraries(pad_management_cpp_plugins)
 ament_export_targets(export_${PROJECT_NAME})
 
 if(BUILD_TESTING)

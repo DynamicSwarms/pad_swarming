@@ -293,6 +293,19 @@ bool PadflieTF::pose_stamped_to_world_position_and_yaw(
     return false;
 }
 
+bool PadflieTF::can_transform_world(const std::string & source_frame)
+{
+    try {
+        return m_tf_buffer->canTransform(
+            m_world_frame,
+            source_frame,
+            rclcpp::Time(0, 0, m_clock->get_clock_type()));
+    } catch (const std::exception & ex) {
+        log("Exception: %s", ex.what());
+        return false;
+    }
+}
+
 bool PadflieTF::lookup_transform(
     const std::string & target_frame,
     const std::string & source_frame,

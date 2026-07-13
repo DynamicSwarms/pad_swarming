@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -73,14 +74,6 @@ public:
 
         req.request_time = m_request_time;
         m_access_handle = m_resource_manager.submit_access_request(req);
-        m_pad_execute_client->add_feedback_callback(
-            [this](uint8_t status, geometry_msgs::msg::PoseStamped current_pose, double battery_percentage) {
-            pm::ExecuteUpdate update;
-            update.status = status;
-            update.current_pose = current_pose;
-            update.battery_percentage = battery_percentage;
-            m_resource_manager.notify_update(m_access_handle, update);
-        });
     }
 
     ~Request()
@@ -108,7 +101,7 @@ public:
             RCLCPP_INFO(m_logger, "Canceling goal, was owner? %s", was_owner ? "Yes" : "No");
 
             m_resource_manager.cancel(m_access_handle);
-        } else {
+        } else if (m_state != RequestState::FinishedAndResponded) {
             auto result = std::make_shared<PadRightControlActionT::Result>();
             result->success = false;
             result->reason = "Request destroyed before completion";
@@ -124,6 +117,14 @@ public:
     {
         RequestState previous_state = m_state;
 
+        for (auto & feedback : m_pad_execute_client->take_feedback()) {
+            pm::ExecuteUpdate update;
+            update.status = feedback.status;
+            update.current_pose = std::move(feedback.current_pose);
+            update.battery_percentage = feedback.battery_percentage;
+            m_resource_manager.notify_update(m_access_handle, update);
+        }
+
         if (m_state == RequestState::Waiting) {
             pm::AccessResponse resp = m_resource_manager.query_request_status(m_access_handle);
             m_expected_wait_time = resp.wait_time;
@@ -136,7 +137,7 @@ public:
                 result->success = false;
                 result->reason = resp.message.empty() ? "Request rejected" : resp.message;
                 m_goal_handle->abort(result);
-                m_state = RequestState::Finished;
+                m_state = RequestState::FinishedAndResponded;
                 RCLCPP_INFO(m_logger, "Request rejected.");
             } else if (resp.result == pm::AccessResponse::Result::PENDING) {
                 auto now = m_clock->now();
@@ -145,7 +146,7 @@ public:
                     result->success = false;
                     result->reason = "Request timed out";
                     m_goal_handle->abort(result);
-                    m_state = RequestState::Finished;
+                    m_state = RequestState::FinishedAndResponded;
                     RCLCPP_INFO(m_logger, "Request timed out.");
                 }
             } 
@@ -158,7 +159,9 @@ public:
 
         RequestUpdateResponse response;
         response.state_changed = previous_state != m_state;
-        response.is_finished = m_state == RequestState::Finished || m_pad_execute_client->is_finished();
+        response.is_finished = (m_state == RequestState::Finished || 
+                                m_state == RequestState::FinishedAndResponded || 
+                                m_pad_execute_client->is_finished());
         response.is_cancelled = m_goal_handle->is_canceling();
         return response;
     }
@@ -214,7 +217,8 @@ private:
     {
         Waiting,
         Acquired,
-        Finished
+        Finished,
+        FinishedAndResponded
     };
     RequestState m_state = Waiting;
     rclcpp::Duration m_expected_wait_time{rclcpp::Duration::from_seconds(0.0)};

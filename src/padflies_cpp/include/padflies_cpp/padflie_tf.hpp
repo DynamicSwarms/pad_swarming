@@ -109,6 +109,8 @@ public:
         const std::string & target_frame,
         geometry_msgs::msg::PoseStamped & transformed_pose);
 
+
+    bool can_transform_world(const std::string & source_frame);
 private: 
 
     bool transform_point_stamped(

@@ -2,21 +2,25 @@
 <root BTCPP_format="4">
   <BehaviorTree ID="LandBehavior">
     <Sequence>
-      <ChoosePad pad_client="{client}"/>
-      <LandInit status="{status}"/>
-      <ReactiveSequence>
-        <SendFeedback pad_client="{client}"
-                      status="{status}"/>
-        <TimeoutROS timeout_ms="20000">
-          <Parallel failure_count="1"
-                    success_count="1">
-            <ApproachIDLE pad_client="{client}"
+      <RetryUntilSuccessful num_attempts="100">
+        <Sequence>
+          <ChoosePad pad_client="{client}"/>
+          <LandInit status="{status}"/>
+          <ReactiveSequence>
+            <SendFeedback pad_client="{client}"
                           status="{status}"/>
-            <GetPadRight pad_client="{client}"
-                         action="LAND"/>
-          </Parallel>
-        </TimeoutROS>
-      </ReactiveSequence>
+            <TimeoutROS timeout_ms="20000">
+              <Parallel failure_count="1"
+                        success_count="1">
+                <ApproachIDLE pad_client="{client}"
+                              status="{status}"/>
+                <GetPadRight pad_client="{client}"
+                             action="LAND"/>
+              </Parallel>
+            </TimeoutROS>
+          </ReactiveSequence>
+        </Sequence>
+      </RetryUntilSuccessful>
       <TryFinally>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>

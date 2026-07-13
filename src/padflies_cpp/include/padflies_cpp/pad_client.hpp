@@ -5,6 +5,15 @@
 #include "pad_management_interfaces/srv/pad_idle_target.hpp"
 #include "padflies_cpp/padflie_tf.hpp"
 
+struct PadRightRequest
+{
+    uint8_t action;
+    rclcpp::Duration max_wait_time{rclcpp::Duration::from_seconds(0.0)};
+    rclcpp::Duration usage_time{rclcpp::Duration::from_seconds(0.0)};
+    double battery_percentage;
+    geometry_msgs::msg::PoseStamped pose;
+};
+
 class PadClient
 {
 public:
@@ -79,20 +88,35 @@ public:
                 target_position.translation().x() = response->target.pose.position.x;
                 target_position.translation().y() = response->target.pose.position.y;
                 target_position.translation().z() = response->target.pose.position.z;
+                target_position.linear() = Eigen::Quaterniond(
+                    response->target.pose.orientation.w,
+                    response->target.pose.orientation.x,
+                    response->target.pose.orientation.y,
+                    response->target.pose.orientation.z).toRotationMatrix();
                 target_frame_id = response->target.header.frame_id;
+                return true;
+            } else {
+                RCLCPP_ERROR(m_logger, "Service /%s/pad_idle_target did not respond after waiting for %f seconds", m_pad_name.c_str(), timeout_seconds);
+                return false;
             }
         } else {
             RCLCPP_ERROR(m_logger, "Service /%s/pad_idle_target not available after waiting for %f seconds", m_pad_name.c_str(), timeout_seconds);
             return false;
         }
 
-        return true;
+        RCLCPP_INFO(m_logger, "Whaat, not possible");
+        return false;
     }
 
-    void send_request(uint8_t action) 
+    void send_request(PadRightRequest request) 
     {
         auto goal_msg = PadRightControlActionT::Goal();
-        goal_msg.action = action;
+        goal_msg.action = request.action;
+        goal_msg.max_wait_time = request.max_wait_time;
+        goal_msg.usage_time = request.usage_time;
+        goal_msg.battery_percentage = request.battery_percentage;
+        goal_msg.current_pose = request.pose;
+
         goal_msg.name = m_prefix;
         auto send_goal_options = rclcpp_action::Client<PadRightControlActionT>::SendGoalOptions();
         send_goal_options.goal_response_callback = std::bind(&PadClient::goal_response_callback, this, std::placeholders::_1);

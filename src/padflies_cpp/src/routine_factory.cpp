@@ -97,7 +97,6 @@ RoutineFactory::m_register_base_nodes(
 {
   factory.registerNodeType<GetPadRight>("GetPadRight", m_logger, m_pad_execute_server);
   factory.registerNodeType<HoldPadRight>("HoldPadRight", m_logger, m_pad_execute_server);
-  factory.registerNodeType<ReleasePadRight>("ReleasePadRight", m_logger, m_pad_execute_server);
   factory.registerNodeType<TakeoffInit>("TakeoffInit", m_logger);
   factory.registerNodeType<TakeoffRoutine>("Takeoff", m_logger, m_node_interfaces_bundle.clock_interface, m_hardware_actor, m_padflie_tf, m_pad_execute_server);
   factory.registerNodeType<LandRoutine>("Land", m_logger, m_node_interfaces_bundle.clock_interface, m_hardware_actor,m_padflie_tf, m_pad_execute_server);

@@ -69,6 +69,7 @@ public:
                 m_current_holder = handle.id;
                 m_current_holder_start_time = m_clock_interface->get_clock()->now();
                 RCLCPP_INFO(m_logger, "Lock acquired for cf %d", handle.id);
+                send_availability_update();
                 return AccessResponse{AccessResponse::Result::ACCEPTED, "Accepted", p_max_hold_time};
             } else  {
                 std::ostringstream oss;
@@ -87,9 +88,23 @@ public:
         return AccessResponse{AccessResponse::Result::PENDING, "Pending", wait_time};
     }
 
+    void send_availability_update()
+    {
+        AvailabilityStatus status;
+        status.available = true; //megapad always available
+        status.charging_speed = AvailabilityStatus::ChargingSpeed::SLOW; //megapad always slow charging
+        status.wait_time = rclcpp::Duration::from_seconds(m_access_requests.size() * 2.0);
+        update_availability(status);
+    }
+
     void notify_update(const AccessHandle & handle, const ExecuteUpdate & update) override
     {
-        RCLCPP_INFO(m_logger, "Received update for cf %d: status %d", handle.id, update.status);
+        static int status_map[256] = {0};
+    
+        if (update.status != status_map[handle.id]) {
+            RCLCPP_INFO(m_logger, "Received update for cf %u: status %u, battery: %.2f%%", static_cast<unsigned>(handle.id), static_cast<unsigned>(update.status), update.battery_percentage);
+            status_map[handle.id] = update.status;
+        }
     }
 
     void notify_finished(const AccessHandle & handle, const ExecuteResult & result) override

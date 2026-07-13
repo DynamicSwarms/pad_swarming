@@ -35,6 +35,8 @@ public:
     
     BT::NodeStatus onStart() override
     {
+        m_request_sent = false;
+
         RCLCPP_INFO(m_logger, "GetPadRight started, trying to acquire right and waiting for Execute goal...");
         if (!getInput("pad_client", m_pad_client))
         {
@@ -73,7 +75,15 @@ public:
         {
             if (m_pad_client->is_action_server_available()) {
                 RCLCPP_INFO(m_logger, "PadRight action server is available, sending goal...");
-                m_pad_client->send_request(m_action);
+
+                PadRightRequest request;
+                request.action = m_action;
+                request.max_wait_time = rclcpp::Duration::from_seconds(5.0);
+                request.usage_time = rclcpp::Duration::from_seconds(10.0);
+                request.battery_percentage = 100.0;
+                request.pose = geometry_msgs::msg::PoseStamped();
+
+                m_pad_client->send_request(request);
                 m_request_sent = true;
             }   
         }
@@ -254,63 +264,7 @@ private:
     std::shared_ptr<PadClient> m_pad_client;
 };
 
-class ReleasePadRight : public BT::SyncActionNode
-{
-public:
-    ReleasePadRight(
-        const std::string& name,
-        const BT::NodeConfig& config,
-        rclcpp::Logger logger, 
-        std::shared_ptr<PadExecuteServer> server)
-    : BT::SyncActionNode(name, config)
-    , m_logger(logger.get_child(name))
-    , m_pad_execute_server(server)
-    {
-    }
 
-    static BT::PortsList providedPorts()
-    {
-        return {
-            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), 
-            BT::InputPort<uint8_t>("status")
-        };
-    }
-
-    BT::NodeStatus tick() override
-    {
-        RCLCPP_INFO(m_logger, "Releasing PadRight...");
-        std::shared_ptr<PadClient> client;
-        uint8_t status;
-         
-        if (!getInput("pad_client", client))
-        { 
-            RCLCPP_ERROR(m_logger, "Error getting input port [client]!");
-            return BT::NodeStatus::FAILURE;
-        }
-     
-        if (!getInput("status", status))
-        { 
-            RCLCPP_ERROR(m_logger, "Error getting input port [status]!");
-            return BT::NodeStatus::FAILURE;
-        }
-
-        if (status == pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDED)
-        {
-            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_ON_PAD);
-        } else if (status == pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_CLEARED_PAD) {
-            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_NOT_ON_PAD);
-        } else {
-            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_FAILURE);
-        }
-
-        return BT::NodeStatus::SUCCESS;
-    }
-
-private: 
-    rclcpp::Logger m_logger;
-    std::shared_ptr<PadExecuteServer> m_pad_execute_server;
-    std::shared_ptr<PadClient> m_pad_client;
-};
 
 
 
@@ -522,8 +476,6 @@ public:
 
     BT::NodeStatus onRunning() override
     {
-        RCLCPP_INFO(m_logger, "Approaching IDLE position...");
-
         Eigen::Affine3d my_pose;
         if (!m_padflie_tf->get_cf_pose(my_pose))
         {

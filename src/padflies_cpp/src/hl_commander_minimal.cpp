@@ -53,12 +53,16 @@ HighLevelCommanderMinimal::~HighLevelCommanderMinimal()
     RCLCPP_DEBUG(m_logger, "HighLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
 
-void HighLevelCommanderMinimal::takeoff(
+bool HighLevelCommanderMinimal::takeoff(
     double height,
     double duration_seconds,
     double yaw_rad,
     double group_mask)
 {
+    if (!m_takeoff_client->wait_for_service(std::chrono::seconds(1))) {
+        RCLCPP_ERROR(m_logger, "Service /%s/takeoff not available", m_cf_prefix.c_str());
+        return false;
+    }
     auto req = std::make_shared<crazyflie_interfaces::srv::Takeoff::Request>();
     req->height = height;
     req->duration = rclcpp::Duration::from_seconds(duration_seconds);
@@ -66,14 +70,19 @@ void HighLevelCommanderMinimal::takeoff(
     req->group_mask = group_mask;
 
     m_takeoff_client->async_send_request(req);
+    return true;
 }
 
-void HighLevelCommanderMinimal::land(
+bool HighLevelCommanderMinimal::land(
     double target_height,
     double duration_seconds,
     double yaw_rad,
     double group_mask)
 {
+    if (!m_land_client->wait_for_service(std::chrono::seconds(1))) {
+        RCLCPP_ERROR(m_logger, "Service /%s/land not available", m_cf_prefix.c_str());
+        return false;
+    }
     auto req = std::make_shared<crazyflie_interfaces::srv::Land::Request>();
     req->height = target_height;
     req->duration = rclcpp::Duration::from_seconds(duration_seconds);
@@ -81,15 +90,20 @@ void HighLevelCommanderMinimal::land(
     req->group_mask = group_mask;
 
     m_land_client->async_send_request(req);
+    return true;
 }
 
-void HighLevelCommanderMinimal::go_to(
+bool HighLevelCommanderMinimal::go_to(
     const Eigen::Vector3d & position,
     double yaw_rad,
     double duration_seconds,
     bool relative,
     double group_mask)
 {
+    if (!m_go_to_client->wait_for_service(std::chrono::seconds(1))) {
+        RCLCPP_ERROR(m_logger, "Service /%s/go_to not available", m_cf_prefix.c_str());
+        return false;
+    }
     auto req = std::make_shared<crazyflie_interfaces::srv::GoTo::Request>();
     req->goal.x = position.x();
     req->goal.y = position.y();
@@ -100,4 +114,5 @@ void HighLevelCommanderMinimal::go_to(
     req->group_mask = group_mask;
 
     m_go_to_client->async_send_request(req);
+    return true;
 }
