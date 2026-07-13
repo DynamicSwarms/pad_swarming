@@ -14,7 +14,7 @@ class PadRightActionServerNode : public rclcpp::Node
 public:
   explicit PadRightActionServerNode(const rclcpp::NodeOptions & options)
   : Node("megapad", options)
-  , m_pad_resource_manager_loader("pad_management_cpp", "IPadResourceManager")
+  , m_pad_resource_manager_loader("pad_management_cpp", "pad_management_cpp::IPadResourceManager")
   , m_pad_resource_manager(create_pad_resource_manager())
   , m_pad_right_server(std::make_shared<PadRightServer>(
       this->get_node_base_interface()->get_name(),
@@ -33,7 +33,7 @@ public:
   }
 
 private:
-  std::shared_ptr<IPadResourceManager> create_pad_resource_manager()
+  std::shared_ptr<pad_management_cpp::IPadResourceManager> create_pad_resource_manager()
   {
     const auto plugin_name = this->declare_parameter<std::string>(
       "pad_resource_manager_plugin",
@@ -56,7 +56,7 @@ private:
   }
 
 private:
-  pluginlib::ClassLoader<IPadResourceManager> m_pad_resource_manager_loader;
-  std::shared_ptr<IPadResourceManager> m_pad_resource_manager;
+  pluginlib::ClassLoader<pad_management_cpp::IPadResourceManager> m_pad_resource_manager_loader;
+  std::shared_ptr<pad_management_cpp::IPadResourceManager> m_pad_resource_manager;
   std::shared_ptr<PadRightServer> m_pad_right_server;
 };

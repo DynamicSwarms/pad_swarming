@@ -38,10 +38,43 @@ install(DIRECTORY include/
 pluginlib_export_plugin_description_file(pad_management_cpp plugins.xml)
 
 if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  set(ament_cmake_copyright_FOUND TRUE)
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(launch_testing_ament_cmake REQUIRED)
+  set(megapad_test_pythonpath
+    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/test")
+
+  ament_add_gtest(test_resource_manager
+    test/test_simultaneous_access.cpp
+  )
+  target_link_libraries(test_resource_manager
+    megapad_plugins
+    rclcpp::rclcpp
+  )
+
+  add_launch_test(
+    test/test_simultaneous_access.py
+    TARGET test_simultaneous_access
+    APPEND_ENV ${megapad_test_pythonpath}
+    TIMEOUT 60
+  )
+  add_launch_test(
+    test/test_preemptive_cancel.py
+    TARGET test_preemptive_cancel
+    APPEND_ENV ${megapad_test_pythonpath}
+    TIMEOUT 30
+  )
+  add_launch_test(
+    test/test_holder_cancel.py
+    TARGET test_holder_cancel
+    APPEND_ENV ${megapad_test_pythonpath}
+    TIMEOUT 30
+  )
+  add_launch_test(
+    test/test_repeated_access.py
+    TARGET test_repeated_access
+    APPEND_ENV ${megapad_test_pythonpath}
+    TIMEOUT 30
+  )
 endif()
 
 ament_package()

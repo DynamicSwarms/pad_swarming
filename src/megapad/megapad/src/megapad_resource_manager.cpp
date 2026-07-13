@@ -2,4 +2,4 @@
 
 #include "pluginlib/class_list_macros.hpp"
 
-PLUGINLIB_EXPORT_CLASS(megapad::MegaPadResourceManager, IPadResourceManager)
+PLUGINLIB_EXPORT_CLASS(megapad::MegaPadResourceManager, pad_management_cpp::IPadResourceManager)

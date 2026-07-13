@@ -1,5 +1,7 @@
 <library path="megapad_plugins">
-  <class type="megapad::MegaPadResourceManager" base_class_type="IPadResourceManager">
+  <class
+    type="megapad::MegaPadResourceManager"
+    base_class_type="pad_management_cpp::IPadResourceManager">
     <description>
       Mega pad implementation of the IPadResourceManager plugin interface.
     </description>

@@ -2,8 +2,11 @@
 string name 
 uint8 action
 
-float32 max_wait_time # in seconds, time to wait for right acquisition before giving up
-float32 usage_time #  in seconds, expected time to use the right after acquisition 
+builtin_interfaces/Duration max_wait_time # time to wait for right acquisition before giving up
+builtin_interfaces/Duration usage_time # expected time to use the right after acquisition 
+
+float32 battery_percentage # battery percentage of the requesting CF
+geometry_msgs/PoseStamped current_pose
 
 uint8 ACTION_LAND = 0
 uint8 ACTION_TAKEOFF = 1
@@ -16,7 +19,7 @@ bool success # true if canceled by client, false if lock timeouted etc.
 ---
 # Feedback - sent by Pad
 uint8 status
-float32 time_remaining # in seconds, expected time until acquisition or time left until timeout
+builtin_interfaces/Duration time_remaining # expected time until acquisition or time left until timeout
 
 geometry_msgs/PoseStamped target_pose # target pose to land on or takeoff from
 

@@ -24,32 +24,49 @@ namespace pad_management_cpp
         std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> graph_interface;
         std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> waitables_interface;
     };
-}
 
-struct RequestData
-{
-    uint8_t id;
-    uint8_t action;
-};
 
-using AdmissionRequest = RequestData;
-
-struct AdmissionResponse
-{
-    enum class Result
+    struct AccessHandle
     {
-        ACCEPTED,
-        REJECTED,
-        PENDING
-    } result;
-    std::string message;
-    std::chrono::milliseconds estimated_wait_time{0};
-};
+        uint8_t id;
+    };
+    struct AccessRequest
+    {
+        uint8_t id;
+        uint8_t action; // PadRightControlGoal::Action
+        rclcpp::Duration max_wait_time{rclcpp::Duration::from_seconds(0.0)};
+        rclcpp::Duration usage_time{rclcpp::Duration::from_seconds(0.0)};
+        double battery_percentage{100.0};
+        geometry_msgs::msg::PoseStamped current_pose;
 
-struct ExecutionHandle
-{
-    uint64_t execution_id;
-};
+        rclcpp::Time request_time{rclcpp::Time(0, 0, RCL_ROS_TIME)};
+    };
+
+    struct AccessResponse
+    {
+        enum class Result
+        {
+            ACCEPTED,
+            REJECTED,
+            PENDING
+        } result;
+        std::string message;
+        rclcpp::Duration wait_time{rclcpp::Duration::from_seconds(0.0)}; 
+    };
+
+    struct ExecuteUpdate
+    {
+        uint8_t status; // PadExecuteFeedback::Status
+        geometry_msgs::msg::PoseStamped current_pose;
+        double battery_percentage;
+    };
+
+    struct ExecuteResult
+    {
+        uint8_t result; // PadExecuteResult::Result
+    };
+    
+
 
 class IPadResourceManager
 {
@@ -57,38 +74,15 @@ public:
 
     virtual ~IPadResourceManager() = default;
 
-    AdmissionResponse admit_request(const RequestData & request)
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_admit_request(request);
-    };
+    virtual AccessHandle submit_access_request(const AccessRequest & request) = 0;
+    virtual AccessResponse query_request_status(const AccessHandle & handle) = 0;
+    virtual void notify_update(const AccessHandle & handle, const ExecuteUpdate & update) = 0;
+    virtual void notify_finished(const AccessHandle & handle, const ExecuteResult & result) = 0;
+    virtual void cancel(const AccessHandle & handle) = 0;
 
-    ExecutionHandle start_execution(const RequestData & request)
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_start_execution(request);
-    };
-
-
-    bool try_lock(uint8_t id, uint8_t action)
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_try_lock(id, action);
-    };
-
-    void release(uint8_t id, uint8_t result)
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_release(id, result);
-    };
-
-    bool get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position)
-    {
-        return m_get_associated_position(id, position);
-    }
 
     virtual std::vector<std::string> get_pad_tf_names() = 0;
-
+    virtual bool get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) = 0;
 
     void update_availability(bool available)
     {
@@ -103,29 +97,11 @@ public:
     }
 
 private: 
-    virtual AdmissionResponse m_admit_request(const RequestData & request)
-    {
-        return m_try_lock(request.id, request.action)
-            ? AdmissionResponse{AdmissionResponse::Result::ACCEPTED, "Accepted", std::chrono::milliseconds(0)}
-            : AdmissionResponse{AdmissionResponse::Result::PENDING, "Pending", std::chrono::milliseconds(0)};
-    }
-
-    virtual ExecutionHandle m_start_execution(const RequestData & request)
-    {
-        (void)request;
-        return ExecutionHandle{0};
-    }
-
-    virtual bool m_try_lock(uint8_t id, uint8_t action) = 0;
-
-    // result is a uint8_t respresenting a result of pad_execute action
-    virtual void m_release(uint8_t id, uint8_t result) = 0;
-
-    virtual bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) = 0;
-
     std::function<void(bool)> m_on_change_callback;
-    std::mutex m_mutex;
 };
+
+} // namespace pad_management_cpp
+
 
 namespace class_loader
 {
@@ -133,7 +109,7 @@ namespace class_loader
 
 
 template<>
-struct InterfaceTraits<IPadResourceManager>
+struct InterfaceTraits<pad_management_cpp::IPadResourceManager>
 {
     using constructor_parameters =
         ConstructorParameters<pad_management_cpp::NodeInterfacesBundle>;

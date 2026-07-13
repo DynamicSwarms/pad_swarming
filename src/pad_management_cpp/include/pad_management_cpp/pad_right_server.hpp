@@ -18,7 +18,7 @@ class PadRightServer
 public:
   PadRightServer(
     const std::string & name,
-    IPadResourceManager & pad_resource_manager,
+    pad_management_cpp::IPadResourceManager & pad_resource_manager,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_param_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
@@ -34,15 +34,12 @@ public:
     , m_node_logging_interface(node_logging_interface)
     , m_node_waitables_interface(node_waitables_interface)
     , m_max_requests(node_param_interface->declare_parameter(
-        "max_requests", rclcpp::ParameterValue(10), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
-    , m_max_hold_time(duration_from_seconds(node_param_interface->declare_parameter(
-        "max_hold_time", rclcpp::ParameterValue(40.0), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<double>()))
+        "max_requests", rclcpp::ParameterValue(50), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
     , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
     , m_logger(node_logging_interface->get_logger())
     , m_request_map(std::make_unique<RequestMap>(
         pad_resource_manager,
         m_max_requests,
-        m_max_hold_time,
         node_clock_interface,
         node_logging_interface->get_logger().get_child("RequestServer")))
     {
@@ -169,13 +166,13 @@ private:
         const std::shared_ptr<rclcpp_action::ServerGoalHandle<pad_management_interfaces::action::PadRightControl>> goal_handle)
     {    
         (void)goal_handle;
-        RCLCPP_INFO(m_logger, "Received cancel request for goal with name %s. Gets ignored.", goal_handle->get_goal()->name.c_str());
+        RCLCPP_INFO(m_logger, "Received cancel request for goal with name %s. Always accept. Cancel state gets polled...", goal_handle->get_goal()->name.c_str());
         return rclcpp_action::CancelResponse::ACCEPT;
     }
 
 
 private: 
-    IPadResourceManager & m_pad_resource_manager;
+    pad_management_cpp::IPadResourceManager & m_pad_resource_manager;
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> m_node_timers_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> m_node_graph_interface;
@@ -183,7 +180,6 @@ private:
     std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> m_node_waitables_interface;
 
     int m_max_requests;
-    rclcpp::Duration m_max_hold_time;
 
     std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
     rclcpp::Logger m_logger;
