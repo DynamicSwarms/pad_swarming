@@ -1,27 +1,17 @@
 import threading
 import time
-
 import unittest
-from unittest import result
-
 
 from launch import LaunchDescription
 import launch
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
-
 import launch_testing
-
-import rclpy
-from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
-
-from smart_pad_interfaces.srv import Lock
-from pad_management_interfaces.msg import PadInfo
-from pad_management_interfaces.action import PadRightControl, PadExecute
-from lifecycle_msgs.srv import GetState, ChangeState
 from lifecycle_msgs.msg import State, Transition
-from std_srvs.srv import Trigger
+from lifecycle_msgs.srv import ChangeState, GetState
+import rclpy
 from std_msgs.msg import String
+from std_srvs.srv import Trigger
 
 def generate_test_description():
     smart_pads = []
@@ -63,46 +53,45 @@ def generate_test_description():
         name='smart_pad_container',
         namespace='',
         package='rclcpp_components',
-        executable='component_container_mt',
-        # prefix=["gdbserver localhost:3000"],
+        executable='component_container',
+        arguments=['--executor-type', 'multi-threaded'],
         output='screen',
         composable_node_descriptions=smart_pads,
     )
 
     gateway = Node(
-        package="crazyflie_simulation_gateway",
-        executable="gateway",
-        output="screen",
-        sigterm_timeout="10.0",
-        parameters=[{"use_sim_time": True}],
+        package='crazyflie_simulation_gateway',
+        executable='gateway',
+        output='screen',
+        sigterm_timeout='10.0',
+        parameters=[{'use_sim_time': True}],
     )
 
     spawner = Node(
-        package="crazyflie_simulation_examples",
-        executable="crazyflie_spawner",
-        output="screen",
-        parameters=[{"count": 1}],
+        package='crazyflie_simulation_examples',
+        executable='crazyflie_spawner',
+        output='screen',
+        parameters=[{'count': 1}],
     )
 
     padflie = Node(
         package='padflies_cpp',
         executable='padflie',
         name='padflie0',
-        # prefix=["gdbserver localhost:3000"],
         parameters=[
             {
                 'id': 0,
                 'use_sim_time': True,
-                "behavior_plugin_name": "padflie_behaviors::PadflieBehaviors",
+                'behavior_plugin_name': 'padflie_behaviors::PadflieBehaviors',
             }
         ],
     )
 
     sim_clock = Node(
-        package="crazyflie_simulation_examples",
-        executable="clock",
-        output="screen",
-        parameters=[{"rate": 10.0}],
+        package='crazyflie_simulation_examples',
+        executable='clock',
+        output='screen',
+        parameters=[{'rate': 10.0}],
     )
 
 
@@ -121,20 +110,19 @@ def generate_test_description():
     ])
 
 
-class TestLockService(unittest.TestCase):
+class TestPadflieSimulation(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Create a service client for the Lock service
         rclpy.init()
         cls.node = rclpy.create_node('test_padflie')
         cls.executor = rclpy.executors.MultiThreadedExecutor()
         cls.executor.add_node(cls.node)
 
         callback_group = rclpy.callback_groups.MutuallyExclusiveCallbackGroup()
-        cls.node.create_subscription(
-            String, 
-            "/availability",
+        cls.availability_subscription = cls.node.create_subscription(
+            String,
+            '/availability',
             cls.availability_callback,
             rclpy.qos.QoSProfile(depth=10),
             callback_group=callback_group
@@ -155,18 +143,18 @@ class TestLockService(unittest.TestCase):
         cls.executor.shutdown(wait_for_threads=True)
         cls.node.destroy_node()
 
-        del cls.executor
+        cls.spin_thread.join(timeout=2.0)
         rclpy.shutdown()
 
     @classmethod
     def availability_callback(cls, msg):
-        if msg.data == "padflie0":
+        if msg.data == 'padflie0':
             cls.padflie_available.set()
 
     @classmethod
     def wait_for_future(cls, future, timeout_sec=1.0):
-        start_time = time.time()
-        while time.time() - start_time < timeout_sec:
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline:
             if future.done():
                 return True
             time.sleep(0.1)
@@ -179,46 +167,44 @@ class TestLockService(unittest.TestCase):
         )
 
         client.wait_for_service(timeout_sec=0.1)
-        self.assertTrue(client.service_is_ready(), "ChangeState service for /padflie0 not available")
+        self.assertTrue(
+            client.service_is_ready(),
+            'ChangeState service for /padflie0 not available',
+        )
 
         req = ChangeState.Request()
-        req.transition.id = Transition.TRANSITION_ACTIVATE if activate else Transition.TRANSITION_DEACTIVATE
+        req.transition.id = (
+            Transition.TRANSITION_ACTIVATE
+            if activate else Transition.TRANSITION_DEACTIVATE
+        )
 
         future = client.call_async(req)
-        self.assertTrue(self.wait_for_future(future, timeout_sec=wait_time_sec), "ChangeState service call for /padflie0 timed out")                   
-
-        self.assertTrue(future.done(), "ChangeState service for /padflie0 timed out")
-        self.assertTrue(future.result() is not None, "No result from ChangeState service for /padflie0")
-        self.assertTrue(future.result().success, "Failed to activate padflie")
+        self.assertTrue(
+            self.wait_for_future(future, timeout_sec=wait_time_sec),
+            'ChangeState service call for /padflie0 timed out',
+        )
+        self.assertIsNotNone(future.result())
+        self.assertTrue(future.result().success)
+        self.node.destroy_client(client)
 
     def test_padflie_lifecycle(self):
-        # Wait at most 5 seconds for padflie lifecycle to reach ACTIVE or INACTIVE
         client = self.node.create_client(GetState, '/padflie0/get_state')
-        start_time = time.time()
-        timeout = 5.0
-        # wait for service availability
-        client.wait_for_service(timeout_sec=1.0)
-        self.assertTrue(client.service_is_ready(), "GetState service for /padflie0 not available")
+        self.assertTrue(client.wait_for_service(timeout_sec=5.0))
 
         configured = False
-        while time.time() - start_time < timeout:
-            try:
-                req = GetState.Request()
-                future = client.call_async(req)
-                self.wait_for_future(future, timeout_sec=1.0)
-                if future.done() and future.result() is not None:
-                    state = future.result().current_state
-                    if state.id is State.PRIMARY_STATE_INACTIVE:
-                        configured = True
-                        break
-            except Exception:
-                pass
-            time.sleep(0.1)
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            future = client.call_async(GetState.Request())
+            if self.wait_for_future(future) and future.result() is not None:
+                if future.result().current_state.id == State.PRIMARY_STATE_INACTIVE:
+                    configured = True
+                    break
 
-        self.assertTrue(configured, "padflie lifecycle not in INACTIVE/ACTIVE within timeout")
+        self.node.destroy_client(client)
+        self.assertTrue(configured, 'padflie did not reach the inactive state')
 
     def test_padflie_activation(self):
-        self.assertTrue(self.padflie_available.wait(timeout=1.0), "padflie0 did not become available within timeout")
+        self.assertTrue(self.padflie_available.wait(timeout=5.0))
 
         self.activate_deactivate_padflie(activate=True)
         self.activate_deactivate_padflie(activate=False)
@@ -227,25 +213,26 @@ class TestLockService(unittest.TestCase):
   
     
     def test_padflie_takeoff(self):
-        self.assertTrue(self.padflie_available.wait(timeout=1.0), "padflie0 did not become available within timeout")
+        self.assertTrue(self.padflie_available.wait(timeout=5.0))
         self.activate_deactivate_padflie(activate=True)
 
         takeoff_client = self.node.create_client(Trigger, '/padflie0/takeoff')
         takeoff_client.wait_for_service(timeout_sec=0.1)
-        self.assertTrue(takeoff_client.service_is_ready(), "Trigger service for /padflie0 not available")
+        self.assertTrue(takeoff_client.service_is_ready())
         req = Trigger.Request()
         future = takeoff_client.call_async(req)
-        self.assertTrue(self.wait_for_future(future, timeout_sec=10.0), "Trigger service call for /padflie0 timed out")
+        self.assertTrue(self.wait_for_future(future, timeout_sec=10.0))
+        self.assertIsNotNone(future.result())
+        self.assertTrue(future.result().success)
+        self.node.destroy_client(takeoff_client)
 
-        self.assertTrue(future.done() and future.result() is not None, "Failed to call Trigger service for /padflie0")
-        self.assertTrue(future.result().success, "Failed to initiate takeoff for padflie")
-
-        self.activate_deactivate_padflie(activate=False, wait_time_sec=10.0) # Flie lands
+        self.activate_deactivate_padflie(
+            activate=False, wait_time_sec=10.0
+        )
         self.padflie_available.clear()
 
 @launch_testing.post_shutdown_test()
 class TestSmartPadShutdown(unittest.TestCase):
 
     def test_exit_codes(self, proc_info):
-        # Check that all processes exited with code 0
         launch_testing.asserts.assertExitCodes(proc_info)

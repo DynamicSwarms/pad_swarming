@@ -7,4 +7,4 @@ namespace smart_pad
 
 }  // namespace smart_pad
 
-PLUGINLIB_EXPORT_CLASS(smart_pad::SmartPadResourceManager, IPadResourceManager)
+PLUGINLIB_EXPORT_CLASS(smart_pad::SmartPadResourceManager, pad_management_cpp::IPadResourceManager)

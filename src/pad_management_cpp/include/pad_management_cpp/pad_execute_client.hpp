@@ -110,10 +110,10 @@ public:
             RCLCPP_DEBUG(m_logger, "Received feedback from padflie: %d", feedback->status);
 
             if (m_feedback_callback) {
-                m_feedback_callback(feedback->status, feedback->current_pose);
+                m_feedback_callback(feedback->status, feedback->current_pose, feedback->battery_percentage);
             }
     }
-    void add_feedback_callback(std::function<void(uint8_t, geometry_msgs::msg::PoseStamped)> callback)
+    void add_feedback_callback(std::function<void(uint8_t, geometry_msgs::msg::PoseStamped, double)> callback)
     {
         m_feedback_callback = callback;
     }
@@ -135,7 +135,7 @@ private:
     bool m_is_done = false;
     uint8_t m_result = PadExecuteGoalHandleT::Result::RESULT_UNKNOWN;
 
-    std::function<void(uint8_t, geometry_msgs::msg::PoseStamped)> m_feedback_callback;
+    std::function<void(uint8_t, geometry_msgs::msg::PoseStamped, double)> m_feedback_callback;
 
     std::shared_ptr<rclcpp_action::Client<PadExecuteActionT>> m_action_client;
 };

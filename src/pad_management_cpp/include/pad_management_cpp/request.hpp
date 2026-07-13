@@ -73,8 +73,13 @@ public:
 
         req.request_time = m_request_time;
         m_access_handle = m_resource_manager.submit_access_request(req);
-        m_pad_execute_client->add_feedback_callback([this](uint8_t status, geometry_msgs::msg::PoseStamped current_pose) {
-            RCLCPP_INFO(m_logger, "Received feedback from padflie: %d", status);
+        m_pad_execute_client->add_feedback_callback(
+            [this](uint8_t status, geometry_msgs::msg::PoseStamped current_pose, double battery_percentage) {
+            pm::ExecuteUpdate update;
+            update.status = status;
+            update.current_pose = current_pose;
+            update.battery_percentage = battery_percentage;
+            m_resource_manager.notify_update(m_access_handle, update);
         });
     }
 

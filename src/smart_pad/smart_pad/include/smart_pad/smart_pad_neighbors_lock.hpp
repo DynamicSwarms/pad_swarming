@@ -33,7 +33,9 @@ class NeighborsLock
             if (result_future.wait_for(std::chrono::milliseconds(50)) == std::future_status::ready) {
                 auto response = result_future.get();
                 if (response->success) {
-                    RCLCPP_WARN(m_logger, "Failed to release lock with neighbor, but it was already released on their end");
+                    RCLCPP_WARN(m_logger, "Successfully released lock with neighbor");
+                } else {
+                    RCLCPP_ERROR(m_logger, "Failed to release lock with neighbor");
                 }
             } else {
                 RCLCPP_ERROR(m_logger, "Failed to release lock with neighbor, and did not receive response in time");

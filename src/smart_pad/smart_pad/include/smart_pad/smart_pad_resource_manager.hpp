@@ -21,6 +21,8 @@
 
 namespace smart_pad
 {
+using namespace pad_management_cpp;
+
 
 class SmartPadResourceManager : public IPadResourceManager
 {
@@ -134,23 +136,72 @@ public:
     }
 
 private:
-  bool m_try_lock(uint8_t id, uint8_t action) override
+  AccessHandle submit_access_request(const AccessRequest & request) override
   {
+    m_access_requests[request.id] = request;
+    return AccessHandle{request.id};
+  }
+
+  AccessResponse query_request_status(const AccessHandle & handle) override
+  {
+    uint8_t id = handle.id;
+    auto it = m_access_requests.find(handle.id);
+    if (it == m_access_requests.end())
+    {
+      RCLCPP_WARN(m_logger, "Access request with id %u not found", static_cast<unsigned>(handle.id));
+      return AccessResponse{AccessResponse::Result::REJECTED, "Request not found", rclcpp::Duration(0, 0)};
+    }
+
+    if (m_currently_usage_locked && m_current_usage_lock_user_id != handle.id)
+    {
+      RCLCPP_WARN(m_logger, "Access request with id %u is not the current usage lock holder", static_cast<unsigned>(handle.id));
+      return AccessResponse{AccessResponse::Result::REJECTED, "Not the current usage lock holder", rclcpp::Duration(0, 0)};
+    }
+
+    
+    // We either are the current usage lock holder or the lock is not currently held by anyone.
+
+    uint8_t action = it->second.action;
     if ((action == pad_management_interfaces::action::PadRightControl::Goal::ACTION_TAKEOFF && !p_allow_takeoffs ||
          action == pad_management_interfaces::action::PadRightControl::Goal::ACTION_LAND && !p_allow_landings)) {
         RCLCPP_WARN(m_logger, "Lock request for cf %u with action %u denied due to configuration (allow_takeoffs: %s, allow_landings: %s)", 
-                    static_cast<unsigned>(id), 
+                    static_cast<unsigned>(handle.id), 
                     static_cast<unsigned>(action),
                     p_allow_takeoffs ? "true" : "false",
                     p_allow_landings ? "true" : "false");
-        return false;
+
+        if (m_currently_usage_locked && m_current_usage_lock_user_id == handle.id)
+        {
+            // We are the holder, but configuration changed -> need to release the lock.
+            m_current_usage_lock.unlock();
+            m_currently_usage_locked = false;
+            RCLCPP_INFO(m_logger, "Usage lock released for cf %u due to configuration denial", static_cast<unsigned>(handle.id));
+        }
+        return AccessResponse{AccessResponse::Result::REJECTED, "Action not allowed by configuration", rclcpp::Duration(0, 0)};
     }
+
+    // The configuration allows the action, we now need to check if we are holder 
+    if (!m_currently_usage_locked)
+    {
+        m_current_usage_lock = std::unique_lock<std::mutex>(m_current_usage_lock_mutex, std::defer_lock);
+        if (m_current_usage_lock.try_lock())
+        {
+            m_current_usage_lock_user_id = id;
+            m_currently_usage_locked = true;
+        } else {
+            RCLCPP_WARN(m_logger, "Failed to acquire usage lock for cf %u", static_cast<unsigned>(handle.id));
+            return AccessResponse{AccessResponse::Result::REJECTED, "Failed to acquire usage lock.", rclcpp::Duration(0, 0)};
+        }
+        RCLCPP_INFO(m_logger, "Lock acquired for cf %u", static_cast<unsigned>(handle.id));
+    }
+
+    // We are now the holder of the usage lock, we can now check if we can acquire the neighbors lock.
 
     std::lock_guard<std::mutex> neighbors_change_lock(m_neighbors_locking_change_mutex);
     if (m_locked_by_neighbors)
     {
         RCLCPP_WARN(m_logger, "Cannot acquire lock for cf %u because pad is locked by neighbors", static_cast<unsigned>(id));
-        return false;
+        return AccessResponse{AccessResponse::Result::PENDING, "Pad is locked by neighbors", rclcpp::Duration(0, 0)};
     } 
 
     RCLCPP_INFO(m_logger, "Trying to acquire neighbors lock for cf %u", static_cast<unsigned>(id));
@@ -164,96 +215,106 @@ private:
     ); 
     if (!smart_pad_neighbors_lock->try_lock()) {
         RCLCPP_WARN(m_logger, "Failed to acquire neighbors lock for cf %u", static_cast<unsigned>(id));
-        return false;
+        return AccessResponse{AccessResponse::Result::PENDING, "Failed to acquire neighbors lock", rclcpp::Duration(0, 0)};
     } 
-    RCLCPP_INFO(m_logger, "Successfully acquired neighbors lock for cf %u", static_cast<unsigned>(id));
-        
-    m_current_usage_lock = std::unique_lock<std::mutex>(m_current_usage_lock_mutex, std::defer_lock);
-    if (!m_current_usage_lock.try_lock())
-    {
-        RCLCPP_WARN(m_logger, "Failed to acquire usage lock for cf %u", static_cast<unsigned>(id));
-        return false;
-    } 
-    RCLCPP_INFO(m_logger, "Lock acquired for cf %u", static_cast<unsigned>(id));
-    
-
-    m_current_usage_lock_user_id = id;
-    m_currently_usage_locked = true;
+    RCLCPP_INFO(m_logger, "Successfully acquired neighbors lock for cf %u", static_cast<unsigned>(id));  
     m_current_smart_pad_neighbors_lock = smart_pad_neighbors_lock;
 
     update_visualization();
     set_availability();
 
-    return true;
+    return AccessResponse{AccessResponse::Result::ACCEPTED, "Accepted. Got Neighbors Lock and Usage Lock", rclcpp::Duration(40, 0)};
   }
 
-  void m_release(uint8_t id, uint8_t result) override
-  {
-    (void)result;
-    if (m_current_usage_lock_user_id != id) {
-        RCLCPP_WARN(m_logger, "Release requested for by %u but wasnt locker", static_cast<unsigned>(id));
+void notify_update(const AccessHandle & handle, const ExecuteUpdate & update) override
+{
+    static int last_status = -1;
+    if (update.status != last_status) {
+        RCLCPP_INFO(m_logger, "Received update for cf %u: status %u, battery: %.2f%%", static_cast<unsigned>(handle.id), static_cast<unsigned>(update.status), update.battery_percentage);
+        last_status = update.status;
+    }
+}
+
+void notify_finished(const AccessHandle & handle, const ExecuteResult & result) override
+{
+    RCLCPP_INFO(m_logger, "Execution finished for cf %u with result %u", static_cast<unsigned>(handle.id), static_cast<unsigned>(result.result));
+    m_free(handle);
+    if (result.result == pad_management_interfaces::action::PadExecute::Result::RESULT_ON_PAD)
+    {
+        m_pad_state = PadState::OCCUPIED;
+        RCLCPP_INFO(m_logger, "Pad %u executed successfully, setting state to occupied", static_cast<unsigned>(handle.id));
+    } else if (result.result == pad_management_interfaces::action::PadExecute::Result::RESULT_NOT_ON_PAD){
+        m_pad_state = PadState::AVAILABLE;
+        RCLCPP_INFO(m_logger, "Pad %u released and not on pad", static_cast<unsigned>(handle.id));
+    } else {
+        m_pad_state = PadState::ERROR;
+        RCLCPP_WARN(m_logger, "Pad %u released with unknown result %u, setting state to error", static_cast<unsigned>(handle.id), static_cast<unsigned>(result.result));
+    }
+
+        update_visualization();
+        set_availability();
+}
+
+void cancel(const AccessHandle & handle) override
+{
+    RCLCPP_INFO(m_logger, "Received cancel request for cf %u", static_cast<unsigned>(handle.id));
+    m_free(handle);
+}
+
+
+private: 
+
+void m_free(const AccessHandle & handle)
+{
+    if (m_current_usage_lock_user_id != handle.id) {
+        RCLCPP_WARN(m_logger, "Received finished notification for cf %u, but we are not the current usage lock holder (current holder: %u)", static_cast<unsigned>(handle.id), static_cast<unsigned>(m_current_usage_lock_user_id));
         return;
     }
     m_current_usage_lock.unlock();
     m_currently_usage_locked = false;
+    RCLCPP_INFO(m_logger, "Usage lock released for cf %u", static_cast<unsigned>(handle.id));
     set_availability();
-
     m_current_smart_pad_neighbors_lock.reset();
+    m_access_requests.erase(handle.id);
+}
 
-
-    if (result == pad_management_interfaces::action::PadExecute::Result::RESULT_ON_PAD)
-    {
-        m_pad_state = PadState::OCCUPIED;
-        RCLCPP_INFO(m_logger, "Pad %u executed successfully, setting state to occupied", static_cast<unsigned>(id));
-    } else if (result == pad_management_interfaces::action::PadExecute::Result::RESULT_NOT_ON_PAD){
-        m_pad_state = PadState::AVAILABLE;
-        RCLCPP_INFO(m_logger, "Pad %u released and not on pad", static_cast<unsigned>(id));
+void update_visualization() {
+    if (m_locked_by_neighbors && m_pad_state == PadState::OCCUPIED) {
+        m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED_AND_OCCUPIED);
+    } else if (m_locked_by_neighbors) {
+        m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED);
+    } else if (m_pad_state == PadState::OCCUPIED) {
+        m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::OCCUPIED);
+    } else if (m_pad_state == PadState::AVAILABLE) {
+        m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::AVAILABLE);
     } else {
-        m_pad_state = PadState::ERROR;
-        RCLCPP_WARN(m_logger, "Pad %u released with unknown result %u, setting state to error", static_cast<unsigned>(id), static_cast<unsigned>(result));
+        m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::ERROR);
     }
+}
 
-    update_visualization();
-    set_availability();
-  }
-
-    void update_visualization() {
-        if (m_locked_by_neighbors && m_pad_state == PadState::OCCUPIED) {
-            m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED_AND_OCCUPIED);
-        } else if (m_locked_by_neighbors) {
-            m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED);
-        } else if (m_pad_state == PadState::OCCUPIED) {
-            m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::OCCUPIED);
-        } else if (m_pad_state == PadState::AVAILABLE) {
-            m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::AVAILABLE);
-        } else {
-            m_smart_pad_visualization->set_state(SmartPadVisualization::VisualizationState::ERROR);
-        }
-    }
-
-    void set_availability() 
+void set_availability() 
+{
+    if (m_pad_state == PadState::OCCUPIED ||
+        m_pad_state == PadState::ERROR ||
+        m_locked_by_neighbors || 
+        m_currently_usage_locked ||
+        p_allow_landings == false)
     {
-        if (m_pad_state == PadState::OCCUPIED ||
-            m_pad_state == PadState::ERROR ||
-            m_locked_by_neighbors || 
-            m_currently_usage_locked ||
-            p_allow_landings == false)
-        {
-            RCLCPP_INFO(m_logger, "Pad %s is not available. Occupied: %s, Error: %s, Locked by neighbors: %s, Currently usage locked: %s", 
-                        m_pad_name.c_str(), 
-                        m_pad_state == PadState::OCCUPIED ? "true" : "false", 
-                        m_pad_state == PadState::ERROR ? "true" : "false", 
-                        m_locked_by_neighbors ? "true" : "false", 
-                        m_currently_usage_locked ? "true" : "false");
-            update_availability(false);
-        } else {
-            update_availability(true);
-        }
+        RCLCPP_INFO(m_logger, "Availability: Pad %s is not available. Occupied: %s, Error: %s, Locked by neighbors: %s, Currently usage locked: %s", 
+                    m_pad_name.c_str(), 
+                    m_pad_state == PadState::OCCUPIED ? "true" : "false", 
+                    m_pad_state == PadState::ERROR ? "true" : "false", 
+                    m_locked_by_neighbors ? "true" : "false", 
+                    m_currently_usage_locked ? "true" : "false");
+        update_availability(false);
+    } else {
+        update_availability(true);
     }
+}
 
 
-  bool m_get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override
-  {
+bool get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override
+{
     position.header.frame_id = get_pad_name(m_id);
     position.pose.position.x = 0.0;
     position.pose.position.y = 0.0;
@@ -264,39 +325,40 @@ private:
     position.pose.orientation.w = 1.0;
 
     return true;
-  }
+}
 
-  std::string get_pad_name(uint8_t id) const {return "smart_pad_" + std::to_string(id);}
+std::string get_pad_name(uint8_t id) const {return "smart_pad_" + std::to_string(id);}
 
-  std::vector<std::string> get_pad_tf_names() override
-  {
+std::vector<std::string> get_pad_tf_names() override
+{
     return {"smart_pad_" + std::to_string(m_id)};
-  }
+}
 
 
-    rcl_interfaces::msg::SetParametersResult m_on_parameters_set(const std::vector<rclcpp::Parameter> & parameters) {
-        rcl_interfaces::msg::SetParametersResult result;
-        result.successful = true;
-        result.reason = "success";
-        for (const auto & param : parameters) {
-            if (param.get_name() == "allow_takeoffs") {
-                p_allow_takeoffs = param.as_bool();
-                set_availability();
-            } else if (param.get_name() == "allow_landings") {
-                p_allow_landings = param.as_bool();
-                set_availability(); 
-            }
+rcl_interfaces::msg::SetParametersResult m_on_parameters_set(const std::vector<rclcpp::Parameter> & parameters) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    result.reason = "success";
+    for (const auto & param : parameters) {
+        if (param.get_name() == "allow_takeoffs") {
+            p_allow_takeoffs = param.as_bool();
+            set_availability();
+        } else if (param.get_name() == "allow_landings") {
+            p_allow_landings = param.as_bool();
+            set_availability(); 
         }
-        return result;
     }
+    return result;
+}
+
 private: 
     std::mutex m_neighbors_locking_change_mutex;
     bool m_locked_by_neighbors = false;
     std::vector<std::string> m_locked_by_list;
 
-
-
 private: 
+    std::unordered_map<uint8_t, AccessRequest> m_access_requests;
+
     std::mutex m_current_usage_lock_mutex;
 
     std::unique_lock<std::mutex> m_current_usage_lock;

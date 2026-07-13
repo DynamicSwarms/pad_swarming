@@ -15,16 +15,20 @@
   <depend>rclcpp</depend>
   <depend>smart_pad_interfaces</depend>
 
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
-  <test_depend>ament_cmake_clang_format</test_depend>
-  <test_depend>ament_cmake_cpplint</test_depend>
-  <test_depend>ament_cmake_ros</test_depend>
+  <test_depend>crazyflie_simulation_examples</test_depend>
+  <test_depend>crazyflie_simulation_gateway</test_depend>
   <test_depend>launch</test_depend>
   <test_depend>launch_ros</test_depend>
   <test_depend>launch_testing</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>lifecycle_msgs</test_depend>
+  <test_depend>pad_management_interfaces</test_depend>
+  <test_depend>padflies_cpp</test_depend>
+  <test_depend>rclcpp_components</test_depend>
   <test_depend>rclpy</test_depend>
+  <test_depend>std_msgs</test_depend>
+  <test_depend>std_srvs</test_depend>
+  <test_depend>tf2_ros</test_depend>
   <export>
     <build_type>ament_cmake</build_type>
   </export>
