@@ -16,6 +16,8 @@ struct PadInfo
     std::string pad_right_control_action_name;
     std::vector<std::string> pad_tf_names;
     bool available;
+    rclcpp::Duration wait_time{0, 0};
+    uint8_t charging_speed;
 };
 
 class PadInfos
@@ -34,7 +36,9 @@ public:
             .pad_idle_target_service_name = msg->pad_idle_target_service_name,
             .pad_right_control_action_name = msg->pad_right_control_action_name,
             .pad_tf_names = msg->pad_tf_names,
-            .available = msg->available
+            .available = msg->available,
+            .wait_time = msg->wait_time,
+            .charging_speed = msg->charging_speed
         };
 
         RCLCPP_DEBUG(rclcpp::get_logger("PadInfos"), "Updated pad info for node: %s, available: %s, pad_tf_names size: %zu", 
@@ -73,15 +77,19 @@ public:
     : m_node_interfaces_bundle(node_interfaces_bundle)
     , m_logger(logger.get_child("PadflieBehaviors"))
     {
+        m_callback_group = m_node_interfaces_bundle.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+        auto sub_options = rclcpp::SubscriptionOptions();
+        sub_options.callback_group = m_callback_group;
         m_pad_info_subscription = rclcpp::create_subscription<pad_management_interfaces::msg::PadInfo>(
             m_node_interfaces_bundle.topics_interface,
             "pad_management/pad_info",
             rclcpp::QoS(10).reliable().transient_local(),
-            std::bind(&PadflieBehaviors::pad_info_callback, this, std::placeholders::_1)
+            std::bind(&PadflieBehaviors::pad_info_callback, this, std::placeholders::_1),
+            sub_options
         );
 
         auto param_overrides =  node_interfaces_bundle.parameters_interface->get_parameter_overrides();
-        for (auto &  [name, value] : param_overrides) RCLCPP_INFO(m_logger, "Parameter override: %s = %s", name.c_str(), rclcpp::to_string(value).c_str());
+        for (auto &  [name, value] : param_overrides) RCLCPP_DEBUG(m_logger, "Parameter override: %s = %s", name.c_str(), rclcpp::to_string(value).c_str());
 
         //p_initial_pad = node_interfaces_bundle.parameters_interface->declare_parameter("initial_pad", rclcpp::ParameterValue(""), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>();
         //RCLCPP_INFO(m_logger, "Initial pad parameter declared with value: '%s'", p_initial_pad.c_str());
@@ -125,6 +133,7 @@ private:
     padflies_cpp::NodeInterfacesBundle m_node_interfaces_bundle;
     rclcpp::Logger m_logger;
 
+    std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
     std::shared_ptr<rclcpp::Subscription<pad_management_interfaces::msg::PadInfo>> m_pad_info_subscription;
     std::shared_ptr<PadInfos> m_list_of_pad_infos;
 

@@ -99,6 +99,7 @@ public:
 
     void update_availability(AvailabilityStatus status)
     {
+        m_last_status = status;
         if (m_on_change_callback) {
             m_on_change_callback(status);
         }
@@ -107,10 +108,15 @@ public:
     void set_on_change_callback(std::function<void(AvailabilityStatus)> callback)
     {
         m_on_change_callback = callback;
+        callback(m_last_status);
     }
 
 private: 
     std::function<void(AvailabilityStatus)> m_on_change_callback;
+    AvailabilityStatus m_last_status = AvailabilityStatus
+        {.available = false, 
+         .charging_speed = AvailabilityStatus::ChargingSpeed::NONE, 
+         .wait_time = rclcpp::Duration::from_seconds(1000.0)};
 };
 
 } // namespace pad_management_cpp

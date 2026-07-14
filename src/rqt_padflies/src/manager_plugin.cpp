@@ -61,7 +61,7 @@ ManagerPlugin::update()
 void ManagerPlugin::m_handle_availability_message(std::shared_ptr<std_msgs::msg::String> msg)
 {
   try {
-    std::string id_str = msg->data.substr(8); // Assuming name is like "/padflieID"
+    std::string id_str = msg->data.substr(7); // Assuming name is like "padflieID"
     int id = std::stoi(id_str);
     QMetaObject::invokeMethod(
       this,

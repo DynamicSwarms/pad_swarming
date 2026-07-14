@@ -36,7 +36,7 @@ public:
             RCLCPP_ERROR(m_logger, "Failed to get world pose for pad");
             return;
         }
-        response->target.pose.position.x = current_pose.translation().x() +1 ;
+        response->target.pose.position.x = current_pose.translation().x();
         response->target.pose.position.y = current_pose.translation().y();
         response->target.pose.position.z = current_pose.translation().z() + 1;
         Eigen::Quaterniond q(current_pose.rotation());

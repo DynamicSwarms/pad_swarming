@@ -31,12 +31,12 @@ public:
         m_marker_publisher = rclcpp::create_publisher<visualization_msgs::msg::MarkerArray>(
             node_topics_interface,
             "smart_pad/visualization/markers",
-            rclcpp::QoS(1).transient_local(),
+            rclcpp::QoS(1).transient_local().reliable(),
             pub_options
         );
 
         publish_marker(); // Publish initial marker with default state
-        RCLCPP_INFO(m_logger, "SmartPadVisualization initialized for pad %s", m_pad_name.c_str());
+        RCLCPP_DEBUG(m_logger, "SmartPadVisualization initialized for pad %s", m_pad_name.c_str());
     }
 
     ~SmartPadVisualization() {

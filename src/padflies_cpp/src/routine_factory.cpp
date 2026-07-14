@@ -116,7 +116,6 @@ RoutineFactory::m_set_parameters_callback(const std::vector<rclcpp::Parameter> &
   result.successful = true;
   for (const auto& param : parameters) 
   {
-    RCLCPP_INFO(m_logger, "Received parameter change request: %s = %s", param.get_name().c_str(), (param.as_string()).c_str());
     if (param.get_name() == "behavior_plugin_name") {
       if (m_behavior_plugin_loader.isClassAvailable(param.as_string()))
       {

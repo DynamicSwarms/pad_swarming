@@ -79,7 +79,6 @@ public:
     ~Request()
     {
         RCLCPP_INFO(m_logger, "Destroying request object.");
-        RCLCPP_INFO(m_logger, "Cancel status: %s", m_goal_handle->is_canceling() ? "true" : "false");
 
         if (m_pad_execute_client->is_finished()) {
             auto result = std::make_shared<PadRightControlActionT::Result>();

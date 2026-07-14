@@ -75,14 +75,14 @@ bool try_lock() {
         if (result != std::future_status::ready)
         {
             RCLCPP_ERROR(m_logger, "Neighbor %s did not respond to lock request in time", neighbor.c_str());
+
+            m_lock_clients.push_back(lock_client); // The request might still have been sent after we waited for it.
             return false;
         } 
         auto response = result_future.get();
         if (!response->success) return false;
         
-        RCLCPP_INFO(m_logger, "Successfully acquired lock with neighbor %s", neighbor.c_str());
         m_lock_clients.push_back(lock_client);
-        RCLCPP_INFO(m_logger, "Successfully pushed lock client for neighbor %s", neighbor.c_str());
     }
 
     return true;

@@ -46,12 +46,22 @@ public:
   
     auto closest_pad_it = pad_infos.end();
     double closest_distance = std::numeric_limits<double>::max();
+    
+    std::stringstream available_pads_stream;
     for (const auto& [node_name, pad_info] : pad_infos) {
-      RCLCPP_INFO(m_logger, "Checking padinfo from node: %s, available: %s, pad_tf_names size: %zu", 
-                  node_name.c_str(), 
-                  pad_info.available ? "true" : "false", 
-                  pad_info.pad_tf_names.size());
+        if (pad_info.available) {
+            available_pads_stream << node_name << " ";
+        }
+    }
+    RCLCPP_INFO(m_logger, "Choosing from: %s", available_pads_stream.str().c_str());
+    
+    for (const auto& [node_name, pad_info] : pad_infos) {
       if (!pad_info.available) continue;
+
+      if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_FAST) {
+          RCLCPP_INFO(m_logger, "Skipping pad %s because it is not fast charging.", node_name.c_str());
+          continue;
+      }
       
 
       for (const std::string& tf_name : pad_info.pad_tf_names) {
@@ -60,7 +70,7 @@ public:
         if (!m_padflie_tf->can_transform_world(tf_name)) continue;
         if (!m_padflie_tf->get_world_affine3d(tf_name, pad_pose)) continue;
 
-        RCLCPP_INFO(m_logger, "Pad %s has TF %s with pose translation: [%f, %f, %f], and we are at pose translation: [%f, %f, %f]", 
+        RCLCPP_DEBUG(m_logger, "Pad %s has TF %s with pose translation: [%f, %f, %f], and we are at pose translation: [%f, %f, %f]", 
                     node_name.c_str(), 
                     tf_name.c_str(),
                     pad_pose.translation().x(), pad_pose.translation().y(), pad_pose.translation().z(),
@@ -69,7 +79,6 @@ public:
 
         double distance = (my_pose.translation() - pad_pose.translation()).norm();
         if (distance < closest_distance) {
-            RCLCPP_INFO(m_logger, "Found closer pad: %s with distance: %f", node_name.c_str(), distance);
             closest_distance = distance;
             closest_pad_it = pad_infos.find(node_name);
         }

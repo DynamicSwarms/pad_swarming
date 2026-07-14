@@ -78,7 +78,7 @@ public:
 
                 PadRightRequest request;
                 request.action = m_action;
-                request.max_wait_time = rclcpp::Duration::from_seconds(5.0);
+                request.max_wait_time = rclcpp::Duration::from_seconds(40.0);
                 request.usage_time = rclcpp::Duration::from_seconds(10.0);
                 request.battery_percentage = 100.0;
                 request.pose = geometry_msgs::msg::PoseStamped();
@@ -96,7 +96,10 @@ public:
 
         if (m_pad_client->received_result())
         {
-            RCLCPP_INFO(m_logger, "PadRight result received before doing anything. Failure!");
+            if (!m_pad_client->result_success()) {
+                return BT::NodeStatus::FAILURE;
+            }
+            RCLCPP_INFO(m_logger, "Successfull PadRight result received, before doing anything. Failure!");
             return BT::NodeStatus::FAILURE;
         }
 
@@ -650,20 +653,23 @@ public:
                 m_timeout_duration = rclcpp::Duration(std::chrono::milliseconds(timeout_ms));
                 m_timeout_started = true;
             } else if ((m_clock->now() - m_timeout_start_time) > m_timeout_duration) {
-                RCLCPP_INFO(m_logger, "Timeout reached in TimeoutROS decorator!");
+                RCLCPP_INFO(m_logger, "%f timeout reached, halting child node!", m_timeout_duration.seconds());
                 m_child_halted = true;
+                m_timeout_started = false;
                 haltChild();
             }
 
 
 
-            if (m_child_halted) {
+            if (m_child_halted) 
+            {
                 m_timeout_started = false;
                 return BT::NodeStatus::FAILURE;
             }
 
             const BT::NodeStatus child_status = child_node_->executeTick();
-            if (isStatusCompleted(child_status)) {
+            if (isStatusCompleted(child_status))
+            {
                 m_timeout_started = false;
                 resetChild();
             }

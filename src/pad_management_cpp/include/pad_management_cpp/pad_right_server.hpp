@@ -76,11 +76,6 @@ public:
         );
 
         m_pad_resource_manager.set_on_change_callback(std::bind(&PadRightServer::publish_info, this, std::placeholders::_1));
-        pad_management_cpp::AvailabilityStatus status;
-        status.charging_speed = pad_management_cpp::AvailabilityStatus::ChargingSpeed::SLOW;
-        status.available = true;
-        status.wait_time = rclcpp::Duration::from_seconds(0.0);
-        publish_info(status);
     }
 
 private:

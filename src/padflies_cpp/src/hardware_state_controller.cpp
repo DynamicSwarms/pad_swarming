@@ -5,9 +5,15 @@ HardwareStateController::HardwareStateController(
     rclcpp::node_interfaces::NodeParametersInterface::SharedPtr param_iface)
 : m_param_iface(param_iface)
 {
-    param_iface->declare_parameter("battery_voltage_critical", rclcpp::ParameterValue(3.3));
-    param_iface->declare_parameter("battery_voltage_empty", rclcpp::ParameterValue(3.44));
-    param_iface->declare_parameter("battery_voltage_charged", rclcpp::ParameterValue(4.14));
+    auto descriptor = rcl_interfaces::msg::ParameterDescriptor();
+    auto range = rcl_interfaces::msg::FloatingPointRange();
+    range.from_value = 2.8;
+    range.to_value = 4.3;
+    descriptor.floating_point_range.push_back(range);
+
+    param_iface->declare_parameter("battery_voltage_critical", rclcpp::ParameterValue(3.3), descriptor);
+    param_iface->declare_parameter("battery_voltage_empty", rclcpp::ParameterValue(3.44), descriptor);
+    param_iface->declare_parameter("battery_voltage_charged", rclcpp::ParameterValue(4.14), descriptor);
 }
 
 void 

@@ -39,6 +39,12 @@ public:
         );
 
         RCLCPP_INFO(m_logger, "MegaPadResourceManager constructor called.");
+
+        pad_management_cpp::AvailabilityStatus status;
+        status.charging_speed = pad_management_cpp::AvailabilityStatus::ChargingSpeed::SLOW;
+        status.available = true;
+        status.wait_time = rclcpp::Duration::from_seconds(0.0);
+        update_availability(status);
     }
 
     std::vector<std::string> get_pad_tf_names() override

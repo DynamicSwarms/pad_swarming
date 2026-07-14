@@ -87,6 +87,7 @@ public:
         m_param_callback_handle = node_iface_bundle.parameters_interface->add_on_set_parameters_callback(
             std::bind(&SmartPadResourceManager::m_on_parameters_set, this, std::placeholders::_1));
 
+        set_availability();
     }
 
     void
@@ -98,22 +99,20 @@ public:
         const std::shared_ptr<smart_pad_interfaces::srv::Lock::Request> request,
         std::shared_ptr<smart_pad_interfaces::srv::Lock::Response> response)
     {
-        RCLCPP_INFO(m_logger, "Received lock request for pad: %s, locking: %s", 
-                    request->name.c_str(), request->locking ? "true" : "false");
         std::lock_guard<std::mutex> lock(m_neighbors_locking_change_mutex);
         
         if (request->locking)
         {
-            if (m_current_usage_lock && m_current_usage_lock.owns_lock()) {
+            if (m_current_usage_lock && m_current_usage_lock.owns_lock() && m_current_usage_state == UsageState::ACTIVE) {
                 RCLCPP_WARN(m_logger, "Pad is locked by landing/takeoff procedure by cf %u, cannot lock", static_cast<unsigned>(m_current_usage_lock_user_id));
                 response->success = false;
-            }
+            } else {
+                m_locked_by_list.push_back(request->name);
+                m_locked_by_neighbors = true;
+                response->success = true;
 
-            m_locked_by_list.push_back(request->name);
-            m_locked_by_neighbors = true;
-            response->success = true;
-
-            RCLCPP_INFO(m_logger, "Locking pad %s, currently locked by neighbors: %s", request->name.c_str(), m_locked_by_neighbors ? "true" : "false");
+                RCLCPP_INFO(m_logger, "Locking pad %s, currently locked by neighbors: %s", request->name.c_str(), m_locked_by_neighbors ? "true" : "false");
+            }            
         } else { // Unlock request
             bool removed_lock_holder = false;
             for (auto it = m_locked_by_list.begin(); it != m_locked_by_list.end(); ++it) {
@@ -130,7 +129,12 @@ public:
             m_locked_by_neighbors = false;
             m_smart_pad_visualization->set_state(m_currently_usage_locked ? SmartPadVisualization::VisualizationState::NEIGHBOR_LOCKED : SmartPadVisualization::VisualizationState::AVAILABLE); // Set state dependent if currently used
         }
-        
+
+        std::string locked_by_str;
+        for (const auto & name : m_locked_by_list) {
+            locked_by_str += name + " ";
+        }
+        RCLCPP_INFO(m_logger, "Pad %s lock request processed, currently locked by %s", request->name.c_str(), locked_by_str.c_str());
         set_availability();
         update_visualization();
     }
@@ -175,12 +179,14 @@ private:
             // We are the holder, but configuration changed -> need to release the lock.
             m_current_usage_lock.unlock();
             m_currently_usage_locked = false;
+            update_visualization();
+            set_availability();
             RCLCPP_INFO(m_logger, "Usage lock released for cf %u due to configuration denial", static_cast<unsigned>(handle.id));
         }
         return AccessResponse{AccessResponse::Result::REJECTED, "Action not allowed by configuration", rclcpp::Duration(0, 0)};
     }
 
-    // The configuration allows the action, we now need to check if we are holder 
+    // The configuration allows the action, we now need to check if we are / can get the usage lock
     if (!m_currently_usage_locked)
     {
         m_current_usage_lock = std::unique_lock<std::mutex>(m_current_usage_lock_mutex, std::defer_lock);
@@ -190,6 +196,9 @@ private:
             m_currently_usage_locked = true;
             m_current_usage_action = 
                 (action == pad_management_interfaces::action::PadRightControl::Goal::ACTION_TAKEOFF) ? UsageAction::TAKEOFF : UsageAction::LANDING;
+            m_current_usage_state = UsageState::PENDING;
+            update_visualization();
+            set_availability();
         } else {
             RCLCPP_WARN(m_logger, "Failed to acquire usage lock for cf %u", static_cast<unsigned>(handle.id));
             return AccessResponse{AccessResponse::Result::REJECTED, "Failed to acquire usage lock.", rclcpp::Duration(0, 0)};
@@ -202,7 +211,7 @@ private:
     std::lock_guard<std::mutex> neighbors_change_lock(m_neighbors_locking_change_mutex);
     if (m_locked_by_neighbors)
     {
-        RCLCPP_WARN(m_logger, "Cannot acquire lock for cf %u because pad is locked by neighbors", static_cast<unsigned>(id));
+        RCLCPP_DEBUG(m_logger, "Access for CF %u PENDING, because pad is locked by neighbors", static_cast<unsigned>(id));
         return AccessResponse{AccessResponse::Result::PENDING, "Pad is locked by neighbors", rclcpp::Duration(0, 0)};
     } 
 
@@ -225,6 +234,7 @@ private:
     update_visualization();
     set_availability();
 
+    m_current_usage_state = UsageState::ACTIVE;
     return AccessResponse{AccessResponse::Result::ACCEPTED, "Accepted. Got Neighbors Lock and Usage Lock", rclcpp::Duration(40, 0)};
   }
 
@@ -253,8 +263,8 @@ void notify_finished(const AccessHandle & handle, const ExecuteResult & result) 
         RCLCPP_WARN(m_logger, "Pad %u released with unknown result %u, setting state to error", static_cast<unsigned>(handle.id), static_cast<unsigned>(result.result));
     }
 
-        update_visualization();
-        set_availability();
+    update_visualization();
+    set_availability();
 }
 
 void cancel(const AccessHandle & handle) override
@@ -381,6 +391,12 @@ private:
         LANDING = 2
     };
     UsageAction m_current_usage_action = UsageAction::NONE;
+    enum class UsageState {
+        NONE = 0,
+        PENDING = 1,
+        ACTIVE = 2
+    };
+    UsageState m_current_usage_state = UsageState::NONE;
 
     std::shared_ptr<NeighborsLock> m_current_smart_pad_neighbors_lock;
 

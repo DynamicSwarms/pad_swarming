@@ -32,7 +32,7 @@ public:
         
         Eigen::Affine3d other_pose_in_my_frame;
         for (const auto & neighbor : potential_neighbors) {
-            if (m_smart_pad_tf->get_affine3d_off_in_frame(other_pose_in_my_frame, neighbor, m_pad_name)) {
+            if (m_smart_pad_tf->get_affine3d_in_frame_off(other_pose_in_my_frame, m_pad_name, neighbor)) {
                 double distance = other_pose_in_my_frame.translation().norm();
                 if (distance < p_neighbor_distance_threshold) {
                     neighbors.push_back(neighbor);

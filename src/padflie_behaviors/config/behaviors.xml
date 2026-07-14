@@ -9,7 +9,7 @@
           <ReactiveSequence>
             <SendFeedback pad_client="{client}"
                           status="{status}"/>
-            <TimeoutROS timeout_ms="20000">
+            <TimeoutROS timeout_ms="40000">
               <Parallel failure_count="1"
                         success_count="1">
                 <ApproachIDLE pad_client="{client}"
@@ -26,7 +26,7 @@
           <HasPadRight pad_client="{client}"/>
           <SendFeedback pad_client="{client}"
                         status="{status}"/>
-          <TimeoutROS timeout_ms="30000">
+          <TimeoutROS timeout_ms="20000">
             <AsyncSequence>
               <ApproachCLOSE pad_client="{client}"
                              status="{status}"/>

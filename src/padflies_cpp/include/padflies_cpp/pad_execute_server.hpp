@@ -101,7 +101,7 @@ private:
     {
         m_current_pad_execute_goal_handle = goal_handle;
 
-        RCLCPP_INFO(m_logger, "Goal accepted, but no execution implemented.");
+        RCLCPP_DEBUG(m_logger, "Goal was accepted!");
     }
 
 private: 
