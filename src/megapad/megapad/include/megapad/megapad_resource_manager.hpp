@@ -74,7 +74,7 @@ public:
             {
                 m_current_holder = handle.id;
                 m_current_holder_start_time = m_clock_interface->get_clock()->now();
-                RCLCPP_INFO(m_logger, "Lock acquired for cf %d", handle.id);
+                RCLCPP_DEBUG(m_logger, "Lock acquired for cf %d", handle.id);
                 send_availability_update();
                 return AccessResponse{AccessResponse::Result::ACCEPTED, "Accepted", p_max_hold_time};
             } else  {
@@ -85,7 +85,7 @@ public:
                     }
                     oss << static_cast<int>(ordered_ids[i]);
                 }
-                RCLCPP_INFO(m_logger, "Lock not available for cf %d, current holder: %d and sorting: %s", handle.id, m_current_holder, oss.str().c_str());
+                RCLCPP_DEBUG(m_logger, "Lock not available for cf %d, current holder: %d and sorting: %s", handle.id, m_current_holder, oss.str().c_str());
             }
         }
 
@@ -108,7 +108,7 @@ public:
         static int status_map[256] = {0};
     
         if (update.status != status_map[handle.id]) {
-            RCLCPP_INFO(m_logger, "Received update for cf %u: status %u, battery: %.2f%%", static_cast<unsigned>(handle.id), static_cast<unsigned>(update.status), update.battery_percentage);
+            RCLCPP_DEBUG(m_logger, "Received update for cf %u: status %u, battery: %.2f%%", static_cast<unsigned>(handle.id), static_cast<unsigned>(update.status), update.battery_percentage);
             status_map[handle.id] = update.status;
         }
     }
@@ -116,10 +116,9 @@ public:
     void notify_finished(const AccessHandle & handle, const ExecuteResult & result) override
     {
         const std::lock_guard<std::mutex> lock(m_holder_mutex);
-        RCLCPP_INFO(m_logger, "Execution finished for cf %d with result %d", handle.id, result.result);
         if (m_current_holder == handle.id) {
             m_current_holder = -1;
-            RCLCPP_INFO(m_logger, "Lock released for cf %d", handle.id);
+            RCLCPP_DEBUG(m_logger, "Lock released for cf %d", handle.id);
         }
         m_access_requests.erase(handle.id);
     }
@@ -137,7 +136,6 @@ public:
 
     bool get_associated_position(uint8_t id, geometry_msgs::msg::PoseStamped & position) override
     {
-        RCLCPP_INFO(m_logger, "Getting associated position for cf %d", id);
         position.header.frame_id = get_pad_name(id);
         position.pose.position.x = 0.0;
         position.pose.position.y = 0.0;

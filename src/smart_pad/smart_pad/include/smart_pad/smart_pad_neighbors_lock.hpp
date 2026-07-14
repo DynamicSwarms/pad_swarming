@@ -24,7 +24,7 @@ class NeighborsLock
     {}
 
     ~NeighborsLock() {
-        RCLCPP_INFO(m_logger, "Releasing neighbors lock for pad %s", m_pad_name.c_str());
+        RCLCPP_DEBUG(m_logger, "Releasing neighbors lock for pad %s", m_pad_name.c_str());
         for (const auto & lock_client : m_lock_clients) {
             auto request = std::make_shared<smart_pad_interfaces::srv::Lock::Request>();
             request->name = m_pad_name;
@@ -33,7 +33,7 @@ class NeighborsLock
             if (result_future.wait_for(std::chrono::milliseconds(50)) == std::future_status::ready) {
                 auto response = result_future.get();
                 if (response->success) {
-                    RCLCPP_WARN(m_logger, "Successfully released lock with neighbor");
+                    RCLCPP_DEBUG(m_logger, "Successfully released lock with neighbor");
                 } else {
                     RCLCPP_ERROR(m_logger, "Failed to release lock with neighbor");
                 }

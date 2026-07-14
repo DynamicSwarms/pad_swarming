@@ -63,13 +63,15 @@ PadflieCommander::m_command_queue_execute()
             return;
         }
         RCLCPP_INFO(m_logger, "Starting command with target state %d", static_cast<int>(command->get_target_state()));
-        command->start();  
+        command->start(); 
+        m_command_start_time = m_clock->now(); 
         m_state = command->get_working_state();
     }
 
     if (command->is_finished()) {
         m_state = command->get_target_state();
-        RCLCPP_INFO(m_logger, "Command finished with target state %d", static_cast<int>(command->get_target_state()));
+        auto duration = m_clock->now() - m_command_start_time;
+        RCLCPP_INFO(m_logger, "Command finished with target state %d in %f seconds", static_cast<int>(command->get_target_state()), duration.seconds());
         m_command_queue.pop();
     }
 }

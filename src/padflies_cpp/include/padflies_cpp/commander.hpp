@@ -94,4 +94,5 @@ class PadflieCommander
         std::shared_ptr<rclcpp::TimerBase> m_command_queue_timer;
         std::mutex m_command_queue_mutex;
         std::queue<std::shared_ptr<Command>> m_command_queue;
+        rclcpp::Time m_command_start_time;
 };

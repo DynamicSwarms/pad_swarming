@@ -74,7 +74,6 @@ public:
         bool state_changed = (state != m_state);
         m_state = state;
         if (state_changed) {
-            RCLCPP_INFO(m_logger, "State changed to %u, updating visualization", m_state);
             publish_marker();
         }
     }

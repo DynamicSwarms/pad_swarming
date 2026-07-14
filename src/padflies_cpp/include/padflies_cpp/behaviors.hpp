@@ -37,7 +37,7 @@ public:
     {
         m_request_sent = false;
 
-        RCLCPP_INFO(m_logger, "GetPadRight started, trying to acquire right and waiting for Execute goal...");
+        RCLCPP_DEBUG(m_logger, "GetPadRight started, trying to acquire right and waiting for Execute goal...");
         if (!getInput("pad_client", m_pad_client))
         {
             RCLCPP_ERROR(m_logger, "Error getting input port [pad_client]!");
@@ -74,8 +74,6 @@ public:
         if (!m_request_sent)
         {
             if (m_pad_client->is_action_server_available()) {
-                RCLCPP_INFO(m_logger, "PadRight action server is available, sending goal...");
-
                 PadRightRequest request;
                 request.action = m_action;
                 request.max_wait_time = rclcpp::Duration::from_seconds(40.0);
@@ -110,7 +108,7 @@ public:
                     return BT::NodeStatus::FAILURE;
                 } else 
                 {
-                    RCLCPP_INFO(m_logger, "PadRight acquired and Execute goal received!");
+                    RCLCPP_DEBUG(m_logger, "PadRight acquired and Execute goal received!");
                     return BT::NodeStatus::SUCCESS;
                 }
             } else {
@@ -338,7 +336,7 @@ public:
         {
             if ((position - target_world_frame.translation()).norm() < 1.0) 
             {
-                RCLCPP_INFO(m_logger, "are close to the target position!");
+                RCLCPP_DEBUG(m_logger, "are close to the target position!");
                 m_phase_durations.at(LandState::PHASE1) = rclcpp::Duration(1250ms);
             }
         } else 
@@ -373,7 +371,7 @@ public:
         //RCLCPP_INFO(m_logger, "Target pose in world frame: [%f, %f, %f]", target_world_frame.translation().x(), target_world_frame.translation().y(), target_world_frame.translation().z());
         switch (m_state) {
             case LandState::INIT:
-                RCLCPP_INFO(m_logger, "Starting land routine...");
+                RCLCPP_DEBUG(m_logger, "Starting land routine...");
                 m_hardware_actor->go_to(
                     target_world_frame * Eigen::Translation3d(0, 0, 0.25),
                     m_phase_durations.at(LandState::PHASE1).seconds(),
@@ -381,7 +379,7 @@ public:
                 m_state = LandState::PHASE1;
                 break;
             case LandState::PHASE1:
-                RCLCPP_INFO(m_logger, "Phase 1: Moving to landing position...");
+                RCLCPP_DEBUG(m_logger, "Phase 1: Moving to landing position...");
                 m_hardware_actor->go_to(
                     target_world_frame * Eigen::Translation3d(0, 0, -0.1),
                     3.0,
@@ -389,7 +387,7 @@ public:
                 m_state = LandState::PHASE2;
                 break;
             case LandState::PHASE2:
-                RCLCPP_INFO(m_logger, "Phase 2: Final descent...");
+                RCLCPP_DEBUG(m_logger, "Phase 2: Final descent...");
 
                 m_hardware_actor->land(
                     (target_world_frame * Eigen::Translation3d(0, 0, -0.5)).translation().z(),
@@ -510,7 +508,7 @@ public:
 
     void onHalted() override
     {
-        RCLCPP_INFO(m_logger, "ApproachIDLE halted, stopping the drone. What should happen here?");
+        // normal because this ticks forever 
     }
 
 private: 
@@ -584,7 +582,8 @@ public:
                 Eigen::Affine3d close_target_world_affine = Eigen::Affine3d::Identity();
                 tf2::fromMsg(close_target_world_frame.pose, close_target_world_affine);
 
-                if ((position - close_target_world_affine.translation()).norm() < 0.5) {
+                double distance = (position - close_target_world_affine.translation()).norm();
+                if (distance < 0.5) {
                     RCLCPP_DEBUG(m_logger, "Reached CLOSE position!");
                     return BT::NodeStatus::SUCCESS;
                 }
@@ -602,7 +601,30 @@ public:
 
 
     void onHalted() override
-    {
+    {   
+        geometry_msgs::msg::PoseStamped close_target_pose = m_pad_client->get_target_pose();
+        close_target_pose.pose.position.z += 0.5; // hover 0.5m above the target pose
+        
+        PoseTarget close_target;
+        close_target.frame_id = close_target_pose.header.frame_id;
+        tf2::fromMsg(close_target_pose.pose, close_target.pose);
+        close_target.use_yaw = true;
+        close_target.collision_avoidance = true;
+        m_hardware_actor->set_pose_target(close_target);
+
+        Eigen::Vector3d position; 
+        if (m_padflie_tf->get_cf_position(position))
+        {
+            geometry_msgs::msg::PoseStamped close_target_world_frame;
+            if (m_padflie_tf->transform_pose_stamped(close_target_pose, "world", close_target_world_frame))
+            {
+                Eigen::Affine3d close_target_world_affine = Eigen::Affine3d::Identity();
+                tf2::fromMsg(close_target_world_frame.pose, close_target_world_affine);
+
+                double distance = (position - close_target_world_affine.translation()).norm();
+                RCLCPP_INFO(m_logger, "Distance to CLOSE target: %f meters", distance);
+            }
+        }
         RCLCPP_INFO(m_logger, "ApproachCLOSE halted, stopping the drone. What should happen here?");
     }
 
@@ -804,7 +826,7 @@ public:
         Eigen::Vector3d position;
         if (m_padflie_tf->get_cf_position(position))
         {
-            RCLCPP_INFO(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
+            RCLCPP_DEBUG(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
         } else {
             RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
             return BT::NodeStatus::FAILURE;
@@ -834,13 +856,13 @@ public:
 
         switch (m_state) {
             case TakeoffState::INIT:
-                RCLCPP_INFO(m_logger, "Starting takeoff routine... resetting Kalman filter...");
+                RCLCPP_DEBUG(m_logger, "Starting takeoff routine... resetting Kalman filter...");
                 m_hardware_actor->reset_kalman_to(target_world_frame);
 
                 m_state = TakeoffState::PHASE1;
                 break;
             case TakeoffState::PHASE1:
-                RCLCPP_INFO(m_logger, "Starting takeoff routine... moving up to clear the pad...");
+                RCLCPP_DEBUG(m_logger, "Starting takeoff routine... moving up to clear the pad...");
                 m_hardware_actor->go_to(
                     Eigen::Affine3d::Identity() * Eigen::Translation3d(0,0, 0.1),
                     3.0,
@@ -848,7 +870,7 @@ public:
                 m_state = TakeoffState::PHASE2;
                 break;
             case TakeoffState::PHASE2:
-                RCLCPP_INFO(m_logger, "Phase 2: Moving higher...");
+                RCLCPP_DEBUG(m_logger, "Phase 2: Moving higher...");
                 m_hardware_actor->go_to(
                     Eigen::Affine3d::Identity() * Eigen::Translation3d(0,0, 0.6),
                     1.5,
@@ -857,7 +879,7 @@ public:
                 m_state = TakeoffState::PHASE3;
                 break;
             case TakeoffState::PHASE3:
-                RCLCPP_INFO(m_logger, "Phase 3: Final ascent...");
+                RCLCPP_DEBUG(m_logger, "Phase 3: Final ascent...");
                 {
                     PoseTarget takeoff_target;
                     takeoff_target.frame_id = "world";
@@ -940,7 +962,7 @@ public:
     BT::NodeStatus tick() override
     {
         setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_TAKEOFF_INIT);
-        RCLCPP_INFO(m_logger, "TakeoffInit ticked, setting status to TAKEOFF_IN_PAD");
+        RCLCPP_DEBUG(m_logger, "TakeoffInit ticked, setting status to TAKEOFF_IN_PAD");
         return BT::NodeStatus::SUCCESS;
     }
 private:
@@ -969,7 +991,6 @@ public:
     BT::NodeStatus tick() override
     {
         setOutput("status", pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_INIT);
-        RCLCPP_INFO(m_logger, "LandInit ticked, setting status to LAND_INIT");
         return BT::NodeStatus::SUCCESS;
     }
 private:
@@ -1012,10 +1033,10 @@ public:
             if (m_try_status == BT::NodeStatus::RUNNING) {
                 return BT::NodeStatus::RUNNING;
             } else if ( m_try_status == BT::NodeStatus::FAILURE) {
-                RCLCPP_ERROR(m_logger, "Try block failed -> doing finally block");
+                RCLCPP_DEBUG(m_logger, "Try block failed -> doing finally block");
                 m_finally_started = true;
             } else if (m_try_status == BT::NodeStatus::SUCCESS) {
-                RCLCPP_INFO(m_logger, "Try block succeeded -> doing finally block");
+                RCLCPP_DEBUG(m_logger, "Try block succeeded -> doing finally block");
                 m_finally_started = true;
             }
         }

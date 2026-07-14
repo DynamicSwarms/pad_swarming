@@ -78,8 +78,6 @@ public:
 
     ~Request()
     {
-        RCLCPP_INFO(m_logger, "Destroying request object.");
-
         if (m_pad_execute_client->is_finished()) {
             auto result = std::make_shared<PadRightControlActionT::Result>();
             result->success = true;
@@ -130,7 +128,7 @@ public:
             if (resp.result == pm::AccessResponse::Result::ACCEPTED) {
                 m_acquire_time = m_clock->now();
                 m_state = RequestState::Acquired;
-                RCLCPP_INFO(m_logger, "Acquired rights.");
+                RCLCPP_DEBUG(m_logger, "Acquired rights.");
             } else if (resp.result == pm::AccessResponse::Result::REJECTED) {
                 auto result = std::make_shared<PadRightControlActionT::Result>();
                 result->success = false;
@@ -152,7 +150,7 @@ public:
         } else if (m_state == RequestState::Acquired) {
             if (m_pad_execute_client->is_finished()) {
                 m_state = RequestState::Finished;
-                RCLCPP_INFO(m_logger, "Execution finished.");
+                RCLCPP_DEBUG(m_logger, "Execution finished.");
             }
         }
 
@@ -182,7 +180,7 @@ public:
         }
 
         m_goal_handle->publish_feedback(feedback);
-        RCLCPP_INFO(
+        RCLCPP_DEBUG(
             m_logger,
             "Publishing feedback: status %i, time_remaining: %f",
             feedback->status,

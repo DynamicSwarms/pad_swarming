@@ -112,7 +112,7 @@ private:
         std::shared_ptr<const pad_management_interfaces::action::PadRightControl::Goal> goal)
     {
         (void)uuid;
-        RCLCPP_INFO(m_logger, "Received goal request with name %s.", goal->name.c_str());
+        RCLCPP_DEBUG(m_logger, "Received goal request with name %s.", goal->name.c_str());
 
         const std::string name = goal->name;
         try {

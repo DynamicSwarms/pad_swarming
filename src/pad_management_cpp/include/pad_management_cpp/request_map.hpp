@@ -53,7 +53,6 @@ public:
 
     void add_request(const GoalHandlePtr goal_handle, std::shared_ptr<PadExecuteClient> pad_execute_client)
     {
-        RCLCPP_INFO(m_logger, "Adding request with name %s", goal_handle->get_goal()->name.c_str());
         const auto uuid = goal_handle->get_goal_id();
 
         std::lock_guard<std::mutex> lock(m_request_mutex);
@@ -90,7 +89,7 @@ private:
             if (response.state_changed) publish_feedback = true;
             if (response.state_changed || response.is_finished || response.is_cancelled) state_changed = true;
             if (response.is_finished || response.is_cancelled) {
-                RCLCPP_INFO(m_logger, "Request finished or cancelled with name %s, removing from map.", request.name().c_str());
+                RCLCPP_DEBUG(m_logger, "Request finished or cancelled with name %s, removing from map.", request.name().c_str());
                 it = m_request_map.erase(it);
             } else {
                 ++it;
@@ -111,7 +110,7 @@ private:
         {
             pair.second.publish_feedback();
         }
-        RCLCPP_INFO(m_logger, "Published feedback for %lu requests.", m_request_map.size());
+        RCLCPP_DEBUG(m_logger, "Published feedback for %lu requests.", m_request_map.size());
     }
 
     pad_management_cpp::IPadResourceManager & m_pad_resource_manager;

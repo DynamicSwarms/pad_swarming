@@ -32,7 +32,6 @@ public:
   {
     std::map<std::string, PadInfo> pad_infos;
     m_list_of_pad_infos->get_all_pad_infos(pad_infos);
-    RCLCPP_INFO(m_logger, "Finding closest pad among %zu pad infos", pad_infos.size());
 
     bool any_available = false;
     for (const auto& [node_name, pad_info] : pad_infos) {
@@ -53,15 +52,19 @@ public:
             available_pads_stream << node_name << " ";
         }
     }
-    RCLCPP_INFO(m_logger, "Choosing from: %s", available_pads_stream.str().c_str());
+    RCLCPP_DEBUG(m_logger, "Choosing from: %s", available_pads_stream.str().c_str());
     
     for (const auto& [node_name, pad_info] : pad_infos) {
       if (!pad_info.available) continue;
 
       if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_FAST) {
-          RCLCPP_INFO(m_logger, "Skipping pad %s because it is not fast charging.", node_name.c_str());
+          RCLCPP_DEBUG(m_logger, "Skipping pad %s because it is not fast charging.", node_name.c_str());
           continue;
       }
+      //if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_SLOW) {
+      //    RCLCPP_DEBUG(m_logger, "Skipping pad %s because it is not slow charging.", node_name.c_str());
+      //    continue;
+      //}
       
 
       for (const std::string& tf_name : pad_info.pad_tf_names) {
@@ -91,7 +94,7 @@ public:
     }
 
     closest_pad_name = closest_pad_it->second.node_name;
-    RCLCPP_INFO(m_logger, "Chosen pad: %s with node name: %s", closest_pad_it->second.pad_right_control_action_name.c_str(), closest_pad_it->second.node_name.c_str());
+    RCLCPP_INFO(m_logger, "Chosen pad: %s with node name: %s out of %zu available pads", closest_pad_it->second.pad_right_control_action_name.c_str(), closest_pad_it->second.node_name.c_str(), pad_infos.size());
     return true;
   }
 
@@ -170,7 +173,7 @@ public:
 
     BT::NodeStatus tick() override
     {
-        RCLCPP_INFO(m_logger, "Releasing PadRight...");
+        RCLCPP_DEBUG(m_logger, "Releasing PadRight...");
         std::shared_ptr<PadClient> client;
         uint8_t status;
          
@@ -195,9 +198,13 @@ public:
             m_list_of_pad_infos->set_current_pad_name(""); 
 
         } else {
-            m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_FAILURE);
-            m_list_of_pad_infos->set_current_pad_name(""); 
-
+           m_list_of_pad_infos->set_current_pad_name("");   
+            if (status >= pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_INIT &&
+                status <= pad_management_interfaces::action::PadExecute::Feedback::STATUS_LANDING_APPROACH_CLOSE) {
+              m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_NOT_ON_PAD);
+            } else {
+              m_pad_execute_server->send_result(pad_management_interfaces::action::PadExecute::Result::RESULT_FAILURE);
+            }         
         }
 
         return BT::NodeStatus::SUCCESS;

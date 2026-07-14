@@ -56,7 +56,7 @@ HardwareParameterController::get_parameter(
         if (!response->values.empty()) {
             param_value = response->values[0];
             return true;
-        } else RCLCPP_WARN(m_logger, "Parameter %s not found", name.c_str());
+        } else RCLCPP_DEBUG(m_logger, "Parameter %s not found", name.c_str());
     }
     
     return false;

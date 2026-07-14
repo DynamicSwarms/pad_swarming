@@ -70,8 +70,6 @@ HardwareActor::HardwareActor(
 
 HardwareActor::~HardwareActor()
 {
-    
-    RCLCPP_INFO(m_logger, "HardwareActor destructor called.");
 }
 
 std::string
@@ -219,7 +217,7 @@ HardwareActor::reset_kalman_to(Eigen::Affine3d & pose)
         m_hardware_parameter_controller->set_parameters(kalman_params);
         m_current_yaw = pad_yaw;
     } else {
-        RCLCPP_WARN(m_logger, "Did not reset Kalman");  
+        RCLCPP_DEBUG(m_logger, "Did not reset Kalman");  
     }
 }
 

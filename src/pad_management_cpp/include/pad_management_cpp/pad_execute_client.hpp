@@ -78,7 +78,7 @@ public:
         const std::string & pad_name,
         uint8_t action)
     {
-        RCLCPP_INFO(m_logger, "Sending goal to padflie %s with action %d", pad_name.c_str(), action);
+        RCLCPP_DEBUG(m_logger, "Sending goal to padflie %s with action %d", pad_name.c_str(), action);
         if (!m_action_client->action_server_is_ready()) {
             return false;
         }
@@ -116,7 +116,7 @@ public:
             m_is_done = true;
             m_result = PadExecuteGoalHandleT::Result::RESULT_UNKNOWN;
         } else {
-            RCLCPP_INFO(m_logger, "The padflie accepted the goal");
+            RCLCPP_DEBUG(m_logger, "The padflie accepted the goal");
         }
     }
 
@@ -138,7 +138,7 @@ public:
     void result_callback(const PadExecuteGoalHandleT::WrappedResult & result)
     {
         if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
-            RCLCPP_INFO(m_logger, "Padflie said: Goal succeeded: %s", result.result->reason.c_str());
+            RCLCPP_DEBUG(m_logger, "Padflie said: Goal succeeded: %s", result.result->reason.c_str());
         } else {
             RCLCPP_ERROR(m_logger, "Padflie said: Goal failed");
         }
