@@ -26,8 +26,8 @@ def generate_padflies(backend: str):
         flies = yaml.safe_load(file)["flies"]
         for flie in flies:
             id = flie["id"]
-            if id >= 0xC0:
-                continue
+            #if id >= 0xC0:
+            #    continue
             yield Node(
                 package="padflies_cpp",
                 executable="padflie",
@@ -123,7 +123,7 @@ def hardware_group():
         parameters=[
             {
                 "type": "vicon",
-                "hostname": "172.20.37.251",
+                "hostname": "172.20.37.201",
                 "add_labeled_markers_to_pointcloud": True,
                 "topic_name": "pointCloud2",
                 "latency_threshold": 0.045,  # 45ms

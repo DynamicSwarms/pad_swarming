@@ -67,7 +67,7 @@ class PadCreator(Node):
             file = open(yaml_file, "r")
             flies += yaml.safe_load(file)["flies"]
 
-        flies = list(filter(lambda flie: flie["id"] < 0xC0, flies))  # Filter out padflies
+        flies = list(filter(lambda flie: flie["id"] < 0xFF, flies))  # Filter out padflies
         self.get_logger().info(f"Pad Creator starting filtered out all flies with ID >= 0xC0")
 
         flies = np.random.permutation(flies)

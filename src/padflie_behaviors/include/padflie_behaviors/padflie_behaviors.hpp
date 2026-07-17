@@ -104,12 +104,25 @@ public:
         }
         RCLCPP_INFO(m_logger, "Initial pad parameter is: '%s'", p_initial_pad.c_str());
 
+        if (!node_interfaces_bundle.parameters_interface->has_parameter("slow_only"))
+        {
+            p_slow_only = node_interfaces_bundle.parameters_interface->declare_parameter(
+                "slow_only", 
+                rclcpp::ParameterValue(false), // Leaves type unset initially
+                rcl_interfaces::msg::ParameterDescriptor()
+            ).get<bool>();
+        }
+
+        m_param_callback_handle = 
+            m_node_interfaces_bundle.parameters_interface->add_on_set_parameters_callback(std::bind(&PadflieBehaviors::m_set_parameters_callback, this, std::placeholders::_1));
+
         m_list_of_pad_infos = std::make_shared<PadInfos>(p_initial_pad);
     }
 
     ~PadflieBehaviors() 
     {
         RCLCPP_INFO(m_logger, "PadflieBehaviors destructor called.");        
+        m_param_callback_handle.reset();
         //m_node_interfaces_bundle.parameters_interface->undeclare_parameter("initial_pad");
     }
 
@@ -118,6 +131,25 @@ public:
         m_list_of_pad_infos->update(msg);
     }
 
+    rcl_interfaces::msg::SetParametersResult 
+        m_set_parameters_callback(const std::vector<rclcpp::Parameter> & parameters)
+    {
+
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+        result.reason = "success";
+
+        for (const auto & param : parameters)
+        {
+            if (param.get_name() == "slow_only")
+            {
+                RCLCPP_INFO(m_logger, "Parameter 'slow_only' changed to '%s'.", param.as_bool() ? "true" : "false");
+                p_slow_only = param.as_bool();
+            }
+        }
+
+        return result;
+    }
 
   BT::Tree getTakeoffTree(BT::BehaviorTreeFactory & factory, 
       std::shared_ptr<HardwareActor> hardware_actor,
@@ -135,9 +167,14 @@ private:
 
     std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
     std::shared_ptr<rclcpp::Subscription<pad_management_interfaces::msg::PadInfo>> m_pad_info_subscription;
+    std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle; 
+
     std::shared_ptr<PadInfos> m_list_of_pad_infos;
 
+    
+
     std::string p_initial_pad;
+    bool p_slow_only;
 };
 
 }  // namespace padflie_behaviors_base

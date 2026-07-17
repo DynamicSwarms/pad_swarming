@@ -11,11 +11,13 @@ public:
     const BT::NodeConfig& config,
     rclcpp::Logger logger, 
     std::shared_ptr<PadInfos> list_of_pad_infos,
+    bool slow_only,
     std::shared_ptr<PadflieTF> padflie_tf,
     std::shared_ptr<PadClientFactory> pad_client_factory)
   : BT::StatefulActionNode(name, config)
   , m_logger(logger.get_child(name))
   , m_list_of_pad_infos(list_of_pad_infos)
+  , m_slow_only(slow_only)
   , m_padflie_tf(padflie_tf)
   , m_pad_client_factory(pad_client_factory)
   {
@@ -57,14 +59,18 @@ public:
     for (const auto& [node_name, pad_info] : pad_infos) {
       if (!pad_info.available) continue;
 
-      if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_FAST) {
+      if (m_slow_only) {
+        if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_SLOW) {
+          RCLCPP_DEBUG(m_logger, "Skipping pad %s because it is not slow charging.", node_name.c_str());
+          continue;
+        }
+      } else {
+        if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_FAST) {
           RCLCPP_DEBUG(m_logger, "Skipping pad %s because it is not fast charging.", node_name.c_str());
           continue;
+        }
       }
-      //if (pad_info.charging_speed != pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_SLOW) {
-      //    RCLCPP_DEBUG(m_logger, "Skipping pad %s because it is not slow charging.", node_name.c_str());
-      //    continue;
-      //}
+      
       
 
       for (const std::string& tf_name : pad_info.pad_tf_names) {
@@ -141,6 +147,7 @@ public:
 private:
   rclcpp::Logger m_logger;
   std::shared_ptr<PadInfos> m_list_of_pad_infos;
+  bool m_slow_only;
   std::shared_ptr<PadClientFactory> m_pad_client_factory;
   std::shared_ptr<PadflieTF> m_padflie_tf;
 };
@@ -229,6 +236,7 @@ PadflieBehaviors::getTakeoffTree(
     "ChoosePad",
     m_logger,
     m_list_of_pad_infos,
+    p_slow_only, 
     padflie_tf,
     pad_client_factory);
   factory.registerNodeType<ReleasePadRight>("ReleasePadRight", m_logger, pad_execute_server, m_list_of_pad_infos);
@@ -255,6 +263,7 @@ PadflieBehaviors::getLandTree(
     "ChoosePad",
     m_logger,
     m_list_of_pad_infos,
+    p_slow_only,
     padflie_tf,
     pad_client_factory);
   factory.registerNodeType<ReleasePadRight>("ReleasePadRight", m_logger, pad_execute_server, m_list_of_pad_infos);
