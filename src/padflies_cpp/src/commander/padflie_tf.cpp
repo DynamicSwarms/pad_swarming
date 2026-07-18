@@ -1,0 +1,355 @@
+#include "padflies_cpp/commander/padflie_tf.hpp"
+#include <tf2/utils.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "tf2_eigen/tf2_eigen.hpp"
+
+using std::placeholders::_1;
+
+
+PadflieTF::PadflieTF(
+    const std::string & cf_name,
+    const std::string & world_frame,
+    std::shared_ptr<rclcpp::Clock> clock, 
+    rclcpp::Logger logger
+)
+: m_cf_name(cf_name) 
+, m_world_frame(world_frame)
+, m_has_pad(false)
+, m_last_position()
+, m_last_position_time(rclcpp::Time(0, 0, clock->get_clock_type()))
+, m_position_timeout(rclcpp::Duration::from_seconds(1.0))
+, m_tf_buffer(std::make_unique<tf2_ros::Buffer>(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME)))
+, m_clock(clock)
+, m_logger(logger)
+{
+    m_tf_buffer->setUsingDedicatedThread(true);
+    RCLCPP_DEBUG(m_logger, "PadflieTF initialized for CF: %s, world frame: %s", 
+                m_cf_name.c_str(), m_world_frame.c_str());      
+}
+
+PadflieTF::~PadflieTF()
+{
+    RCLCPP_INFO(m_logger, "PadflieTF destructor called");
+}
+
+void PadflieTF::start_listening(
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface, 
+    std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> node_topics_interface, 
+    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface)
+{    
+    m_callback_group = node_base_interface->create_callback_group(
+        rclcpp::CallbackGroupType::MutuallyExclusive);
+    auto sub_opt = rclcpp::SubscriptionOptions();
+    sub_opt.callback_group = m_callback_group;
+    m_cf_positions_sub = rclcpp::create_subscription<crazyflie_interfaces::msg::PoseNamedArray>(
+        node_topics_interface,
+        "/cf_positions",
+        rclcpp::QoS(10),
+        std::bind(&PadflieTF::cf_positions_callback, this, _1),
+        sub_opt);
+
+    m_tf_subscription = rclcpp::create_subscription<tf2_msgs::msg::TFMessage>(
+        node_topics_interface,
+        "/tf",
+        tf2_ros::DynamicListenerQoS(),
+        [this](const std::shared_ptr<const tf2_msgs::msg::TFMessage> msg) {
+            m_tf_subscription_callback(std::const_pointer_cast<tf2_msgs::msg::TFMessage>(msg), false);
+        },
+        sub_opt);
+    m_static_tf_subscription = rclcpp::create_subscription<tf2_msgs::msg::TFMessage>(
+        node_topics_interface,
+        "/tf_static",
+        tf2_ros::StaticListenerQoS(),
+        [this](const std::shared_ptr<const tf2_msgs::msg::TFMessage> msg) {
+            m_tf_subscription_callback(std::const_pointer_cast<tf2_msgs::msg::TFMessage>(msg), true);
+        },
+        sub_opt);
+
+}
+
+void 
+PadflieTF::m_tf_subscription_callback(
+    const tf2_msgs::msg::TFMessage::SharedPtr msg,
+    bool is_static)
+{
+    for (const auto & transform : msg->transforms) {
+        m_tf_buffer->setTransform(transform, "default_authority", is_static);
+    }
+}
+
+
+void PadflieTF::set_pad(const std::string & pad_name)
+{
+    m_pad_name = pad_name;
+    m_has_pad = true;
+}
+
+bool PadflieTF::get_world_affine3d(
+    const std::string & frame_id,
+    Eigen::Affine3d & affine)
+{    
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(m_world_frame, frame_id, transform)) {
+        Eigen::Affine3d src = Eigen::Affine3d::Identity();
+        tf2::doTransform(src, affine, transform);
+        return true;
+    }
+    return false;
+}
+
+
+bool 
+PadflieTF::get_affine3d_transform(
+    const std::string & target_frame,
+    const std::string & source_frame,
+    Eigen::Affine3d & affine)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(target_frame, source_frame, transform))
+    {
+        return true;
+    } 
+    return false;
+}
+
+
+bool PadflieTF::affine3d_transform(
+    const Eigen::Affine3d & src,
+    const std::string & source_frame,
+    const std::string & target_frame,
+    Eigen::Affine3d & dst)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(target_frame, source_frame, transform))
+    {
+        tf2::doTransform(src, dst, transform);
+        return true;
+    }
+    return false;
+}
+
+bool PadflieTF::get_pad_position_and_yaw_or_timeout(
+    rclcpp::Duration & timeout_sec,
+    Eigen::Vector3d & position,
+    double & yaw)
+{
+    if (!m_has_pad) {
+        log("Does not have a pad.");
+        return false;
+    }
+
+    rclcpp::Time start_time = get_now();
+    while (!get_pad_position_and_yaw(position, yaw)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (start_time + timeout_sec < get_now()) {
+            log("Timeout while waiting for pad position.");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool PadflieTF::get_pad_position_and_yaw(
+    Eigen::Vector3d & position,
+    double & yaw)
+{
+    if (!m_has_pad) {
+        log("Does not have a pad.");
+        return false;
+    }
+
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(m_world_frame, m_pad_name, transform))
+    {
+        position = Eigen::Vector3d(
+            transform.transform.translation.x,
+            transform.transform.translation.y,
+            transform.transform.translation.z);
+        yaw = tf2::getYaw(transform.transform.rotation);
+        return true;
+    }
+    return false;
+}
+
+
+bool PadflieTF::get_pad_pose(geometry_msgs::msg::PoseStamped & pose_stamped)
+{
+    if (!m_has_pad) {
+        log("Does not have a pad.");
+        return false;
+    }
+    pose_stamped = geometry_msgs::msg::PoseStamped();
+    pose_stamped.header.frame_id = m_pad_name;
+    return true;
+}
+
+
+
+bool PadflieTF::get_pad_pose_world(geometry_msgs::msg::PoseStamped & pose_stamped)
+{
+    if (!m_has_pad) {
+        log("Does not have a pad.");
+        return false;
+    }
+
+    geometry_msgs::msg::TransformStamped transform;
+
+    if (lookup_transform(m_world_frame, m_pad_name, transform))
+    {
+        geometry_msgs::msg::PoseStamped zero_pose;
+        zero_pose.header.frame_id = m_world_frame;
+        tf2::doTransform(zero_pose, pose_stamped, transform);
+        return true;
+    }
+    return false;
+}
+
+bool PadflieTF::get_cf_pose_stamped(
+    const std::string & frame_id,
+    geometry_msgs::msg::PoseStamped & pose_stamped)
+{
+    geometry_msgs::msg::TransformStamped transform;
+
+    if (m_last_position_time + m_position_timeout > get_now()
+        && lookup_transform(frame_id, m_world_frame, transform))
+    {
+        tf2::doTransform(m_last_position, pose_stamped, transform);    
+        return true;
+    }
+    return false;
+}
+
+
+bool PadflieTF::get_cf_position(Eigen::Vector3d & position)
+{
+    if (m_last_position_time + m_position_timeout > get_now()) {
+        position = Eigen::Vector3d(
+            m_last_position.pose.position.x,
+            m_last_position.pose.position.y,
+            m_last_position.pose.position.z);
+        return true;
+    }
+    return false;
+}
+bool PadflieTF::get_cf_pose(Eigen::Affine3d & pose)
+{
+    if (m_last_position_time + m_position_timeout > get_now()) {
+        tf2::fromMsg(m_last_position.pose, pose);
+        return true;
+    }
+    return false;
+}
+
+
+bool PadflieTF::transform_point_stamped(
+    const geometry_msgs::msg::PointStamped & point,
+    const std::string & target_frame,
+    geometry_msgs::msg::PointStamped & transformed_point)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(target_frame, point.header.frame_id, transform)) {
+        // Transform the point
+        tf2::doTransform(point, transformed_point, transform);
+        transformed_point.header.frame_id = target_frame;
+        transformed_point.header.stamp = get_now();
+        return true;
+    }
+    return false;
+}
+
+bool PadflieTF::transform_pose_stamped(
+    const geometry_msgs::msg::PoseStamped & pose,
+    const std::string & target_frame,
+    geometry_msgs::msg::PoseStamped & transformed_pose)
+{
+    geometry_msgs::msg::TransformStamped transform;
+    if (lookup_transform(target_frame, pose.header.frame_id, transform)) {
+        // Transform the pose
+        tf2::doTransform(pose, transformed_pose, transform);
+        transformed_pose.header.frame_id = target_frame;
+        transformed_pose.header.stamp = get_now();
+        return true;
+    }
+    return false;
+}
+
+bool PadflieTF::pose_stamped_to_world_position_and_yaw(
+    const geometry_msgs::msg::PoseStamped & pose_stamped,
+    Eigen::Vector3d & position,
+    double & yaw)
+{
+    geometry_msgs::msg::PoseStamped transformed_pose;
+    if (transform_pose_stamped(pose_stamped, m_world_frame, transformed_pose)) 
+    {
+        position = Eigen::Vector3d(
+            transformed_pose.pose.position.x,
+            transformed_pose.pose.position.y,
+            transformed_pose.pose.position.z);
+        yaw = tf2::getYaw(transformed_pose.pose.orientation);
+        return true;
+    }
+    return false;
+}
+
+bool PadflieTF::can_transform_world(const std::string & source_frame)
+{
+    try {
+        return m_tf_buffer->canTransform(
+            m_world_frame,
+            source_frame,
+            rclcpp::Time(0, 0, m_clock->get_clock_type()));
+    } catch (const std::exception & ex) {
+        log("Exception: %s", ex.what());
+        return false;
+    }
+}
+
+bool PadflieTF::lookup_transform(
+    const std::string & target_frame,
+    const std::string & source_frame,
+    geometry_msgs::msg::TransformStamped & transform)
+{
+    try {
+        transform = m_tf_buffer->lookupTransform(
+            target_frame,
+            source_frame,
+            rclcpp::Time(0, 0, m_clock->get_clock_type()));
+        return true;
+    } catch (const tf2::LookupException & ex) {
+        log("LookupException: %s", ex.what());
+    } catch (const tf2::ConnectivityException & ex) {
+        log("ConnectivityException: %s", ex.what());
+    } catch (const tf2::ExtrapolationException & ex) {
+       log("ExtrapolationException: %s", ex.what());
+    } catch (const tf2::InvalidArgumentException & ex) {
+        log("InvalidArgument: %s", ex.what());
+    }
+
+    return false;
+}
+
+void PadflieTF::cf_positions_callback(
+    const crazyflie_interfaces::msg::PoseNamedArray::SharedPtr msg)
+{
+    for (const auto & pose : msg->poses) {
+        if (pose.name == m_cf_name) {
+            m_last_position = geometry_msgs::msg::PoseStamped();
+            m_last_position.header.frame_id = msg->header.frame_id;
+            m_last_position.pose = pose.pose;
+            m_last_position_time = get_now();
+        }
+    }
+}
+
+template<typename... Args>
+void PadflieTF::log(const char* format, Args&&... args)
+{
+    RCLCPP_INFO(m_logger, format, std::forward<Args>(args)...);
+}
+
+rclcpp::Time PadflieTF::get_now() 
+{
+    return m_clock->now();
+}

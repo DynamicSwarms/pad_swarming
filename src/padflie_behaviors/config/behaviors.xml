@@ -2,25 +2,20 @@
 <root BTCPP_format="4">
   <BehaviorTree ID="LandBehavior">
     <Sequence>
-      <RetryUntilSuccessful num_attempts="100">
-        <Sequence>
-          <ChoosePad pad_client="{client}"/>
-          <LandInit status="{status}"/>
-          <ReactiveSequence>
-            <SendFeedback pad_client="{client}"
+      <LandInit status="{status}"/>
+      <ReactiveSequence>
+        <SendFeedback pad_client="{client}"
+                      status="{status}"/>
+        <TimeoutROS timeout_ms="40000">
+          <Parallel failure_count="1"
+                    success_count="1">
+            <ApproachIDLE pad_client="{client}"
                           status="{status}"/>
-            <TimeoutROS timeout_ms="40000">
-              <Parallel failure_count="1"
-                        success_count="1">
-                <ApproachIDLE pad_client="{client}"
-                              status="{status}"/>
-                <GetPadRight pad_client="{client}"
-                             action="LAND"/>
-              </Parallel>
-            </TimeoutROS>
-          </ReactiveSequence>
-        </Sequence>
-      </RetryUntilSuccessful>
+            <GetPadRight pad_client="{client}"
+                         action="LAND"/>
+          </Parallel>
+        </TimeoutROS>
+      </ReactiveSequence>
       <TryFinally>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
@@ -43,7 +38,6 @@
 
   <BehaviorTree ID="TakeoffBehavior">
     <Sequence>
-      <ChoosePad pad_client="{client}"/>
       <TakeoffInit status="{status}"/>
       <ReactiveSequence>
         <SendFeedback pad_client="{client}"
@@ -93,11 +87,6 @@
                   type="std::shared_ptr&lt;PadClient&gt;"/>
       <output_port name="status"
                    type="unsigned int"/>
-    </Action>
-    <Action ID="ChoosePad"
-            editable="true">
-      <output_port name="pad_client"
-                   type="std::shared_ptr&lt;PadClient&gt;"/>
     </Action>
     <Action ID="GetPadRight"
             editable="true">

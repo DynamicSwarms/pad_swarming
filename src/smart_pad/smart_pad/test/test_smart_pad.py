@@ -7,7 +7,7 @@ from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 import launch_testing
 from pad_management_interfaces.action import PadExecute, PadRightControl
-from pad_management_interfaces.msg import PadInfo
+from pad_management_interfaces.msg import SiteInfo
 import rclpy
 from rclpy.action import ActionClient, ActionServer
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -72,11 +72,11 @@ class TestSmartPad(unittest.TestCase):
         cls.node = rclpy.create_node('test_smart_pad')
         cls.executor = rclpy.executors.MultiThreadedExecutor(num_threads=4)
         cls.executor.add_node(cls.node)
-        cls.pad_info_names = set()
+        cls.site_info_names = set()
         cls.subscription = cls.node.create_subscription(
-            PadInfo,
-            'pad_management/pad_info',
-            lambda message: cls.pad_info_names.add(message.node_name),
+            SiteInfo,
+            'pad_management/site_info',
+            lambda message: cls.site_info_names.add(message.name),
             rclpy.qos.QoSProfile(
                 depth=10,
                 reliability=rclpy.qos.ReliabilityPolicy.RELIABLE,
@@ -119,8 +119,8 @@ class TestSmartPad(unittest.TestCase):
 
     def test_all_pads_publish_discovery_info(self):
         self.assertTrue(
-            self.spin_until(lambda: len(self.pad_info_names) >= PAD_COUNT),
-            'Not all smart pads published PadInfo',
+            self.spin_until(lambda: len(self.site_info_names) >= PAD_COUNT),
+            'Not all smart pads published SiteInfo',
         )
 
     def test_neighbor_lock_service_is_available(self):

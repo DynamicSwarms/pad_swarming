@@ -5,9 +5,8 @@
 #include "lifecycle_msgs/srv/get_state.hpp"
 
 
-#include "padflies_cpp/commander_base.hpp"
-#include "padflies_cpp/commander.hpp"
-#include "padflies_cpp/sim_commander.hpp"
+#include "padflies_cpp/commander/commander_base.hpp"
+#include "padflies_cpp/commander/commander.hpp"
 
 enum class CrazyflieType {
     HARDWARE,

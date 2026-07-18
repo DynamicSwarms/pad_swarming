@@ -1,8 +1,10 @@
 <library path="padflie_behaviors">
-  <class type="padflie_behaviors::PadflieBehaviors"
-         base_class_type="padflies_cpp::IPadflieBehaviorPlugin">
-    <description>
-      Registers padflie behavior tree nodes through the IPadflieBehaviorPlugin interface.
-    </description>
+  <class type="padflie_behaviors::PadflieTakeoffPlugin"
+         base_class_type="padflies_cpp::ITakeoffPlugin">
+    <description>Pad-aware takeoff behavior.</description>
+  </class>
+  <class type="padflie_behaviors::PadflieLandingPlugin"
+         base_class_type="padflies_cpp::ILandingPlugin">
+    <description>Pad-aware landing behavior.</description>
   </class>
 </library>

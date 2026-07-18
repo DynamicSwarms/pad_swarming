@@ -34,20 +34,19 @@ target_include_directories(padflie PUBLIC
 target_compile_features(padflie PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
 set(PADFLIE_DEPS
-  src/padflie_tf.cpp
-  src/hl_commander_minimal.cpp
-  src/ll_commander_minimal.cpp
-  src/hardware_state_controller.cpp
-  src/hardware_parameter_controller.cpp
-  src/commander.cpp
-  src/commander_base.cpp
-  src/pad_control.cpp
-  src/position_controller.cpp
-  src/yaw_controller.cpp
-  src/hardware_actor.cpp
-  src/collision_avoidance_client.cpp
-  src/routine.cpp
-  src/routine_factory.cpp
+  src/commander/actor/collision_avoidance_client.cpp
+  src/commander/actor/hardware_actor.cpp
+  src/commander/actor/hardware_parameter_controller.cpp
+  src/commander/actor/hardware_state_controller.cpp
+  src/commander/actor/hl_commander_minimal.cpp
+  src/commander/actor/ll_commander_minimal.cpp
+  src/commander/actor/position_controller.cpp
+  src/commander/actor/yaw_controller.cpp
+  src/commander/commander.cpp
+  src/commander/commander_base.cpp
+  src/commander/padflie_tf.cpp
+  src/commander/command/routine/routine.cpp
+  src/commander/command/routine/routine_factory.cpp
 )
 
 target_link_libraries(padflie

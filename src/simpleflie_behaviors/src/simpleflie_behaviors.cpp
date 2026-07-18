@@ -69,12 +69,11 @@ private:
 
 
 BT::Tree 
-SimpleflieBehaviors::getTakeoffTree(
+SimpleTakeoffPlugin::getTree(
   BT::BehaviorTreeFactory & factory,
   std::shared_ptr<HardwareActor> hardware_actor,
-  std::shared_ptr<PadflieTF> padflie_tf,
-  std::shared_ptr<PadExecuteServer> pad_execute_server,
-  std::shared_ptr<PadClientFactory> pad_client_factory)
+  std::shared_ptr<PadflieTF>,
+  const pad_management_interfaces::msg::SiteInfo &)
 {
   std::string takeoff_tree_xml = R"(
   <root main_tree_to_execute="TakeoffBehavior">
@@ -87,17 +86,15 @@ SimpleflieBehaviors::getTakeoffTree(
     "TakeoffSimple", m_logger, hardware_actor);
   factory.registerBehaviorTreeFromText(takeoff_tree_xml);
   return factory.createTree("TakeoffBehavior");
-  RCLCPP_INFO(m_logger, "Registered TakeoffSimple behavior in SimpleflieBehaviors plugin");
 }
 
 
 BT::Tree 
-SimpleflieBehaviors::getLandTree(
+SimpleLandingPlugin::getTree(
   BT::BehaviorTreeFactory & factory,
   std::shared_ptr<HardwareActor> hardware_actor,
-  std::shared_ptr<PadflieTF> padflie_tf,
-  std::shared_ptr<PadExecuteServer> pad_execute_server,
-  std::shared_ptr<PadClientFactory> pad_client_factory)
+  std::shared_ptr<PadflieTF>,
+  const pad_management_interfaces::msg::SiteInfo &)
 {
   std::string land_tree_xml = R"(
   <root main_tree_to_execute="LandBehavior">
@@ -110,7 +107,6 @@ SimpleflieBehaviors::getLandTree(
     "LandSimple", m_logger, hardware_actor);
   factory.registerBehaviorTreeFromText(land_tree_xml);
   return factory.createTree("LandBehavior");
-  RCLCPP_INFO(m_logger, "Registered LandSimple behavior in SimpleflieBehaviors plugin");
 }
 
 
@@ -118,4 +114,5 @@ SimpleflieBehaviors::getLandTree(
 
 
 #include <pluginlib/class_list_macros.hpp>
-PLUGINLIB_EXPORT_CLASS(simpleflie_behaviors::SimpleflieBehaviors, padflies_cpp::IPadflieBehaviorPlugin)
+PLUGINLIB_EXPORT_CLASS(simpleflie_behaviors::SimpleTakeoffPlugin, padflies_cpp::ITakeoffPlugin)
+PLUGINLIB_EXPORT_CLASS(simpleflie_behaviors::SimpleLandingPlugin, padflies_cpp::ILandingPlugin)

@@ -9,7 +9,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "pad_management_interfaces/action/pad_right_control.hpp"
-#include "pad_management_interfaces/msg/pad_info.hpp"
+#include "pad_management_interfaces/msg/site_info.hpp"
 
 #include "pad_management_cpp/request_map.hpp"
 #include "pad_management_cpp/pad_execute_client.hpp"
@@ -35,6 +35,10 @@ public:
     , m_node_waitables_interface(node_waitables_interface)
     , m_max_requests(node_param_interface->declare_parameter(
         "max_requests", rclcpp::ParameterValue(50), rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<int>())
+    , m_takeoff_plugin_name(node_param_interface->declare_parameter(
+        "takeoff_plugin_name", rclcpp::ParameterValue("padflie_behaviors::PadflieTakeoffPlugin")).get<std::string>())
+    , m_landing_plugin_name(node_param_interface->declare_parameter(
+        "landing_plugin_name", rclcpp::ParameterValue("padflie_behaviors::PadflieLandingPlugin")).get<std::string>())
     , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
     , m_logger(node_logging_interface->get_logger())
     , m_request_map(std::make_unique<RequestMap>(
@@ -68,9 +72,9 @@ public:
 
         auto pub_options = rclcpp::PublisherOptions();
         pub_options.callback_group = m_callback_group;
-        m_pad_info_publisher = rclcpp::create_publisher<pad_management_interfaces::msg::PadInfo>(
+        m_site_info_publisher = rclcpp::create_publisher<pad_management_interfaces::msg::SiteInfo>(
             node_topics_interface,
-            "pad_management/pad_info",
+            "pad_management/site_info",
             rclcpp::QoS(10).reliable().transient_local(),
             pub_options
         );
@@ -81,24 +85,27 @@ public:
 private:
     void publish_info(const pad_management_cpp::AvailabilityStatus & status)
     {
-        pad_management_interfaces::msg::PadInfo msg;
-        msg.node_name = m_node_base_interface->get_name();
+        pad_management_interfaces::msg::SiteInfo msg;
+        msg.name = m_node_base_interface->get_name();
+        msg.pad_idle_target_service_name = msg.name + "/pad_idle_target";
         msg.pad_right_control_action_name = m_action_server_name;
         msg.pad_tf_names = m_pad_resource_manager.get_pad_tf_names();
+        msg.takeoff_plugin_name = m_takeoff_plugin_name;
+        msg.landing_plugin_name = m_landing_plugin_name;
         msg.available = status.available;
         msg.wait_time = status.wait_time;
         switch (status.charging_speed) {
             case pad_management_cpp::AvailabilityStatus::ChargingSpeed::NONE:
-                msg.charging_speed = pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_NONE;
+                msg.charging_speed = pad_management_interfaces::msg::SiteInfo::CHARGING_SPEED_NONE;
                 break;
             case pad_management_cpp::AvailabilityStatus::ChargingSpeed::SLOW:
-                msg.charging_speed = pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_SLOW;
+                msg.charging_speed = pad_management_interfaces::msg::SiteInfo::CHARGING_SPEED_SLOW;
                 break;
             case pad_management_cpp::AvailabilityStatus::ChargingSpeed::FAST:
-                msg.charging_speed = pad_management_interfaces::msg::PadInfo::CHARGING_SPEED_FAST;
+                msg.charging_speed = pad_management_interfaces::msg::SiteInfo::CHARGING_SPEED_FAST;
                 break;
         }
-        m_pad_info_publisher->publish(msg);
+        m_site_info_publisher->publish(msg);
     }
 
 
@@ -191,6 +198,8 @@ private:
     std::shared_ptr<rclcpp::node_interfaces::NodeWaitablesInterface> m_node_waitables_interface;
 
     int m_max_requests;
+    std::string m_takeoff_plugin_name;
+    std::string m_landing_plugin_name;
 
     std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
     rclcpp::Logger m_logger;
@@ -201,7 +210,7 @@ private:
     std::string m_action_server_name = "";
     std::shared_ptr<rclcpp_action::Server<pad_management_interfaces::action::PadRightControl>> m_action_server;
 
-    std::shared_ptr<rclcpp::Publisher<pad_management_interfaces::msg::PadInfo>> m_pad_info_publisher;
+    std::shared_ptr<rclcpp::Publisher<pad_management_interfaces::msg::SiteInfo>> m_site_info_publisher;
     std::shared_ptr<rclcpp::TimerBase> m_info_publish_timer;
 
     std::unordered_map<std::string, std::shared_ptr<PadExecuteClient>> m_queued_clients;

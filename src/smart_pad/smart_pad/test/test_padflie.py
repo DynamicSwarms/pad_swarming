@@ -82,7 +82,6 @@ def generate_test_description():
             {
                 'id': 0,
                 'use_sim_time': True,
-                'behavior_plugin_name': 'padflie_behaviors::PadflieBehaviors',
             }
         ],
     )

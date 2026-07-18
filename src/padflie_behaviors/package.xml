@@ -11,6 +11,7 @@
 
   <depend>padflies_cpp</depend>
   <depend>pluginlib</depend>
+  <depend>ament_index_cpp</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

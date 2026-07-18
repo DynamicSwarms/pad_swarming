@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(padflies_cpp REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 
 find_package(behaviortree_cpp REQUIRED)
@@ -39,6 +40,7 @@ target_link_libraries(
   crazyflie_interfaces::crazyflie_interfaces
   ${padflies_cpp_LIBRARIES}
   pluginlib::pluginlib
+  ament_index_cpp::ament_index_cpp
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
