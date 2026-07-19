@@ -3,6 +3,19 @@ using namespace std::chrono_literals;
 namespace simpleflie_behaviors
 {
 
+namespace
+{
+RoutineResult classify_tree(const BT::Tree & tree)
+{
+  if (tree.rootNode()->status() == BT::NodeStatus::SUCCESS) {
+    return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
+  }
+  return {
+    RoutineOutcome::FAILURE, RoutineFailureReason::NONE,
+    "Simple behavior tree failed"};
+}
+}  // namespace
+
 class TakeoffSimple : public BT::SyncActionNode
 {
 public:
@@ -107,6 +120,16 @@ SimpleLandingPlugin::getTree(
     "LandSimple", m_logger, hardware_actor);
   factory.registerBehaviorTreeFromText(land_tree_xml);
   return factory.createTree("LandBehavior");
+}
+
+RoutineResultClassifier SimpleTakeoffPlugin::getResultClassifier() const
+{
+  return classify_tree;
+}
+
+RoutineResultClassifier SimpleLandingPlugin::getResultClassifier() const
+{
+  return classify_tree;
 }
 
 

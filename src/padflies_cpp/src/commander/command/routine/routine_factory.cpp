@@ -36,8 +36,8 @@ std::shared_ptr<Routine> RoutineFactory::create_takeoff_routine(
   RCLCPP_INFO(m_logger, "Loaded takeoff plugin '%s' for site '%s'",
     site_info.takeoff_plugin_name.c_str(), site_info.name.c_str());
   auto tree = plugin->getTree(factory, m_hardware_actor, m_padflie_tf, site_info);
-  tree.rootBlackboard()->set("site_info", site_info);
-  return m_make_routine(std::move(tree));
+  auto result_classifier = plugin->getResultClassifier();
+  return m_make_routine(std::move(tree), std::move(result_classifier));
 }
 
 std::shared_ptr<Routine> RoutineFactory::create_land_routine(
@@ -49,13 +49,14 @@ std::shared_ptr<Routine> RoutineFactory::create_land_routine(
   RCLCPP_INFO(m_logger, "Loaded landing plugin '%s' for site '%s'",
     site_info.landing_plugin_name.c_str(), site_info.name.c_str());
   auto tree = plugin->getTree(factory, m_hardware_actor, m_padflie_tf, site_info);
-  tree.rootBlackboard()->set("site_info", site_info);
-  return m_make_routine(std::move(tree));
+  auto result_classifier = plugin->getResultClassifier();
+  return m_make_routine(std::move(tree), std::move(result_classifier));
 }
 
-std::shared_ptr<Routine> RoutineFactory::m_make_routine(BT::Tree && tree)
+std::shared_ptr<Routine> RoutineFactory::m_make_routine(
+  BT::Tree && tree, RoutineResultClassifier result_classifier)
 {
   return std::make_shared<Routine>(
-    std::move(tree), m_node_interfaces_bundle.base_interface,
-    m_node_interfaces_bundle.timers_interface, m_node_interfaces_bundle.clock_interface, m_logger);
+    std::move(tree), std::move(result_classifier), m_node_interfaces_bundle.base_interface,
+    m_node_interfaces_bundle.timers_interface, m_node_interfaces_bundle.clock_interface);
 }

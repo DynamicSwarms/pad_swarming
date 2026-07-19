@@ -1,16 +1,17 @@
 #pragma once
 #include "behaviortree_cpp/bt_factory.h"
 #include "rclcpp/rclcpp.hpp"
+#include "padflies_cpp/commander/command/routine/routine_result.hpp"
 
 class Routine {
     
   public:
   Routine(
     BT::Tree&& routine,
+    RoutineResultClassifier result_classifier,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface, 
-    rclcpp::Logger logger
+    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface
   );
 
 
@@ -28,7 +29,7 @@ class Routine {
     return m_has_been_started;
   }
 
-  void set_on_finished_callback(std::function<void(bool success)> callback) 
+  void set_on_finished_callback(std::function<void(RoutineResult)> callback)
   {
     m_on_finished_callback = std::move(callback);
   }
@@ -38,7 +39,7 @@ private:
 
 
 private:
-  rclcpp::Logger m_logger;
+  RoutineResultClassifier m_result_classifier;
   BT::Tree m_behavior_tree;
   std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
   std::shared_ptr<rclcpp::TimerBase> m_timer;
@@ -47,6 +48,6 @@ private:
   bool m_finished = false;
   bool m_tree_is_running = false;
 
-  std::function<void(bool success)> m_on_finished_callback;
+  std::function<void(RoutineResult)> m_on_finished_callback;
   
 };

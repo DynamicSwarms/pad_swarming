@@ -5,32 +5,37 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "padflies_cpp/commander/actor/hardware_actor.hpp"
+#include "padflies_cpp/commander/command/routine/routine_result.hpp"
 #include "padflies_cpp/node_interfaces_bundle.hpp"
 #include "padflies_cpp/commander/padflie_tf.hpp"
 #include "pad_management_interfaces/msg/site_info.hpp"
 
 namespace padflies_cpp
 {
-class ITakeoffPlugin
+class IBehaviorPlugin
+{
+public:
+  virtual ~IBehaviorPlugin() = default;
+
+  virtual BT::Tree getTree(
+    BT::BehaviorTreeFactory & factory,
+    std::shared_ptr<HardwareActor> hardware_actor,
+    std::shared_ptr<PadflieTF> padflie_tf,
+    const pad_management_interfaces::msg::SiteInfo & site_info) = 0;
+
+  virtual RoutineResultClassifier getResultClassifier() const = 0;
+};
+
+class ITakeoffPlugin : public IBehaviorPlugin
 {
 public:
   virtual ~ITakeoffPlugin() = default;
-  virtual BT::Tree getTree(
-    BT::BehaviorTreeFactory & factory,
-    std::shared_ptr<HardwareActor> hardware_actor,
-    std::shared_ptr<PadflieTF> padflie_tf,
-    const pad_management_interfaces::msg::SiteInfo & site_info) = 0;
 };
 
-class ILandingPlugin
+class ILandingPlugin : public IBehaviorPlugin
 {
 public:
   virtual ~ILandingPlugin() = default;
-  virtual BT::Tree getTree(
-    BT::BehaviorTreeFactory & factory,
-    std::shared_ptr<HardwareActor> hardware_actor,
-    std::shared_ptr<PadflieTF> padflie_tf,
-    const pad_management_interfaces::msg::SiteInfo & site_info) = 0;
 };
 }  // namespace padflies_cpp
 

@@ -59,6 +59,8 @@ PadflieCommander::m_command_queue_execute()
         m_state = command->get_working_state();
     }
 
+    command->update();
+
     if (command->is_finished()) {
         m_state = command->get_target_state();
         auto duration = m_clock->now() - m_command_start_time;
@@ -144,7 +146,7 @@ PadflieCommander::m_deactivate_commander(
     if (force) return;
 
     std::shared_ptr<Command> command = std::make_shared<LandCommand>(
-        m_routine_factory, m_site_selector);
+        m_routine_factory, m_site_selector, m_logger);
     
     {
         std::lock_guard<std::mutex> lock(m_command_queue_mutex);
@@ -176,7 +178,7 @@ PadflieCommander::m_handle_takeoff_command(
 {
     RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
     std::shared_ptr<Command> command = std::make_shared<TakeoffCommand>(
-        m_routine_factory, m_site_selector,
+        m_routine_factory, m_site_selector, m_logger,
         std::make_shared<TriggerCompletionHandler>(service_handle, request_id, req)
     );
     {
@@ -193,7 +195,7 @@ PadflieCommander::m_handle_land_command(
 {   
     RCLCPP_INFO(m_logger, "Land command received for %s", m_cf_prefix.c_str());
     std::shared_ptr<Command> command = std::make_shared<LandCommand>(
-        m_routine_factory, m_site_selector,
+        m_routine_factory, m_site_selector, m_logger,
         std::make_shared<TriggerCompletionHandler>(service_handle, request_id, req)
     );
     {

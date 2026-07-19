@@ -11,6 +11,7 @@ public:
   : m_logger(logger.get_child("SimpleTakeoffPlugin")) {}
   BT::Tree getTree(BT::BehaviorTreeFactory &, std::shared_ptr<HardwareActor>,
     std::shared_ptr<PadflieTF>, const pad_management_interfaces::msg::SiteInfo &) override;
+  RoutineResultClassifier getResultClassifier() const override;
 private:
   rclcpp::Logger m_logger;
 };
@@ -22,6 +23,7 @@ public:
   : m_logger(logger.get_child("SimpleLandingPlugin")) {}
   BT::Tree getTree(BT::BehaviorTreeFactory &, std::shared_ptr<HardwareActor>,
     std::shared_ptr<PadflieTF>, const pad_management_interfaces::msg::SiteInfo &) override;
+  RoutineResultClassifier getResultClassifier() const override;
 private:
   rclcpp::Logger m_logger;
 };

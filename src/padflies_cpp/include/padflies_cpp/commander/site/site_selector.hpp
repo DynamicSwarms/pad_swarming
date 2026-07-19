@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <map>
+#include <set>
 #include <mutex>
 #include <optional>
 
@@ -84,7 +85,8 @@ public:
   }
 
   // Temporarily pad-aware. This selection policy can become a plugin later.
-  std::optional<SiteInfo> select_landing_site() const
+  std::optional<SiteInfo> select_landing_site(
+    const std::set<std::string> & excluded_sites = {}) const
   {
     const auto sites = m_site_infos->get_all();
     Eigen::Affine3d vehicle_pose;
@@ -97,6 +99,7 @@ public:
     double closest_distance = std::numeric_limits<double>::max();
     for (auto site = sites.begin(); site != sites.end(); ++site) {
       const auto & info = site->second;
+      if (excluded_sites.contains(info.name)) continue;
       if (!info.available || info.landing_plugin_name.empty()) continue;
       if (m_exclude_slow_pads && info.charging_speed == SiteInfo::CHARGING_SPEED_SLOW) continue;
       if (m_exclude_fast_pads && info.charging_speed == SiteInfo::CHARGING_SPEED_FAST) continue;

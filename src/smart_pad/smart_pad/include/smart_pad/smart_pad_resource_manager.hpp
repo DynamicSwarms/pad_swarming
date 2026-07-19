@@ -1,5 +1,8 @@
 #pragma once
 
+#include <chrono>
+#include <optional>
+#include <random>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -34,6 +37,8 @@ public:
     , p_allow_landings(node_iface_bundle.parameters_interface->declare_parameter("allow_landings", rclcpp::ParameterValue(true)).get<bool>())
     , m_pad_name("smart_pad_" + std::to_string(m_id))
     , m_logger(node_iface_bundle.logging_interface->get_logger())
+    , m_clock(node_iface_bundle.clock_interface->get_clock())
+    , m_retry_rng(std::random_device{}() ^ static_cast<unsigned>(m_id))
     {
         m_smart_pad_tf = std::make_shared<SmartPadTF>(
             m_pad_name,
@@ -103,8 +108,13 @@ public:
         
         if (request->locking)
         {
-            if (m_current_usage_lock && m_current_usage_lock.owns_lock() && m_current_usage_state == UsageState::ACTIVE) {
+            if (m_current_usage_lock &&
+                m_current_usage_lock.owns_lock() &&
+                m_current_usage_state == UsageState::ACTIVE) {
                 RCLCPP_WARN(m_logger, "Pad is locked by landing/takeoff procedure by cf %u, cannot lock", static_cast<unsigned>(m_current_usage_lock_user_id));
+                response->success = false;
+            } else if (m_trying_to_lock_neighbors) {
+                RCLCPP_WARN(m_logger, "Pad is currently trying to lock neighbors, cannot lock");
                 response->success = false;
             } else {
                 m_locked_by_list.push_back(request->name);
@@ -208,12 +218,24 @@ private:
 
     // We are now the holder of the usage lock, we can now check if we can acquire the neighbors lock.
 
-    std::lock_guard<std::mutex> neighbors_change_lock(m_neighbors_locking_change_mutex);
-    if (m_locked_by_neighbors)
     {
-        RCLCPP_DEBUG(m_logger, "Access for CF %u PENDING, because pad is locked by neighbors", static_cast<unsigned>(id));
-        return AccessResponse{AccessResponse::Result::PENDING, "Pad is locked by neighbors", rclcpp::Duration(0, 0)};
-    } 
+        std::lock_guard<std::mutex> neighbors_change_lock(m_neighbors_locking_change_mutex);
+        if (m_locked_by_neighbors)
+        {
+            RCLCPP_DEBUG(m_logger, "Access for CF %u PENDING, because pad is locked by neighbors", static_cast<unsigned>(id));
+            return AccessResponse{AccessResponse::Result::PENDING, "Pad is locked by neighbors", rclcpp::Duration(0, 0)};
+        }
+
+        if (m_next_neighbors_lock_attempt &&
+            m_clock->now() < *m_next_neighbors_lock_attempt)
+        {
+            return AccessResponse{
+                AccessResponse::Result::PENDING,
+                "Waiting before retrying neighbors lock",
+                rclcpp::Duration(0, 0)};
+        }
+        m_trying_to_lock_neighbors = true;
+    }
 
     std::shared_ptr<NeighborsLock> smart_pad_neighbors_lock = std::make_shared<NeighborsLock>(
         m_pad_name,
@@ -222,13 +244,30 @@ private:
         m_node_iface_bundle.graph_interface,
         m_node_iface_bundle.services_interface,
         m_logger
-    ); 
-    if (!smart_pad_neighbors_lock->try_lock()) {
+    );
+
+    bool lock_acquired = smart_pad_neighbors_lock->try_lock();
+    {
+        std::lock_guard<std::mutex> neighbors_change_lock(m_neighbors_locking_change_mutex);
+        m_trying_to_lock_neighbors = false;
+        if (!lock_acquired)
+        {
+            const int64_t backoff_ms = m_retry_delay_ms(m_retry_rng);
+            const auto backoff = rclcpp::Duration(0, backoff_ms * 1000000);
+            m_next_neighbors_lock_attempt = m_clock->now() + backoff;
+            RCLCPP_DEBUG(
+                m_logger, "Retrying neighbors lock in %ld ms",
+                static_cast<long>(backoff_ms));
+        }
+    }
+
+    if (!lock_acquired) {
         RCLCPP_WARN(m_logger, "Failed to acquire neighbors lock for cf %u", static_cast<unsigned>(id));
         return AccessResponse{AccessResponse::Result::PENDING, "Failed to acquire neighbors lock", rclcpp::Duration(0, 0)};
-    } 
-    RCLCPP_DEBUG(m_logger, "Successfully acquired neighbors lock for cf %u", static_cast<unsigned>(id));  
-    m_current_smart_pad_neighbors_lock = smart_pad_neighbors_lock;
+    } else {
+        RCLCPP_DEBUG(m_logger, "Successfully acquired neighbors lock for cf %u", static_cast<unsigned>(id));
+        m_current_smart_pad_neighbors_lock = smart_pad_neighbors_lock;
+    }
 
     update_visualization();
     set_availability();
@@ -373,6 +412,8 @@ rcl_interfaces::msg::SetParametersResult m_on_parameters_set(const std::vector<r
 private: 
     std::mutex m_neighbors_locking_change_mutex;
     bool m_locked_by_neighbors = false;
+    bool m_trying_to_lock_neighbors = false;
+    std::optional<rclcpp::Time> m_next_neighbors_lock_attempt;
     std::vector<std::string> m_locked_by_list;
 
 private: 
@@ -412,6 +453,9 @@ private:
     int m_id;
     std::string m_pad_name;
     rclcpp::Logger m_logger;
+    rclcpp::Clock::SharedPtr m_clock;
+    std::mt19937 m_retry_rng;
+    std::uniform_int_distribution<int> m_retry_delay_ms{50, 250};
     std::shared_ptr<SmartPadTF> m_smart_pad_tf;
     std::shared_ptr<SmartPadNeighbors> m_smart_pad_neighbors;
     std::shared_ptr<SmartPadVisualization> m_smart_pad_visualization;

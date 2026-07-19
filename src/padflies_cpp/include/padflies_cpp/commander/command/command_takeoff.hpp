@@ -11,16 +11,11 @@ public:
     TakeoffCommand(
         std::shared_ptr<RoutineFactory> routine_factory,
         std::shared_ptr<SiteSelector> site_selector,
-        std::shared_ptr<ICompletionHandler> completion_handler = nullptr)
-      : Command(
-          [routine_factory = std::move(routine_factory), site_selector]() {
-            const auto site_info = site_selector->select_takeoff_site();
-            if (!site_info || site_info->takeoff_plugin_name.empty()) {
-              return std::shared_ptr<Routine>{};
-            }
-            return routine_factory->create_takeoff_routine(*site_info);
-          },
-          std::move(completion_handler)),
+        rclcpp::Logger logger,
+        std::shared_ptr<ICompletionHandler> completion_handler = nullptr,
+        std::size_t max_retries = 0)
+      : Command(logger.get_child("TakeoffCommand"), max_retries, std::move(completion_handler)),
+        m_routine_factory(std::move(routine_factory)),
         m_site_selector(std::move(site_selector)) {};
 
     bool preconditions_are_met(const ICommandContext& context) const override
@@ -40,6 +35,17 @@ public:
     }
 
 protected:
+    bool prepare() override
+    {
+        const auto site_info = m_site_selector->select_takeoff_site();
+        if (!site_info || site_info->takeoff_plugin_name.empty()) {
+            return false;
+        }
+
+        m_routine = m_routine_factory->create_takeoff_routine(*site_info);
+        return static_cast<bool>(m_routine);
+    }
+
     void succeeded() override
     {
         m_site_selector->set_current_site("");
@@ -47,5 +53,6 @@ protected:
     }
 
 private:
+    std::shared_ptr<RoutineFactory> m_routine_factory;
     std::shared_ptr<SiteSelector> m_site_selector;
 };

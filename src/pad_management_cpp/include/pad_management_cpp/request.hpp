@@ -135,7 +135,6 @@ public:
                 result->reason = resp.message.empty() ? "Request rejected" : resp.message;
                 m_goal_handle->abort(result);
                 m_state = RequestState::FinishedAndResponded;
-                RCLCPP_INFO(m_logger, "Request rejected.");
             } else if (resp.result == pm::AccessResponse::Result::PENDING) {
                 auto now = m_clock->now();
                 if (m_request_time + m_max_wait_time < now) {

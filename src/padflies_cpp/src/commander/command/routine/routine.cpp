@@ -4,12 +4,12 @@
 
 Routine::Routine(
     BT::Tree&& routine,
+    RoutineResultClassifier result_classifier,
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
-    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface, 
-    rclcpp::Logger logger
+    std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface
   )
-    : m_logger(logger.get_child("RoutineExecutor"))
+    : m_result_classifier(std::move(result_classifier))
     , m_behavior_tree(std::move(routine))
     , m_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
   {
@@ -29,7 +29,8 @@ Routine::Routine(
     m_tree_is_running = false;
     m_behavior_tree.haltTree();
     if (m_on_finished_callback) {
-      m_on_finished_callback(false); // Consider halting as a failure
+      m_on_finished_callback(
+        m_result_classifier(m_behavior_tree));
     }
     m_finished = true;
   }
@@ -41,14 +42,11 @@ Routine::Routine(
       BT::NodeStatus status = m_behavior_tree.tickOnce();
       if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE || status == BT::NodeStatus::SKIPPED) {
           m_tree_is_running = false;
-          RCLCPP_INFO(m_logger, "Behavior tree finished with status: %s", toStr(status).c_str());
           if (m_on_finished_callback) {
-            m_on_finished_callback(status == BT::NodeStatus::SUCCESS);
+            m_on_finished_callback(m_result_classifier(m_behavior_tree));
           }
           m_finished = true;
 
-      } else{
-          // RCLCPP_INFO(m_logger, "Behavior tree ticked with status: %s", toStr(status).c_str());
       }
     }    
   }
@@ -65,4 +63,3 @@ Routine::Routine(
   {
     return m_tree_is_running;
   }
-

@@ -36,7 +36,7 @@ public:
     }
 
     ~PadExecuteServer() {
-            RCLCPP_INFO(m_logger, "Shutting down PadExecuteServer...");
+            RCLCPP_DEBUG(m_logger, "Shutting down PadExecuteServer...");
     };
 
     void set_selected_pad_name(const std::string & pad_name) { m_selected_pad_name = pad_name; }

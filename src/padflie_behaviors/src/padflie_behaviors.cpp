@@ -5,10 +5,18 @@
 #include <ament_index_cpp/get_package_share_path.hpp>
 #include <pluginlib/class_list_macros.hpp>
 
-#include "pad_management_interfaces/action/pad_execute.hpp"
-
 namespace padflie_behaviors
 {
+static RoutineResult classify_tree(
+  const BT::Tree & tree, const std::shared_ptr<FailureContext> & failure_context)
+{
+
+  if (const auto result = failure_context->result()) {
+    return *result;
+  }
+  return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
+}
+
 static std::pair<std::shared_ptr<PadExecuteServer>, std::shared_ptr<PadClientFactory>>
 create_pad_interfaces(
   const padflies_cpp::NodeInterfacesBundle & interfaces,
@@ -29,75 +37,37 @@ create_pad_interfaces(
   return {std::move(server), std::move(factory)};
 }
 
-class ReleasePadRight : public BT::SyncActionNode
-{
-public:
-  ReleasePadRight(
-    const std::string & name, const BT::NodeConfig & config,
-    rclcpp::Logger logger, std::shared_ptr<PadExecuteServer> server)
-  : BT::SyncActionNode(name, config),
-    m_logger(logger.get_child(name)),
-    m_pad_execute_server(std::move(server)) {}
-
-  static BT::PortsList providedPorts()
-  {
-    return {BT::InputPort<std::shared_ptr<PadClient>>("pad_client"), BT::InputPort<uint8_t>("status")};
-  }
-
-  BT::NodeStatus tick() override
-  {
-    uint8_t status;
-    if (!getInput<std::shared_ptr<PadClient>>("pad_client") || !getInput("status", status)) {
-      RCLCPP_ERROR(m_logger, "Missing pad_client or status input");
-      return BT::NodeStatus::FAILURE;
-    }
-
-    using Feedback = pad_management_interfaces::action::PadExecute::Feedback;
-    using Result = pad_management_interfaces::action::PadExecute::Result;
-    if (status == Feedback::STATUS_LANDED) {
-      m_pad_execute_server->send_result(Result::RESULT_ON_PAD);
-    } else if (status == Feedback::STATUS_TAKEOFF_CLEARED_PAD) {
-      m_pad_execute_server->send_result(Result::RESULT_NOT_ON_PAD);
-    } else if (status >= Feedback::STATUS_LANDING_INIT &&
-      status <= Feedback::STATUS_LANDING_APPROACH_CLOSE)
-    {
-      m_pad_execute_server->send_result(Result::RESULT_NOT_ON_PAD);
-    } else {
-      m_pad_execute_server->send_result(Result::RESULT_FAILURE);
-    }
-    return BT::NodeStatus::SUCCESS;
-  }
-
-private:
-  rclcpp::Logger m_logger;
-  std::shared_ptr<PadExecuteServer> m_pad_execute_server;
-};
-
 static BT::Tree create_tree(
   BT::BehaviorTreeFactory & factory, const std::string & tree_id,
   const padflies_cpp::NodeInterfacesBundle & node_interfaces_bundle,
   rclcpp::Logger logger, std::shared_ptr<HardwareActor> hardware_actor,
   std::shared_ptr<PadflieTF> padflie_tf, std::shared_ptr<PadExecuteServer> server,
-  std::shared_ptr<PadClient> pad_client)
+  std::shared_ptr<PadClient> pad_client,
+  std::shared_ptr<FailureContext> failure_context)
 {
-  factory.registerNodeType<GetPadRight>("GetPadRight", logger, server);
-  factory.registerNodeType<HoldPadRight>("HoldPadRight", logger, server);
-  factory.registerNodeType<TakeoffInit>("TakeoffInit", logger);
+  factory.registerNodeType<GetPadRight>(
+    "GetPadRight", logger, server, failure_context);
+  factory.registerNodeType<HoldPadRight>(
+    "HoldPadRight", logger, server, failure_context);
+  factory.registerNodeType<TakeoffInit>("TakeoffInit", logger, failure_context);
   factory.registerNodeType<TakeoffRoutine>(
-    "Takeoff", logger, node_interfaces_bundle.clock_interface, hardware_actor, padflie_tf, server);
+    "Takeoff", logger, node_interfaces_bundle.clock_interface, hardware_actor, padflie_tf, server,
+    failure_context);
   factory.registerNodeType<LandRoutine>(
-    "Land", logger, node_interfaces_bundle.clock_interface, hardware_actor, padflie_tf, server);
-  factory.registerNodeType<LandInit>("LandInit", logger);
+    "Land", logger, node_interfaces_bundle.clock_interface, hardware_actor, padflie_tf, server,
+    failure_context);
+  factory.registerNodeType<LandInit>("LandInit", logger, failure_context);
   factory.registerNodeType<ApproachIDLE>(
-    "ApproachIDLE", logger, hardware_actor, padflie_tf, server);
+    "ApproachIDLE", logger, hardware_actor, padflie_tf, server, failure_context);
   factory.registerNodeType<ApproachCLOSE>(
-    "ApproachCLOSE", logger, hardware_actor, padflie_tf, server);
+    "ApproachCLOSE", logger, hardware_actor, padflie_tf, server, failure_context);
   factory.registerNodeType<TimeoutROS>(
-    "TimeoutROS", logger, node_interfaces_bundle.clock_interface);
-  factory.registerNodeType<TryFinally>("TryFinally", logger);
-  factory.registerNodeType<SendFeedback>("SendFeedback", logger, server);
-  factory.registerNodeType<HasPadRight>("HasPadRight", logger);
-  factory.registerNodeType<ReleasePadRight>("ReleasePadRight", logger, server);
+    "TimeoutROS", logger, node_interfaces_bundle.clock_interface, failure_context);
+  factory.registerNodeType<TryFinally>("TryFinally", logger, failure_context);
+  factory.registerNodeType<SendFeedback>("SendFeedback", logger, server, failure_context);
+  factory.registerNodeType<HasPadRight>("HasPadRight", logger, failure_context);
+  factory.registerNodeType<ReleasePadRight>(
+    "ReleasePadRight", logger, server, failure_context);
   const auto xml_path = ament_index_cpp::get_package_share_path("padflie_behaviors") /
     "config/behaviors.xml";
   factory.registerBehaviorTreeFromFile(xml_path.string());
@@ -111,6 +81,7 @@ BT::Tree PadflieTakeoffPlugin::getTree(
   std::shared_ptr<PadflieTF> padflie_tf,
   const pad_management_interfaces::msg::SiteInfo & site_info)
 {
+  m_failure_context = std::make_shared<FailureContext>();
   auto [pad_execute_server, pad_client_factory] = create_pad_interfaces(
     m_node_interfaces_bundle, padflie_tf, m_logger);
   auto pad_client = pad_client_factory->create_pad_client(
@@ -118,7 +89,7 @@ BT::Tree PadflieTakeoffPlugin::getTree(
     site_info.pad_idle_target_service_name);
   return create_tree(
     factory, "TakeoffBehavior", m_node_interfaces_bundle, m_logger,
-    hardware_actor, padflie_tf, pad_execute_server, pad_client);
+    hardware_actor, padflie_tf, pad_execute_server, pad_client, m_failure_context);
 }
 
 BT::Tree PadflieLandingPlugin::getTree(
@@ -126,6 +97,7 @@ BT::Tree PadflieLandingPlugin::getTree(
   std::shared_ptr<PadflieTF> padflie_tf,
   const pad_management_interfaces::msg::SiteInfo & site_info)
 {
+  m_failure_context = std::make_shared<FailureContext>();
   auto [pad_execute_server, pad_client_factory] = create_pad_interfaces(
     m_node_interfaces_bundle, padflie_tf, m_logger);
   auto pad_client = pad_client_factory->create_pad_client(
@@ -133,7 +105,23 @@ BT::Tree PadflieLandingPlugin::getTree(
     site_info.pad_idle_target_service_name);
   return create_tree(
     factory, "LandBehavior", m_node_interfaces_bundle, m_logger,
-    hardware_actor, padflie_tf, pad_execute_server, pad_client);
+    hardware_actor, padflie_tf, pad_execute_server, pad_client, m_failure_context);
+}
+
+RoutineResultClassifier PadflieTakeoffPlugin::getResultClassifier() const
+{
+  const auto failure_context = m_failure_context;
+  return [failure_context](const BT::Tree & tree) {
+    return classify_tree(tree, failure_context);
+  };
+}
+
+RoutineResultClassifier PadflieLandingPlugin::getResultClassifier() const
+{
+  const auto failure_context = m_failure_context;
+  return [failure_context](const BT::Tree & tree) {
+    return classify_tree(tree, failure_context);
+  };
 }
 }  // namespace padflie_behaviors
 

@@ -24,7 +24,8 @@ public:
     const pad_management_interfaces::msg::SiteInfo & site_info);
 
 private:
-  std::shared_ptr<Routine> m_make_routine(BT::Tree && tree);
+  std::shared_ptr<Routine> m_make_routine(
+    BT::Tree && tree, RoutineResultClassifier result_classifier);
 
   pluginlib::ClassLoader<padflies_cpp::ITakeoffPlugin> m_takeoff_plugin_loader;
   pluginlib::ClassLoader<padflies_cpp::ILandingPlugin> m_landing_plugin_loader;

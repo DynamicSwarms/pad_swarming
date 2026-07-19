@@ -6,10 +6,38 @@
 
 #include "Eigen/Dense"
 #include "padflies_cpp/commander/actor/hardware_actor.hpp"
+#include "padflies_cpp/commander/command/routine/routine_result.hpp"
 
+#include <mutex>
+#include <optional>
 #include <tf2/utils.hpp>
 
 using namespace std::chrono_literals;
+
+namespace padflie_behaviors
+{
+class FailureContext
+{
+public:
+    void report(RoutineResult result)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_result) {
+            m_result = std::move(result);
+        }
+    }
+
+    std::optional<RoutineResult> result() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_result;
+    }
+
+private:
+    mutable std::mutex m_mutex;
+    std::optional<RoutineResult> m_result;
+};
+}  // namespace padflie_behaviors
 
 class GetPadRight : public BT::StatefulActionNode
 {
@@ -18,10 +46,12 @@ public:
         const std::string& name, 
         const BT::NodeConfig& config,
         rclcpp::Logger logger,
-        std::shared_ptr<PadExecuteServer> server)
+        std::shared_ptr<PadExecuteServer> server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_pad_execute_server(server)
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -89,15 +119,30 @@ public:
         if (!m_pad_client->goal_responded()) return BT::NodeStatus::RUNNING;
         if (!m_pad_client->goal_accepted()) {
             RCLCPP_ERROR(m_logger, "PadRight goal rejected!");
+            m_failure_context->report({
+                RoutineOutcome::RETRY,
+                RoutineFailureReason::SITE,
+                "PadRight goal was rejected"
+            });
             return BT::NodeStatus::FAILURE;
         }
 
         if (m_pad_client->received_result())
         {
             if (!m_pad_client->result_success()) {
+                m_failure_context->report({
+                    RoutineOutcome::RETRY,
+                    RoutineFailureReason::SITE,
+                    "PadRight request failed"
+                });
                 return BT::NodeStatus::FAILURE;
             }
             RCLCPP_INFO(m_logger, "Successfull PadRight result received, before doing anything. Failure!");
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::NONE,
+                "PadRight request completed before the behavior could execute"
+            });
             return BT::NodeStatus::FAILURE;
         }
 
@@ -105,6 +150,11 @@ public:
             if (m_pad_execute_server->goal_received()) {
                 if (m_pad_execute_server->goal_cancelled()) {
                     RCLCPP_INFO(m_logger, "PadRight acquired but Execute goal was cancelled!");
+                    m_failure_context->report({
+                        RoutineOutcome::FAILURE,
+                        RoutineFailureReason::SITE,
+                        "Pad execute goal was cancelled"
+                    });
                     return BT::NodeStatus::FAILURE;
                 } else 
                 {
@@ -116,7 +166,7 @@ public:
                 return BT::NodeStatus::RUNNING;
             }
         } else {
-            RCLCPP_INFO(m_logger, "Still waiting to acquire PadRight...");
+            RCLCPP_DEBUG(m_logger, "Still waiting to acquire PadRight...");
             return BT::NodeStatus::RUNNING;
         }
     }
@@ -134,6 +184,7 @@ public:
 private: 
     rclcpp::Logger m_logger;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
 
     std::shared_ptr<PadClient> m_pad_client;
     uint8_t m_action;
@@ -147,9 +198,11 @@ public:
     HasPadRight(
         const std::string& name, 
         const BT::NodeConfig& config,
-        rclcpp::Logger logger)
+        rclcpp::Logger logger,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::ConditionNode(name, config)
     , m_logger(logger.get_child(name))
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -179,6 +232,7 @@ public:
     }
 private:
     rclcpp::Logger m_logger;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
 };
 
 
@@ -189,10 +243,12 @@ public:
         const std::string& name, 
         const BT::NodeConfig& config,
         rclcpp::Logger logger,
-        std::shared_ptr<PadExecuteServer> server)
+        std::shared_ptr<PadExecuteServer> server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_pad_execute_server(server)
+    , m_failure_context(std::move(failure_context))
     {
 
     }
@@ -261,6 +317,7 @@ public:
 private: 
     rclcpp::Logger m_logger;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
 
     std::shared_ptr<PadClient> m_pad_client;
 };
@@ -279,13 +336,15 @@ public:
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
         std::shared_ptr<HardwareActor> hardware_actor, 
         std::shared_ptr<PadflieTF> padflie_tf,
-        std::shared_ptr<PadExecuteServer> pad_execute_server)
+        std::shared_ptr<PadExecuteServer> pad_execute_server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_clock(node_clock_interface->get_clock())
     , m_hardware_actor(hardware_actor)
     , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
+    , m_failure_context(std::move(failure_context))
     {
         m_state = LandState::INIT;
     }
@@ -418,6 +477,7 @@ private:
     std::shared_ptr<HardwareActor> m_hardware_actor;
     std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;  
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     std::shared_ptr<PadClient> m_pad_client;
 
     enum class LandState {
@@ -446,12 +506,14 @@ public:
         rclcpp::Logger logger,
         std::shared_ptr<HardwareActor> hardware_actor,
         std::shared_ptr<PadflieTF> padflie_tf,
-        std::shared_ptr<PadExecuteServer> pad_execute_server)
+        std::shared_ptr<PadExecuteServer> pad_execute_server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_hardware_actor(hardware_actor)
     , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -516,6 +578,7 @@ private:
     std::shared_ptr<HardwareActor> m_hardware_actor;
     std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server; 
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     std::shared_ptr<PadClient> m_pad_client;
 };
 
@@ -528,12 +591,14 @@ public:
         rclcpp::Logger logger,
         std::shared_ptr<HardwareActor> hardware_actor,
         std::shared_ptr<PadflieTF> padflie_tf,
-        std::shared_ptr<PadExecuteServer> pad_execute_server)
+        std::shared_ptr<PadExecuteServer> pad_execute_server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::StatefulActionNode(name, config)  
     , m_logger(logger.get_child(name))
     , m_hardware_actor(hardware_actor)  
     , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -633,6 +698,7 @@ private:
     std::shared_ptr<HardwareActor> m_hardware_actor;
     std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     std::shared_ptr<PadClient> m_pad_client;
 };
 
@@ -645,10 +711,12 @@ public:
         const std::string& name,
         const BT::NodeConfig& config,
         rclcpp::Logger logger,
-        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> clock_interface)
+        std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> clock_interface,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
         : BT::DecoratorNode(name, config)
         , m_logger(logger.get_child(name))
         , m_clock(clock_interface->get_clock())
+        , m_failure_context(std::move(failure_context))
         {}
 
         static BT::PortsList providedPorts()
@@ -711,6 +779,7 @@ public:
 private: 
     rclcpp::Logger m_logger;
     std::shared_ptr<rclcpp::Clock> m_clock;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     bool m_timeout_started = false;
     rclcpp::Time m_timeout_start_time;
     rclcpp::Duration m_timeout_duration{std::chrono::milliseconds(0)};
@@ -726,10 +795,12 @@ public:
         const std::string& name,
         const BT::NodeConfig& config,
         rclcpp::Logger logger, 
-        std::shared_ptr<PadExecuteServer> pad_execute_server)
+        std::shared_ptr<PadExecuteServer> pad_execute_server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_pad_execute_server(pad_execute_server)
+    , m_failure_context(std::move(failure_context))
     {}
 
     static BT::PortsList providedPorts()
@@ -763,6 +834,7 @@ public:
 private:
     rclcpp::Logger m_logger;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     std::shared_ptr<PadClient> m_pad_client;
 };
 
@@ -777,13 +849,15 @@ public:
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
         std::shared_ptr<HardwareActor> hardware_actor, 
         std::shared_ptr<PadflieTF> padflie_tf,
-        std::shared_ptr<PadExecuteServer> pad_execute_server)
+        std::shared_ptr<PadExecuteServer> pad_execute_server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::StatefulActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_clock(node_clock_interface->get_clock())
     , m_hardware_actor(hardware_actor)
     , m_padflie_tf(padflie_tf)
     , m_pad_execute_server(pad_execute_server)
+    , m_failure_context(std::move(failure_context))
     {
         m_state = TakeoffState::INIT;
     }
@@ -820,6 +894,11 @@ public:
         if (!getInput("pad_client", m_pad_client))
         {
             RCLCPP_ERROR(m_logger, "Error getting input port [pad_client]!");
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::INTERNAL,
+                "Takeoff could not read the pad_client input"
+            });
             return BT::NodeStatus::FAILURE;
         }
 
@@ -829,6 +908,11 @@ public:
             RCLCPP_DEBUG(m_logger, "Current Crazyflie position: [%f, %f, %f]", position.x(), position.y(), position.z());
         } else {
             RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::HARDWARE,
+                "Takeoff could not determine the Crazyflie position"
+            });
             return BT::NodeStatus::FAILURE;
         }
 
@@ -851,6 +935,11 @@ public:
         if (!get_target_world_frame(target_world_frame))
         {
             RCLCPP_ERROR(m_logger, "Failed to get target pose in world frame!");
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::SITE,
+                "Takeoff could not transform the site target pose into the world frame"
+            });
             return BT::NodeStatus::FAILURE;
         }
 
@@ -890,6 +979,11 @@ public:
                     bool success = m_hardware_actor->set_pose_target(takeoff_target);
                     if (!success) {
                         RCLCPP_ERROR(m_logger, "Failed to set takeoff target pose!");
+                        m_failure_context->report({
+                            RoutineOutcome::FAILURE,
+                            RoutineFailureReason::HARDWARE,
+                            "Takeoff hardware actor rejected the target pose"
+                        });
                         return BT::NodeStatus::FAILURE;
                     }
                 }
@@ -904,6 +998,11 @@ public:
                 break;
             default:
                 RCLCPP_ERROR(m_logger, "Unknown state in LandRoutine!");
+                m_failure_context->report({
+                    RoutineOutcome::FAILURE,
+                    RoutineFailureReason::INTERNAL,
+                    "Takeoff entered an unknown internal state"
+                });
                 return BT::NodeStatus::FAILURE;
         }
         return BT::NodeStatus::RUNNING;
@@ -919,6 +1018,7 @@ private:
     std::shared_ptr<HardwareActor> m_hardware_actor;
     std::shared_ptr<PadflieTF> m_padflie_tf;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;  
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     std::shared_ptr<PadClient> m_pad_client;
 
     enum class TakeoffState {
@@ -946,9 +1046,11 @@ public:
     TakeoffInit(
         const std::string& name,
         const BT::NodeConfig& config,
-        rclcpp::Logger logger)
+        rclcpp::Logger logger,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -967,6 +1069,7 @@ public:
     }
 private:
     rclcpp::Logger m_logger;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
 };
 
 class LandInit : public BT::SyncActionNode
@@ -975,9 +1078,11 @@ public:
     LandInit(
         const std::string& name,
         const BT::NodeConfig& config,
-        rclcpp::Logger logger)
+        rclcpp::Logger logger,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -995,6 +1100,63 @@ public:
     }
 private:
     rclcpp::Logger m_logger;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
+};
+
+class ReleasePadRight : public BT::SyncActionNode
+{
+public:
+    ReleasePadRight(
+        const std::string & name,
+        const BT::NodeConfig & config,
+        rclcpp::Logger logger,
+        std::shared_ptr<PadExecuteServer> server,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
+    : BT::SyncActionNode(name, config),
+      m_logger(logger.get_child(name)),
+      m_pad_execute_server(std::move(server)),
+      m_failure_context(std::move(failure_context))
+    {
+    }
+
+    static BT::PortsList providedPorts()
+    {
+        return {
+            BT::InputPort<std::shared_ptr<PadClient>>("pad_client"),
+            BT::InputPort<uint8_t>("status")
+        };
+    }
+
+    BT::NodeStatus tick() override
+    {
+        uint8_t status;
+        if (!getInput<std::shared_ptr<PadClient>>("pad_client") ||
+            !getInput("status", status))
+        {
+            RCLCPP_ERROR(m_logger, "Missing pad_client or status input");
+            return BT::NodeStatus::FAILURE;
+        }
+
+        using Feedback = pad_management_interfaces::action::PadExecute::Feedback;
+        using Result = pad_management_interfaces::action::PadExecute::Result;
+        if (status == Feedback::STATUS_LANDED) {
+            m_pad_execute_server->send_result(Result::RESULT_ON_PAD);
+        } else if (status == Feedback::STATUS_TAKEOFF_CLEARED_PAD) {
+            m_pad_execute_server->send_result(Result::RESULT_NOT_ON_PAD);
+        } else if (status >= Feedback::STATUS_LANDING_INIT &&
+            status <= Feedback::STATUS_LANDING_APPROACH_CLOSE)
+        {
+            m_pad_execute_server->send_result(Result::RESULT_NOT_ON_PAD);
+        } else {
+            m_pad_execute_server->send_result(Result::RESULT_FAILURE);
+        }
+        return BT::NodeStatus::SUCCESS;
+    }
+
+private:
+    rclcpp::Logger m_logger;
+    std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
 };
 
 class TryFinally : public BT::ControlNode
@@ -1003,9 +1165,11 @@ public:
     TryFinally(
         const std::string& name,
         const BT::NodeConfig& config, 
-        rclcpp::Logger logger)
+        rclcpp::Logger logger,
+        std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::ControlNode(name, config)
     , m_logger(logger.get_child(name))
+    , m_failure_context(std::move(failure_context))
     {
     }
 
@@ -1049,7 +1213,13 @@ public:
             return BT::NodeStatus::RUNNING;
         }
 
-        // If we reach here, both blocks have finished. The overall status is determined by the "try" block.
+        // Preserve a failure from the try block. If the try block succeeded, a
+        // cleanup failure becomes the overall failure.
+        if (m_try_status == BT::NodeStatus::SUCCESS &&
+            finally_status == BT::NodeStatus::FAILURE)
+        {
+            return BT::NodeStatus::FAILURE;
+        }
         return m_try_status;
     }
 
@@ -1063,6 +1233,7 @@ public:
 
 private: 
     rclcpp::Logger m_logger;
+    std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     bool m_finally_started = false;
     BT::NodeStatus m_try_status = BT::NodeStatus::IDLE;
 

@@ -44,10 +44,10 @@
                       status="{status}"/>
         <TimeoutROS timeout_ms="20000">
           <GetPadRight pad_client="{client}"
-                       action="LAND"/>
+                       action="TAKEOFF"/>
         </TimeoutROS>
       </ReactiveSequence>
-      <ForceSuccess>
+      <TryFinally>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
           <SendFeedback pad_client="{client}"
@@ -57,9 +57,9 @@
                      status="{status}"/>
           </TimeoutROS>
         </ReactiveSequence>
-      </ForceSuccess>
-      <ReleasePadRight pad_client="{client}"
-                       status="{status}"/>
+        <ReleasePadRight pad_client="{client}"
+                         status="{status}"/>
+      </TryFinally>
     </Sequence>
   </BehaviorTree>
 

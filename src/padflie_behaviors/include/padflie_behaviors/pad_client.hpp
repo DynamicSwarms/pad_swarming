@@ -187,7 +187,8 @@ private:
         if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
             RCLCPP_DEBUG(m_logger, "Pad right control action finished with: SUCCESS");
         } else {
-            RCLCPP_ERROR(m_logger, "Pad right control action failed with: FAILED");
+            auto reason = result.result->reason;
+            RCLCPP_ERROR(m_logger, "PadRightControl goal failed: %s", reason.c_str());
         }
     }
 

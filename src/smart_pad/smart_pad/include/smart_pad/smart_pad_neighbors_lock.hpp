@@ -20,7 +20,7 @@ class NeighborsLock
     , m_node_base_interface(node_base_interface)
     , m_node_graph_interface(node_graph_interface)
     , m_node_services_interface(node_services_interface)
-    , m_lock_service_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
+    , m_lock_client_callback_group(node_base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
     {}
 
     ~NeighborsLock() {
@@ -59,7 +59,7 @@ bool try_lock() {
                 m_node_services_interface,
                 neighbor + "/lock",
                 rclcpp::ServicesQoS().keep_last(10),
-                m_lock_service_callback_group
+                m_lock_client_callback_group
             );
 
         if (!lock_client->wait_for_service(std::chrono::milliseconds(50)))
@@ -74,7 +74,7 @@ bool try_lock() {
         auto result = result_future.wait_for(std::chrono::milliseconds(50));
         if (result != std::future_status::ready)
         {
-            RCLCPP_ERROR(m_logger, "Neighbor %s did not respond to lock request in time", neighbor.c_str());
+            RCLCPP_DEBUG(m_logger, "Neighbor %s did not respond to lock request in time", neighbor.c_str());
 
             m_lock_clients.push_back(lock_client); // The request might still have been sent after we waited for it.
             return false;
@@ -96,7 +96,7 @@ private:
     std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> m_node_graph_interface;
     std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> m_node_services_interface;
-    std::shared_ptr<rclcpp::CallbackGroup> m_lock_service_callback_group;
+    std::shared_ptr<rclcpp::CallbackGroup> m_lock_client_callback_group;
 
     std::vector<std::shared_ptr<rclcpp::Client<smart_pad_interfaces::srv::Lock>>> m_lock_clients;
 };
