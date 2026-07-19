@@ -12,6 +12,7 @@
 #include "padflies_cpp/commander/site/site_selector.hpp"
 
 #include "padflies_cpp/node_interfaces_bundle.hpp"
+#include "padflies_interfaces/msg/availability_info.hpp"
 
 class PadflieCommander 
         : public PadflieCommanderBase,
@@ -52,6 +53,11 @@ class PadflieCommander
         void m_on_commander_deactivated() override;
 
         void m_on_charged_callback() override;
+        void m_on_state_callback() override;
+
+        void m_create_availability_interface(
+            const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node);
+        void m_remove_availability_interface();
 
     private: 
         void m_handle_takeoff_command(
@@ -77,6 +83,8 @@ class PadflieCommander
 
 
         std::shared_ptr<SiteSelector> m_site_selector;
+        std::shared_ptr<rclcpp::Publisher<padflies_interfaces::msg::AvailabilityInfo>>
+            m_availability_pub;
         
 
         std::shared_ptr<RoutineFactory> m_routine_factory;

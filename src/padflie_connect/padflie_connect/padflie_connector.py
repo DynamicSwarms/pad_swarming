@@ -6,7 +6,7 @@ from rclpy.subscription import Subscription
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
-from std_msgs.msg import String
+from padflies_interfaces.msg import AvailabilityInfo
 
 from typing import Optional, Callable, Tuple
 import re
@@ -54,11 +54,11 @@ class PadflieConnector:
     def is_connected(self) -> bool:
         return self.__connected
 
-    def _availability_callback(self, info: String):
+    def _availability_callback(self, info: AvailabilityInfo):
         if self.is_connected() or not self.is_active():
             return
 
-        prefix = info.data
+        prefix = info.name
         cf_id: int = int(re.search(r"\d+", prefix).group())
         # Hardware Crazyflies have ids from A1 and onward, Webots start from 1
         if self.hardware_only and cf_id < 0xA0:
@@ -114,7 +114,7 @@ class PadflieConnector:
     def __create_availability_subscription(self):
         # TODO: Maybe better suited qos
         self.__availability_subscription = self._node.create_subscription(
-            msg_type=String,
+            msg_type=AvailabilityInfo,
             topic="availability",
             callback=self._availability_callback,
             qos_profile=10,

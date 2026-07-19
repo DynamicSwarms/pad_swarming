@@ -10,7 +10,7 @@ import launch_testing
 from lifecycle_msgs.msg import State, Transition
 from lifecycle_msgs.srv import ChangeState, GetState
 import rclpy
-from std_msgs.msg import String
+from padflies_interfaces.msg import AvailabilityInfo
 from std_srvs.srv import Trigger
 
 def generate_test_description():
@@ -120,7 +120,7 @@ class TestPadflieSimulation(unittest.TestCase):
 
         callback_group = rclpy.callback_groups.MutuallyExclusiveCallbackGroup()
         cls.availability_subscription = cls.node.create_subscription(
-            String,
+            AvailabilityInfo,
             '/availability',
             cls.availability_callback,
             rclpy.qos.QoSProfile(depth=10),
@@ -147,7 +147,7 @@ class TestPadflieSimulation(unittest.TestCase):
 
     @classmethod
     def availability_callback(cls, msg):
-        if msg.data == 'padflie0':
+        if msg.name == 'padflie0':
             cls.padflie_available.set()
 
     @classmethod

@@ -87,6 +87,7 @@ private:
     {
         pad_management_interfaces::msg::SiteInfo msg;
         msg.name = m_node_base_interface->get_name();
+        msg.type = pad_management_interfaces::msg::SiteInfo::TYPE_PAD;
         msg.pad_idle_target_service_name = msg.name + "/pad_idle_target";
         msg.pad_right_control_action_name = m_action_server_name;
         msg.pad_tf_names = m_pad_resource_manager.get_pad_tf_names();

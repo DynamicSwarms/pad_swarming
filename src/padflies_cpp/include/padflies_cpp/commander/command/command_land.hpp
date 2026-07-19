@@ -53,7 +53,8 @@ protected:
     bool prepare_retry(const RoutineResult & result) override
     {
         if (result.reason == RoutineFailureReason::SITE && !m_selected_site.empty()) {
-            m_excluded_sites.insert(m_selected_site);
+            // For now never exclude the megapad
+            if (m_selected_site != "megapad") m_excluded_sites.insert(m_selected_site);
         }
         return prepare();
     }

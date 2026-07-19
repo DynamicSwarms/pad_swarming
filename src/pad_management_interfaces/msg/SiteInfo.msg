@@ -1,5 +1,6 @@
 # Generic fields understood by the commander.
 string name
+uint8 type
 string takeoff_plugin_name
 string landing_plugin_name
 bool available
@@ -11,6 +12,9 @@ string[] pad_tf_names
 builtin_interfaces/Duration wait_time
 
 uint8 charging_speed
+
+uint8 TYPE_UNKNOWN = 0
+uint8 TYPE_PAD = 1
 
 uint8 CHARGING_SPEED_NONE = 0
 uint8 CHARGING_SPEED_SLOW = 1

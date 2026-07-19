@@ -88,7 +88,7 @@ public:
             RCLCPP_ERROR(m_logger, "Invalid action string [action]!");
             return BT::NodeStatus::FAILURE;
         }
-        
+
 
 
         std::string pad_name = m_pad_client->get_pad_name();
@@ -175,10 +175,26 @@ public:
     {
         if (m_pad_client && !m_pad_client->is_action_server_available()){
             RCLCPP_WARN(m_logger, "Halted but PadRight action server is not available, maybe that is the reason");
-        }
-        if (m_pad_client && m_request_sent) {
+            m_failure_context->report({
+                RoutineOutcome::RETRY,
+                RoutineFailureReason::SITE,
+                "PadRight action server is not available"
+            });
+        } else if (m_pad_client && m_request_sent) {
             m_pad_client->cancel_goal();
+            m_failure_context->report({
+                RoutineOutcome::RETRY,
+                RoutineFailureReason::SITE,
+                "PadRight request was cancelled"
+            });
+        } else {
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::SITE,
+                "GetPadRight behavior was with unknown state when halted"
+            });
         }
+
         RCLCPP_INFO(m_logger, "GetPadRight halted, goal cancelled if it was sent.");
     }
 private: 

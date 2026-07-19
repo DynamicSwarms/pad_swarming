@@ -119,6 +119,7 @@ void
 PadflieCommander::m_configure_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
+    m_create_availability_interface(node);
 }
 
 void PadflieCommander::m_on_commander_configured() 
@@ -130,6 +131,8 @@ void
 PadflieCommander::m_activate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
+    (void)node;
+    m_remove_availability_interface();
 }
 
 void PadflieCommander::m_on_commander_activated() 
@@ -143,7 +146,10 @@ PadflieCommander::m_deactivate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     bool force) 
 {    
-    if (force) return;
+    if (force) {
+        m_create_availability_interface(node);
+        return;
+    }
 
     std::shared_ptr<Command> command = std::make_shared<LandCommand>(
         m_routine_factory, m_site_selector, m_logger);
@@ -154,6 +160,7 @@ PadflieCommander::m_deactivate_commander(
     }
     RCLCPP_INFO(m_logger, "Deactivating commander, landing padflie %s", m_cf_prefix.c_str());
     command->wait_until_finished();
+    m_create_availability_interface(node);
 
 }
 
@@ -168,6 +175,48 @@ PadflieCommander::m_on_charged_callback()
 {
     if (m_state == CommanderState::CHARGING)
         m_state = CommanderState::CHARGED;
+}
+
+void PadflieCommander::m_on_state_callback()
+{
+    if (!m_availability_pub ||
+        !m_hw_state_controller.is_charged() ||
+        !m_hw_state_controller.canfly() ||
+        m_hw_state_controller.is_tumbled())
+    {
+        return;
+    }
+
+    Eigen::Vector3d position;
+    if (!m_padflie_tf->get_cf_position(position)) return;
+
+    const auto current_site = m_site_selector->get_current_site();
+    if (!current_site) {
+        RCLCPP_WARN(m_logger, "Cannot publish availability without current SiteInfo.");
+        return;
+    }
+
+    padflies_interfaces::msg::AvailabilityInfo message;
+    message.name = m_prefix;
+    message.site_info = *current_site;
+    m_availability_pub->publish(message);
+}
+
+void PadflieCommander::m_create_availability_interface(
+    const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node)
+{
+    auto options = rclcpp::PublisherOptions();
+    options.callback_group = m_callback_group;
+    rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(1))
+                .best_effort()
+                .durability_volatile();
+    m_availability_pub = node->create_publisher<padflies_interfaces::msg::AvailabilityInfo>(
+        "availability", qos, options);
+}
+
+void PadflieCommander::m_remove_availability_interface()
+{
+    m_availability_pub.reset();
 }
 
 void 

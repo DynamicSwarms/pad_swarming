@@ -30,8 +30,11 @@ void ManagerPlugin::initPlugin(qt_gui_cpp::PluginContext& context)
     std::bind(&ManagerPlugin::update, this)
   ); 
 
-  m_availability_subscription = m_node->create_subscription<std_msgs::msg::String>(
-    "availability", 10, 
+  rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(1))
+                  .best_effort()
+                  .durability_volatile();
+  m_availability_subscription = m_node->create_subscription<padflies_interfaces::msg::AvailabilityInfo>(
+    "availability", qos,
     std::bind(&ManagerPlugin::m_handle_availability_message, this, std::placeholders::_1)
   );
 
@@ -58,10 +61,11 @@ ManagerPlugin::update()
   }
 };
 
-void ManagerPlugin::m_handle_availability_message(std::shared_ptr<std_msgs::msg::String> msg)
+void ManagerPlugin::m_handle_availability_message(
+  std::shared_ptr<padflies_interfaces::msg::AvailabilityInfo> msg)
 {
   try {
-    std::string id_str = msg->data.substr(7); // Assuming name is like "padflieID"
+    std::string id_str = msg->name.substr(7); // Assuming name is like "padflieID"
     int id = std::stoi(id_str);
     QMetaObject::invokeMethod(
       this,
@@ -70,7 +74,7 @@ void ManagerPlugin::m_handle_availability_message(std::shared_ptr<std_msgs::msg:
       },
       Qt::QueuedConnection);
   } catch (const std::exception& e) {
-    RCLCPP_WARN(m_node->get_logger(), "Received availability message but failed to extract ID: %s", msg->data.c_str());
+    RCLCPP_WARN(m_node->get_logger(), "Received availability message but failed to extract ID: %s", msg->name.c_str());
   }
 }
 

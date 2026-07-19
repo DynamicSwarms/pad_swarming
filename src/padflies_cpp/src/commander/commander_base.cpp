@@ -40,8 +40,6 @@ PadflieCommanderBase::on_configure(
         node->get_node_logging_interface());
 
 
-    m_create_availability_interface(node);
-
     m_on_commander_configured();
     m_base_state = CommanderBaseState::CONFIGURED;
 
@@ -71,7 +69,6 @@ PadflieCommanderBase::on_activate(
         m_cf_prefix,
         m_padflie_tf);
 
-    m_remove_availability_interface(node);
     m_create_control_interface(node);
 
     m_on_commander_activated();
@@ -92,9 +89,6 @@ PadflieCommanderBase::on_deactivate(
     
     m_hardware_actor.reset(); 
     m_hw_state_controller.reset_state();
-    m_create_availability_interface(node);
-
-
     m_on_commander_deactivated();
     m_base_state = CommanderBaseState::CONFIGURED;
     RCLCPP_INFO(node->get_logger(), "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
@@ -102,19 +96,6 @@ PadflieCommanderBase::on_deactivate(
 
 void PadflieCommanderBase::m_on_state_callback()
 {
-    bool charged = m_hw_state_controller.is_charged();
-    bool canfly = m_hw_state_controller.canfly();
-    bool tumbled = m_hw_state_controller.is_tumbled();
-
-    Eigen::Vector3d position;
-    bool position_available = m_padflie_tf->get_cf_position(position);
-
-    if (charged && canfly && !tumbled && position_available)
-    {
-        auto msg = std_msgs::msg::String();
-        msg.data = m_prefix;
-        if (m_availability_pub) m_availability_pub->publish(msg);
-    }
 }
 
 void 
@@ -141,24 +122,6 @@ PadflieCommanderBase::m_handle_info_timer()
     
     m_padflie_info_pub->publish(info_msg);
 }
-
-void PadflieCommanderBase::m_create_availability_interface(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
-{
-    auto pub_options = rclcpp::PublisherOptions();
-    pub_options.callback_group = m_callback_group;
-
-    m_availability_pub = node->create_publisher<std_msgs::msg::String>(
-        "availability", 10, pub_options);
-}
-
-void PadflieCommanderBase::m_remove_availability_interface(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
-{
-    (void)node;
-    m_availability_pub.reset();
-}
-
 
 void PadflieCommanderBase::m_create_control_interface(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)

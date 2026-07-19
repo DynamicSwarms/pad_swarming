@@ -76,33 +76,45 @@ public:
         m_access_handle = m_resource_manager.submit_access_request(req);
     }
 
-    ~Request()
+    ~Request() noexcept
     {
-        if (m_pad_execute_client->is_finished()) {
+        if (m_state == RequestState::FinishedAndResponded) {
+            m_resource_manager.cancel(m_access_handle);
+            return;
+        }
+
+        if (m_state == RequestState::Finished) {
             auto result = std::make_shared<PadRightControlActionT::Result>();
             result->success = true;
             result->reason = "Completed successfully";
-            m_goal_handle->succeed(result);
+            try {
+                m_goal_handle->succeed(result);
+            } catch (const std::exception & error) {
+                RCLCPP_ERROR(m_logger, "Failed to mark completed goal as succeeded: %s", error.what());
+            }
 
             pm::ExecuteResult exec_result;
             exec_result.result = m_pad_execute_client->result();
             m_resource_manager.notify_finished(m_access_handle, exec_result);
         } else if (m_goal_handle->is_canceling()) {
-            const bool was_owner = m_state == RequestState::Acquired;
-
             auto result = std::make_shared<PadRightControlActionT::Result>();
             result->success = true;
             result->reason = "Canceled by client";
-            m_goal_handle->canceled(result);
-
-            RCLCPP_INFO(m_logger, "Canceling goal, was owner? %s", was_owner ? "Yes" : "No");
-
+            try {
+                m_goal_handle->canceled(result);
+            } catch (const std::exception & error) {
+                RCLCPP_ERROR(m_logger, "Failed to mark canceled goal as canceled: %s", error.what());
+            }
             m_resource_manager.cancel(m_access_handle);
-        } else if (m_state != RequestState::FinishedAndResponded) {
+        } else {
             auto result = std::make_shared<PadRightControlActionT::Result>();
             result->success = false;
             result->reason = "Request destroyed before completion";
-            m_goal_handle->abort(result);
+            try {
+                m_goal_handle->abort(result);
+            } catch (const std::exception & error) {
+                RCLCPP_ERROR(m_logger, "Failed to abort incomplete goal: %s", error.what());
+            }
             m_resource_manager.cancel(m_access_handle);
         }
     }

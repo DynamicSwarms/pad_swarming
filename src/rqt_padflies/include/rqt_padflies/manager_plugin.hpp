@@ -3,7 +3,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include <rqt_gui_cpp/plugin.hpp>
 
-#include "std_msgs/msg/string.hpp"
+#include "padflies_interfaces/msg/availability_info.hpp"
 
 #include "rqt_padflies/padflie_widget.hpp"
 #include "rqt_padflies/padflie_list_widget_item.hpp"
@@ -43,7 +43,8 @@ class ManagerPlugin : public rqt_gui_cpp::Plugin
 
   private: 
     void update();
-    void m_handle_availability_message(std::shared_ptr<std_msgs::msg::String> msg);
+    void m_handle_availability_message(
+      std::shared_ptr<padflies_interfaces::msg::AvailabilityInfo> msg);
     
     
     void m_signal_handler_availability_message(int id);
@@ -55,7 +56,8 @@ class ManagerPlugin : public rqt_gui_cpp::Plugin
     
     std::unordered_map<int, PadflieListEntry> m_padflie_widgets;
 
-    std::shared_ptr<rclcpp::Subscription<std_msgs::msg::String>> m_availability_subscription;
+    std::shared_ptr<rclcpp::Subscription<padflies_interfaces::msg::AvailabilityInfo>>
+      m_availability_subscription;
     std::shared_ptr<rclcpp::TimerBase> m_update_timer;
     std::shared_ptr<rclcpp::Node> m_node;
   signals:

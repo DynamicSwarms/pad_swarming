@@ -9,7 +9,6 @@
 #include "padflies_cpp/commander/actor/hardware_actor.hpp"
 
 #include "std_msgs/msg/empty.hpp"
-#include "std_msgs/msg/string.hpp"
 #include "padflies_interfaces/msg/send_target.hpp"
 #include "padflies_interfaces/msg/padflie_info.hpp"
 
@@ -124,17 +123,9 @@ class PadflieCommanderBase{
         
         
     private:
-        void m_on_state_callback();
+        virtual void m_on_state_callback();
 
         void m_handle_info_timer();        
-
-        void m_create_availability_interface(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        );
-
-        void m_remove_availability_interface(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        );
 
         void m_create_control_interface (
             std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
@@ -165,8 +156,6 @@ class PadflieCommanderBase{
         std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> m_takeoff_service;
         std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> m_land_service;
         std::shared_ptr<rclcpp::Subscription<padflies_interfaces::msg::SendTarget>> m_send_target_sub;
-
-        std::shared_ptr<rclcpp::Publisher<std_msgs::msg::String>> m_availability_pub;
 
         std::shared_ptr<rclcpp::TimerBase> m_padflie_info_timer;
         std::shared_ptr<rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>> m_padflie_info_pub;   

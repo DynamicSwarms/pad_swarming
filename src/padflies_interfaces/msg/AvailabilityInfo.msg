@@ -1,9 +1,2 @@
-string connect_service_name
-string disconnect_service_name
-string padflie_prefix
-bool available
-geometry_msgs/PoseStamped pose
-geometry_msgs/Pose pose_world
-float32 battery_voltage
-bool charge_state
-string type
+string name
+pad_management_interfaces/SiteInfo site_info

@@ -23,3 +23,9 @@ flies:
 - id: 7
   initial_position: [-0.2, 0.0, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 8
+  initial_position: [-0.2, -0.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 9
+  initial_position: [-0.2, -0.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]

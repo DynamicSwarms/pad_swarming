@@ -27,6 +27,14 @@ public:
     return m_site_infos;
   }
 
+  std::optional<SiteInfo> get(const std::string & name) const
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const auto site = m_site_infos.find(name);
+    if (site == m_site_infos.end()) return std::nullopt;
+    return site->second;
+  }
+
 private:
   mutable std::mutex m_mutex;
   std::map<std::string, SiteInfo> m_site_infos;
@@ -52,7 +60,7 @@ public:
     m_site_info_subscriber = rclcpp::create_subscription<SiteInfo>(
       node_interfaces_bundle.topics_interface,
       "pad_management/site_info",
-      rclcpp::QoS(10).reliable().transient_local(),
+      rclcpp::QoS(1000).reliable().transient_local(),
       std::bind(&SiteInfos::update, m_site_infos, std::placeholders::_1),
       options);
 
@@ -67,18 +75,38 @@ public:
       std::bind(&SiteSelector::m_set_parameters_callback, this, std::placeholders::_1));
   }
 
-  void set_current_site(const std::string & site_name) {m_current_site = site_name;}
+  void set_current_site(const std::string & site_name)
+  {
+    std::lock_guard<std::mutex> lock(m_current_site_mutex);
+    m_current_site = site_name;
+  }
+
+  std::optional<SiteInfo> get_current_site() const
+  {
+    std::string current_site;
+    {
+      std::lock_guard<std::mutex> lock(m_current_site_mutex);
+      current_site = m_current_site;
+    }
+    if (current_site.empty()) return std::nullopt;
+    return m_site_infos->get(current_site);
+  }
 
   std::optional<SiteInfo> select_takeoff_site() const
   {
-    if (m_current_site.empty()) {
+    std::string current_site;
+    {
+      std::lock_guard<std::mutex> lock(m_current_site_mutex);
+      current_site = m_current_site;
+    }
+    if (current_site.empty()) {
       RCLCPP_WARN(m_logger, "No current site set for takeoff.");
       return std::nullopt;
     }
     const auto sites = m_site_infos->get_all();
-    const auto current = sites.find(m_current_site);
+    const auto current = sites.find(current_site);
     if (current == sites.end()) {
-      RCLCPP_WARN(m_logger, "No SiteInfo received for current site '%s'.", m_current_site.c_str());
+      RCLCPP_WARN(m_logger, "No SiteInfo received for current site '%s'.", current_site.c_str());
       return std::nullopt;
     }
     return current->second;
@@ -141,6 +169,7 @@ private:
   std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
   std::shared_ptr<rclcpp::Subscription<SiteInfo>> m_site_info_subscriber;
   std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle;
+  mutable std::mutex m_current_site_mutex;
   std::string m_current_site;
   bool m_exclude_slow_pads{false};
   bool m_exclude_fast_pads{false};
