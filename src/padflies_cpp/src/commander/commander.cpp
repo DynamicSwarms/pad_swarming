@@ -258,12 +258,25 @@ PadflieCommander::m_handle_send_target_command(
     const padflies_interfaces::msg::SendTarget::SharedPtr msg) 
 {
     if (m_state == CommanderState::FLYING) {
-        PoseTarget target;
-        tf2::fromMsg(msg->target.pose, target.pose);
-        target.frame_id = msg->target.header.frame_id;
+        if (msg->mode_position) 
+        {
+            PoseTarget target;
+            tf2::fromMsg(msg->target.pose, target.pose);
+            target.frame_id = msg->target.header.frame_id;
 
-        target.use_yaw = msg->use_yaw;
-        target.collision_avoidance = msg->collision_avoidance;
-        m_hardware_actor->set_pose_target(target);
+            target.use_yaw = msg->use_yaw;
+            target.collision_avoidance = msg->collision_avoidance;
+            m_hardware_actor->set_pose_target(target);
+        } else 
+        {
+            VelocityTarget target;
+            tf2::fromMsg(msg->velocity.twist, target.velocity);
+            target.frame_id = msg->velocity.header.frame_id;
+            target.use_angular = msg->use_yaw_velocity;
+            target.collision_avoidance = msg->collision_avoidance;
+            m_hardware_actor->set_velocity_target(target);
+        }
+    } else {
+        RCLCPP_DEBUG(m_logger, "Ignoring send_target command because padflie is not flying.");
     }
 }

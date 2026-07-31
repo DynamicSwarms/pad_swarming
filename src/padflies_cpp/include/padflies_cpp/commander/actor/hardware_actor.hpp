@@ -26,18 +26,19 @@ enum ActorMode {
     VELOCITY_CONTROL
 };
 
-struct EigenVelocityStamped
-{
-    Eigen::Vector3d linear;
-    Eigen::Vector3d angular;
-    std::string frame_id;
-};
-
 struct PoseTarget
 {
     Eigen::Affine3d pose;
     std::string frame_id;
     bool use_yaw;
+    bool collision_avoidance;
+};
+
+struct VelocityTarget
+{
+    Eigen::Matrix<double, 6, 1> velocity;
+    std::string frame_id;
+    bool use_angular;
     bool collision_avoidance;
 };
 
@@ -63,10 +64,8 @@ public:
 
     bool set_pose_target(const PoseTarget & target_pose);
 
-    bool set_velocity_target(
-        const EigenVelocityStamped & velocity, 
-        bool use_angular = true);
-
+    bool set_velocity_target(const VelocityTarget & target_velocity);
+    
     bool go_to(
         const Eigen::Affine3d & target_pose,
         double duration,
@@ -97,7 +96,7 @@ public:
         };
 
     void get_target_velocity(
-        EigenVelocityStamped & target_velocity) const {
+        VelocityTarget & target_velocity) const {
             target_velocity = m_target_velocity;
         };
 
@@ -134,7 +133,7 @@ private: // Targets
     PoseTarget m_target_pose;
     bool m_fixed_yaw;
 
-    EigenVelocityStamped m_target_velocity;
+    VelocityTarget m_target_velocity;
     bool m_use_angular_velocity;
 
     double m_fixed_yaw_target = 0.0;

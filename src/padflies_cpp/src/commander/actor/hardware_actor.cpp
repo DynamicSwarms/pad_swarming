@@ -98,14 +98,13 @@ HardwareActor::set_pose_target(const PoseTarget& target_pose) {
 
 bool 
 HardwareActor::set_velocity_target(
-    const EigenVelocityStamped & velocity, 
-    bool use_angular)
+    const VelocityTarget & velocity)
 {
     if (m_state == ActorState::ERROR_STATE)
         return false;
 
     m_target_velocity = velocity;
-    m_use_angular_velocity = use_angular;
+    m_use_angular_velocity = velocity.use_angular;
     m_mode = ActorMode::VELOCITY_CONTROL;
 
     m_transition_to_low_level_commander();
