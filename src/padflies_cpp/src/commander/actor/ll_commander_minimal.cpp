@@ -35,12 +35,19 @@ LowLevelCommanderMinimal::LowLevelCommanderMinimal(
         m_cf_prefix + "/cmd_position", 
         10, 
         pub_options);
+
+    m_cmd_velocity_world_pub = rclcpp::create_publisher<crazyflie_interfaces::msg::VelocityWorld>(
+        node_topics_interface, 
+        m_cf_prefix + "/cmd_velocity_world", 
+        10, 
+        pub_options);
 }
 
 LowLevelCommanderMinimal::~LowLevelCommanderMinimal()
 {
     m_notify_setpoints_stop_client.reset();
     m_cmd_position_pub.reset();
+    m_cmd_velocity_world_pub.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
     RCLCPP_DEBUG(m_logger, "LowLevelCommanderMinimal destructor called for %s", m_cf_prefix.c_str());
 }
@@ -67,4 +74,17 @@ void LowLevelCommanderMinimal::cmd_position(
     msg.yaw = yaw;
 
     m_cmd_position_pub->publish(msg);
+}
+
+void LowLevelCommanderMinimal::cmd_velocity_world(
+    const Eigen::Vector3d & linear_velocity,
+    double yaw_rate)
+{
+    auto msg = crazyflie_interfaces::msg::VelocityWorld();
+    msg.vel.x = linear_velocity.x();
+    msg.vel.y = linear_velocity.y();
+    msg.vel.z = linear_velocity.z();
+    msg.yaw_rate = yaw_rate;
+
+    m_cmd_velocity_world_pub->publish(msg);
 }

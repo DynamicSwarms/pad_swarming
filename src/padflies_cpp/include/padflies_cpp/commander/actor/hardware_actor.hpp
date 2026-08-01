@@ -107,6 +107,9 @@ public:
 private: 
     void m_ll_command_timer_callback();
 
+    void m_do_cmd_position_update(Eigen::Vector3d & position);
+    void m_do_cmd_velocity_update(Eigen::Vector3d & position);
+
     void m_transition_to_low_level_commander();
     void m_transition_to_high_level_commander();
 

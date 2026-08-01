@@ -129,6 +129,28 @@ bool PadflieTF::affine3d_transform(
     return false;
 }
 
+bool 
+PadflieTF::velocity_transform(
+    const Eigen::Matrix<double, 6, 1>& src,
+    const std::string& source_frame,
+    const std::string& target_frame,
+    Eigen::Matrix<double, 6, 1>& dst)
+{
+    geometry_msgs::msg::TransformStamped transform;
+
+    if (!lookup_transform(target_frame, source_frame, transform)) {
+        return false;
+    }
+
+    const Eigen::Isometry3d T = tf2::transformToEigen(transform);
+    const Eigen::Matrix3d R = T.rotation();
+
+    dst.head<3>() = R * src.head<3>();
+    dst.tail<3>() = R * src.tail<3>();
+
+    return dst.allFinite();
+}
+
 bool PadflieTF::get_pad_position_and_yaw_or_timeout(
     rclcpp::Duration & timeout_sec,
     Eigen::Vector3d & position,

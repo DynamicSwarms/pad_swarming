@@ -54,6 +54,12 @@ public:
         const std::string & target_frame,
         Eigen::Affine3d & dst);
 
+    bool velocity_transform(
+        const Eigen::Matrix<double, 6, 1> & src,
+        const std::string & source_frame,
+        const std::string & target_frame,
+        Eigen::Matrix<double, 6, 1> & dst);
+
     /**
      * Get the position of the pad with a timeout.
      * If the pad is not found within the timeout it will raise an exception.

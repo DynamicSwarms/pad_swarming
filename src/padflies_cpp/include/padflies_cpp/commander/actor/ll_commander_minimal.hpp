@@ -4,6 +4,7 @@
 
 #include "crazyflie_interfaces/srv/notify_setpoints_stop.hpp"
 #include "crazyflie_interfaces/msg/position.hpp"
+#include "crazyflie_interfaces/msg/velocity_world.hpp"
 
 #include <Eigen/Dense>
 
@@ -34,6 +35,11 @@ public:
         double yaw
     );
 
+    void cmd_velocity_world(
+        const Eigen::Vector3d & linear_velocity,
+        double yaw_rate
+    );
+
 private: 
     std::string m_cf_prefix;
     rclcpp::Logger m_logger;
@@ -41,4 +47,5 @@ private:
 
     std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::NotifySetpointsStop>> m_notify_setpoints_stop_client;
     std::shared_ptr<rclcpp::Publisher<crazyflie_interfaces::msg::Position>> m_cmd_position_pub;
+    std::shared_ptr<rclcpp::Publisher<crazyflie_interfaces::msg::VelocityWorld>> m_cmd_velocity_world_pub;
 };

@@ -233,66 +233,110 @@ HardwareActor::m_ll_command_timer_callback()
             return;
         }
 
-        if (m_mode == ActorMode::VELOCITY_CONTROL || m_mode == ActorMode::NONE) 
+        if (m_mode == ActorMode::POSITION_CONTROL) 
         {
-            RCLCPP_INFO(m_logger, "Velocity Mode not supported yet.");
+            m_do_cmd_position_update(position);
+        } 
+        else if (m_mode == ActorMode::VELOCITY_CONTROL) 
+        {
+            m_do_cmd_velocity_update(position);
+        } 
+        else 
+        {
+            RCLCPP_WARN(m_logger, "Unknown mode in m_ll_command_timer_callback.");
+        }       
+    }
+}
+
+void HardwareActor::m_do_cmd_position_update(Eigen::Vector3d & position)
+{
+    geometry_msgs::msg::PoseStamped set_target_pose;
+    bool use_yaw, collision_avoidance;
+
+    unpack_pose_target(m_target_pose, set_target_pose, use_yaw, collision_avoidance);
+
+    Eigen::Vector3d target_position;
+    double target_yaw;
+    if (!m_padflie_tf->pose_stamped_to_world_position_and_yaw(set_target_pose, target_position, target_yaw))
+    {
+        // Target is not ok. Take last valid target. (Hover)
+        // Or take cf position (which is also a hover)
+        if (m_last_target_valid)
+        {
+            target_position = m_last_valid_target_position;
+            target_yaw = m_last_valid_target_yaw;
         }
-
-        geometry_msgs::msg::PoseStamped set_target_pose;
-        bool use_yaw;
-        bool collision_avoidance;
-
-        unpack_pose_target(m_target_pose, set_target_pose, use_yaw, collision_avoidance);
-
-        Eigen::Vector3d target_position;
-        double target_yaw;
-        if (!m_padflie_tf->pose_stamped_to_world_position_and_yaw(set_target_pose, target_position, target_yaw))
+        else
         {
-            // Target is not ok. Take last valid target. (Hover)
-            // Or take cf position (which is also a hover)
-            if (m_last_target_valid)
-            {
-                target_position = m_last_valid_target_position;
-                target_yaw = m_last_valid_target_yaw;
-            }
-            else
-            {
-                target_position = position; // Use current position as target
-                target_yaw = m_fixed_yaw_target; // Use current yaw
-            }
-            RCLCPP_INFO(m_logger, "Target pose not valid, using last valid target: (%f, %f, %f), yaw: %f",
-                        target_position.x(), target_position.y(), target_position.z(), target_yaw);
-        }
-        if (!use_yaw) target_yaw = m_fixed_yaw_target;
-
-        if (!std::isfinite(target_yaw))
-        {
-            RCLCPP_WARN(m_logger, "Target yaw is not finite. The set_target_pose is: (%f, %f, %f), quaternion: (%f, %f, %f, %f) ,frame_id: %s", 
-                        set_target_pose.pose.position.x, set_target_pose.pose.position.y, set_target_pose.pose.position.z,
-                        set_target_pose.pose.orientation.x, set_target_pose.pose.orientation.y, set_target_pose.pose.orientation.z, set_target_pose.pose.orientation.w,
-                        set_target_pose.header.frame_id.c_str());
+            target_position = position; // Use current position as target
             target_yaw = m_fixed_yaw_target; // Use current yaw
         }
+        RCLCPP_INFO(m_logger, "Target pose not valid, using last valid target: (%f, %f, %f), yaw: %f",
+                    target_position.x(), target_position.y(), target_position.z(), target_yaw);
+    }
+    if (!use_yaw) target_yaw = m_fixed_yaw_target;
 
-        bool collision = false;
-        if (collision_avoidance)
-        {
-            m_collision_avoidance_client->get_collision_avoidance_target(position, target_position, collision);
-        }
+    if (!std::isfinite(target_yaw))
+    {
+        RCLCPP_WARN(m_logger, "Target yaw is not finite. The set_target_pose is: (%f, %f, %f), quaternion: (%f, %f, %f, %f) ,frame_id: %s", 
+                    set_target_pose.pose.position.x, set_target_pose.pose.position.y, set_target_pose.pose.position.z,
+                    set_target_pose.pose.orientation.x, set_target_pose.pose.orientation.y, set_target_pose.pose.orientation.z, set_target_pose.pose.orientation.w,
+                    set_target_pose.header.frame_id.c_str());
+        target_yaw = m_fixed_yaw_target; // Use current yaw
+    }
 
-        m_position_controller.safe_command_position(position, target_position, collision);
-        double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
-        RCLCPP_DEBUG(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", m_current_yaw, target_yaw, safe_yaw);
-        m_current_yaw = safe_yaw; 
+    bool collision = false;
+    if (collision_avoidance)
+    {
+        m_collision_avoidance_client->get_collision_avoidance_target(position, target_position, collision);
+    }
 
-        
-        // This is for race conditions and should be removed if possible.
+    m_position_controller.safe_command_position(position, target_position, collision);
+    double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
+    RCLCPP_DEBUG(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", m_current_yaw, target_yaw, safe_yaw);
+    m_current_yaw = safe_yaw; 
+
+    
+    // This is for race conditions and should be removed if possible.
+    if (m_state == ActorState::LOW_LEVEL_COMMANDER)
+    {
+        m_ll_commander.cmd_position(target_position, safe_yaw * 180.0 / M_PI);
+    }
+}
+
+void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
+{
+    Eigen::Matrix<double, 6, 1> velocity_world;
+    if (m_padflie_tf->velocity_transform(m_target_velocity.velocity, m_target_velocity.frame_id, "world", velocity_world))
+    {
         if (m_state == ActorState::LOW_LEVEL_COMMANDER)
         {
-            m_ll_commander.cmd_position(target_position, safe_yaw * 180.0 / M_PI);
+            m_ll_commander.cmd_velocity_world(velocity_world.head<3>(), velocity_world(5));
+            m_current_yaw += velocity_world(5) * m_dt; // Update current yaw based on commanded yaw rate
         }
-        
+    } else {
+        RCLCPP_WARN(m_logger, "Failed to transform velocity from frame %s to world frame. Using last valid target position.", m_target_velocity.frame_id.c_str());
     }
+
+
+    //m_target_pose = PoseTarget{ Eigen::Affine3d::Identity(), "world", false, false };
+    //       
+    //            m_target_pose.pose.translation() = position +  velocity_world.head<3>() * m_dt;
+    //            const double yaw_target = m_current_yaw + velocity_world(5) * m_dt;
+    //            m_target_pose.pose.linear() = Eigen::AngleAxisd(yaw_target, Eigen::Vector3d::UnitZ()).toRotationMatrix();                m_target_pose.use_yaw = m_target_velocity.use_angular;
+    //            m_target_pose.collision_avoidance = m_target_velocity.collision_avoidance;
+//
+    //            RCLCPP_INFO(m_logger, "Velocity target: (%f, %f, %f), yaw rate: %f, frame_id: %s. Resulting position target: (%f, %f, %f), yaw: %f, frame_id: %s", 
+    //                m_target_velocity.velocity(0), m_target_velocity.velocity(1), m_target_velocity.velocity(2),
+    //                m_target_velocity.velocity(5),
+    //                m_target_velocity.frame_id.c_str(),
+    //                m_target_pose.pose.translation().x(), m_target_pose.pose.translation().y(), m_target_pose.pose.translation().z(),
+    //                std::atan2(m_target_pose.pose.rotation()(1, 0), m_target_pose.pose.rotation()(0, 0)),
+    //                m_target_pose.frame_id.c_str());
+    //        } else {
+    //            RCLCPP_WARN(m_logger, "Failed to transform velocity from frame %s to world frame. Using last valid target position.", m_target_velocity.frame_id.c_str());
+    //        }
+//
 }
 
 
