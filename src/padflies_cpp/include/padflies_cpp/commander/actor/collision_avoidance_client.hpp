@@ -29,7 +29,7 @@ public:
         Eigen::Vector3d & velocity,
         bool & collision,
         double radius = 0.15,
-        double max_speed = 5.0);
+        double max_speed = 0.8);
 
 private: 
     uint8_t m_cf_id;

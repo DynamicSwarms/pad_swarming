@@ -11,6 +11,7 @@
 
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>collision_avoidance_interfaces</depend>
 
 

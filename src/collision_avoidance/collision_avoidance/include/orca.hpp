@@ -10,6 +10,7 @@ struct ObjectInfo {
   Eigen::Vector2d position;
   Eigen::Vector2d preferred_velocity;
   Eigen::Vector2d velocity;
+  Eigen::Vector2d calculated_velocity;
   double radius;
   double max_speed;
   rclcpp::Time last_update;

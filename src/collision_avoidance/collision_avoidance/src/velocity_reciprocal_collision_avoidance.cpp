@@ -8,6 +8,7 @@
 #include "geometry_msgs/msg/vector3.hpp"
 #include "collision_avoidance_interfaces/srv/velocity_reciprocals_collision_avoidance.hpp"
 #include "orca.hpp"
+#include "velocity_reciprocal_visualizer.hpp"
 #include <cmath>
 #include <vector>
 #include <unordered_map>
@@ -78,9 +79,18 @@ public:
     const auto read_only =
       rcl_interfaces::msg::ParameterDescriptor().set__read_only(true);
     m_time_step = this->declare_parameter("time_step", 0.1, read_only);
-    m_time_horizon = this->declare_parameter("time_horizon", 1.0, read_only);
+    m_time_horizon = this->declare_parameter("time_horizon", 1.0);
     m_neighbor_distance =
       this->declare_parameter("neighbor_distance", 5.0, read_only);
+    m_publish_visualization =
+      this->declare_parameter("publish_visualization", false);
+    m_apply_collision_avoidance =
+      this->declare_parameter("apply_collision_avoidance", true);
+    if (m_publish_visualization) {
+      visualizer = std::make_unique<VelocityReciprocalVisualizer>(*this);
+    }
+    parameter_callback = this->add_on_set_parameters_callback(
+      std::bind(&CollisionAvoidanceNode::parameters_changed, this, _1));
     service = this->create_service<collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance>(
       "/velocity_reciprocal_collision_avoidance",
       std::bind(&CollisionAvoidanceNode::calculate_collisions, this, _1, _2)
@@ -98,11 +108,72 @@ private:
   rclcpp::Service<collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance>::SharedPtr service;
   rclcpp::TimerBase::SharedPtr cleanup_timer;
   std::unordered_map<uint8_t, ObjectInfo> active_objects;
+  std::unique_ptr<VelocityReciprocalVisualizer> visualizer;
+  bool m_publish_visualization;
+  bool m_apply_collision_avoidance;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
+    parameter_callback;
 
   double m_time_step;
   double m_time_horizon;
   double m_neighbor_distance;
 private: 
+  rcl_interfaces::msg::SetParametersResult parameters_changed(
+    const std::vector<rclcpp::Parameter> & parameters)
+  {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = false;
+
+    // Validate the complete update before changing any node state.
+    for (const auto & parameter : parameters) {
+      if (
+        parameter.get_name() == "publish_visualization" &&
+        parameter.get_type() != rclcpp::ParameterType::PARAMETER_BOOL)
+      {
+        result.reason = "publish_visualization must be a boolean";
+        return result;
+      }
+
+      if (
+        parameter.get_name() == "apply_collision_avoidance" &&
+        parameter.get_type() != rclcpp::ParameterType::PARAMETER_BOOL)
+      {
+        result.reason = "apply_collision_avoidance must be a boolean";
+        return result;
+      }
+
+      if (parameter.get_name() == "time_horizon") {
+        if (parameter.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE) {
+          result.reason = "time_horizon must be a double";
+          return result;
+        }
+        if (!std::isfinite(parameter.as_double()) || parameter.as_double() <= 0.0) {
+          result.reason = "time_horizon must be finite and greater than zero";
+          return result;
+        }
+      }
+    }
+
+    for (const auto & parameter : parameters) {
+      if (parameter.get_name() == "publish_visualization") {
+        m_publish_visualization = parameter.as_bool();
+        if (m_publish_visualization && !visualizer) {
+          visualizer = std::make_unique<VelocityReciprocalVisualizer>(*this);
+        } else if (!m_publish_visualization) {
+          visualizer.reset();
+        }
+      } else if (parameter.get_name() == "time_horizon") {
+        m_time_horizon = parameter.as_double();
+      } else if (parameter.get_name() == "apply_collision_avoidance") {
+        m_apply_collision_avoidance = parameter.as_bool();
+      }
+    }
+
+    result.successful = true;
+    result.reason.clear();
+    return result;
+  }
+
   void remove_old_objects() {
     RCLCPP_DEBUG(this->get_logger(), "Count: %ld", active_objects.size());
     rclcpp::Time current_time = this->now(); 
@@ -133,7 +204,7 @@ private:
       velocity = active_objects[id].velocity;
     }
     ObjectInfo self{
-      position, preferred_velocity, velocity, request->radius,
+      position, preferred_velocity, velocity, velocity, request->radius,
       request->max_speed, this->now()};
     active_objects[id] = self;
 
@@ -159,11 +230,17 @@ private:
         m_neighbor_distance,
         constrained);
 
-    active_objects[id].velocity = updated_velocity;
-    response->velocity.x = updated_velocity.x();
-    response->velocity.y = updated_velocity.y();
+    active_objects[id].calculated_velocity = updated_velocity;
+    const Eigen::Vector2d commanded_velocity =
+      m_apply_collision_avoidance ? updated_velocity : preferred_velocity;
+    active_objects[id].velocity = commanded_velocity;
+    response->velocity.x = commanded_velocity.x();
+    response->velocity.y = commanded_velocity.y();
     response->velocity.z = request->velocity.z;
     response->collision = constrained;
+    if (visualizer) {
+      visualizer->publish(active_objects, id);
+    }
   }
 
 
