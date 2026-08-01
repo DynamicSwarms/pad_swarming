@@ -1,0 +1,9 @@
+uint8 id # The id of the object
+geometry_msgs/Vector3 position  # the position of a possibly colliding object
+geometry_msgs/Vector3 velocity  # the target velocity of the object (if it is moving)
+
+float32 radius  # radius of the object (ignore 0 to use defaults)
+float32 max_speed  # maximum speed of the object (ignore 0 to use defaults)
+---
+geometry_msgs/Vector3 velocity  # target velocity that points away from all objects that fall in given range
+bool collision  # bool indicating if we adjusted the velocity due to potential collisions

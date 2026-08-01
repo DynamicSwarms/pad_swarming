@@ -14,6 +14,7 @@ find_package(rosidl_default_generators REQUIRED)
 # Generate service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/CollisionAvoidance.srv"
+  "srv/VelocityReciprocalsCollisionAvoidance.srv"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

@@ -29,7 +29,10 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "collision_avoidance_test = collision_avoidance_examples.collision_avoidance_test:main"
+            "collision_avoidance_test = collision_avoidance_examples.collision_avoidance_test:main",
+            "velocity_reciprocal_test = collision_avoidance_examples.velocity_reciprocal_test:main",
+            "velocity_reciprocal_scenarios = collision_avoidance_examples.velocity_reciprocal_scenarios:main",
+            "velocity_reciprocal_dynamic = collision_avoidance_examples.velocity_reciprocal_dynamic:main",
         ],
     },
 )
