@@ -309,9 +309,26 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
     Eigen::Matrix<double, 6, 1> velocity_world;
     if (m_padflie_tf->velocity_transform(m_target_velocity.velocity, m_target_velocity.frame_id, "world", velocity_world))
     {
+        Eigen::Vector3d safe_velocity = velocity_world.head<3>();
+        bool collision = false;
+        if (m_target_velocity.collision_avoidance)
+        {
+            m_collision_avoidance_client->get_collision_avoidance_velocity(
+                position, safe_velocity, collision);
+        }
+
+        if (collision)
+        {
+            RCLCPP_DEBUG(
+                m_logger,
+                "Velocity collision avoidance adjusted (%f, %f, %f) to (%f, %f, %f)",
+                velocity_world.x(), velocity_world.y(), velocity_world.z(),
+                safe_velocity.x(), safe_velocity.y(), safe_velocity.z());
+        }
+
         if (m_state == ActorState::LOW_LEVEL_COMMANDER)
         {
-            m_ll_commander.cmd_velocity_world(velocity_world.head<3>(), velocity_world(5));
+            m_ll_commander.cmd_velocity_world(safe_velocity, velocity_world(5));
             m_current_yaw += velocity_world(5) * m_dt; // Update current yaw based on commanded yaw rate
         }
     } else {

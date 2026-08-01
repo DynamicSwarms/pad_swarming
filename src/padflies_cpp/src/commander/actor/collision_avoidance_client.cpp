@@ -24,13 +24,57 @@ CollisionAvoidanceClient::CollisionAvoidanceClient(
         "collision_avoidance",
         rclcpp::ServicesQoS().keep_last(10),
         m_callback_groups[cf_id]);
+
+    m_velocity_client = rclcpp::create_client<
+        collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance>(
+        node_base_interface,
+        node_graph_interface,
+        node_services_interface,
+        "velocity_reciprocal_collision_avoidance",
+        rclcpp::ServicesQoS().keep_last(10),
+        m_callback_groups[cf_id]);
 }
 
 CollisionAvoidanceClient::~CollisionAvoidanceClient()
 {
     m_client.reset();
+    m_velocity_client.reset();
     // m_callback_group.reset(); // See note above about m_callback_group
     RCLCPP_DEBUG(m_logger, "CollisionAvoidanceClient destructor called");
+}
+
+void CollisionAvoidanceClient::get_collision_avoidance_velocity(
+    const Eigen::Vector3d & position,
+    Eigen::Vector3d & velocity,
+    bool & collision,
+    double radius,
+    double max_speed)
+{
+    if (!m_velocity_client) return;
+
+    using VelocityService =
+        collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance;
+    auto request = std::make_shared<VelocityService::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+    request->velocity.x = velocity.x();
+    request->velocity.y = velocity.y();
+    request->velocity.z = velocity.z();
+    request->radius = radius;
+    request->max_speed = max_speed;
+
+    auto result = m_velocity_client->async_send_request(request);
+    auto status = result.wait_for(std::chrono::milliseconds(100));
+    if (status == std::future_status::ready)
+    {
+        auto response = result.get();
+        velocity.x() = response->velocity.x;
+        velocity.y() = response->velocity.y;
+        velocity.z() = response->velocity.z;
+        collision = response->collision;
+    }
 }
 
 void CollisionAvoidanceClient::get_collision_avoidance_target(

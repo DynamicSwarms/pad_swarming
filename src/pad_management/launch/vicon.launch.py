@@ -223,6 +223,11 @@ def generate_launch_description():
         package="collision_avoidance", executable="collision_avoidance_node"
     )
 
+    velocity_reciprocal_collision_avoidance = Node(
+        package="collision_avoidance",
+        executable="velocity_reciprocal_collision_avoidance",
+    )
+
     pad_circle = Node(
         package="pad_management",
         executable="pad_land_circle",
@@ -236,6 +241,7 @@ def generate_launch_description():
             simulation_elements,
             pad_broadcaster,
             collision_avoidance,
+            velocity_reciprocal_collision_avoidance,
             pad_circle,
             OpaqueFunction(
                 function=lambda ctxt: generate_padflies(
