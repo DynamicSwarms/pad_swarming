@@ -1,0 +1,33 @@
+flies:
+  - id: 0
+    pad: 0
+    channel: 80
+    initial_position: [0.0, -0.2, 0.0]
+  - id: 1
+    pad: 1
+    channel: 80
+    initial_position: [0.0, -0.4, 0.0]
+  - id: 2
+    pad: 2
+    channel: 80
+    initial_position: [0.0, -0.6, 0.0]
+  - id: 3
+    pad: 3
+    channel: 80
+    initial_position: [0.0, -0.8, 0.0]
+  - id: 4
+    pad: 4
+    channel: 80
+    initial_position: [0.0, -1.0, 0.0]
+  - id: 5
+    pad: 5
+    channel: 80
+    initial_position: [0.0, -1.2, 0.0]
+  - id: 6
+    pad: 6
+    channel: 80
+    initial_position: [0.0, -1.4, 0.0]
+  - id: 7
+    pad: 7
+    channel: 80
+    initial_position: [-0.2, 0.0, 0.0]

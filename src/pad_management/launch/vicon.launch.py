@@ -6,7 +6,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
 )
-from launch.conditions import IfCondition, LaunchConfigurationNotEquals, LaunchConfigurationEquals
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import EqualsSubstitution, IfElseSubstitution, LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
@@ -16,8 +16,13 @@ import os
 import yaml
 
 
-def generate_padflies(backend: str):
-    if backend == "simulation":
+def generate_padflies(context):
+    backend = LaunchConfiguration("backend").perform(context)
+    sitl = LaunchConfiguration("sitl").perform(context).lower() == "true"
+
+    if backend == "hardware" and sitl:
+        yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sitl.yaml"
+    elif backend == "simulation":
         yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sim.yaml"
     elif backend == "hardware":
         yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_vicon.yaml"
@@ -45,6 +50,7 @@ def generate_padflies(backend: str):
         package="pad_management_cpp",
         executable="pad_right_provider"
     )
+
 
 def simulation_group():
     simulation_gateway = Node(
@@ -106,11 +112,19 @@ def hardware_group():
              "/launch/hardware.launch.py"]
         ),
         launch_arguments={
-            "crazyflie_configuration_yaml": get_package_share_directory(
-                "pad_management"
-            )
-            + "/config/crazyflie_config_vicon.yaml",  # Default params
-            "radio_channels": "50, 100",  # Could read from hardware config??
+            "crazyflie_configuration_yaml": IfElseSubstitution(
+                condition=LaunchConfiguration("sitl"),
+                if_value=get_package_share_directory("pad_management")
+                + "/config/crazyflie_config_sitl.yaml",
+                else_value=get_package_share_directory("pad_management")
+                + "/config/crazyflie_config_vicon.yaml",
+            ),
+            "radio_channels": IfElseSubstitution(
+                condition=LaunchConfiguration("sitl"),
+                if_value="80",
+                else_value="50, 100",
+            ),
+            "sitl_udp_radio": LaunchConfiguration("sitl"),
         }.items(),
     )
 
@@ -174,13 +188,79 @@ def hardware_group():
         ],
     )
 
-    return [hardware_gateway, motion_caputre, object_tracker, point_finder, creator, pad_circle]
+    vicon_elements = GroupAction(
+        actions=[motion_caputre, object_tracker, point_finder, creator, pad_circle],
+        condition=UnlessCondition(LaunchConfiguration("sitl")),
+    )
+
+    sitl_creator = Node(
+        package="pad_management",
+        executable="default_creator",
+        parameters=[
+            {
+                "setup_yaml": get_package_share_directory("pad_management")
+                + "/config/flies_config_sitl.yaml"
+            }
+        ],
+    )
+
+    sitl_charging_base = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--x", "0.0", "--y", "0.0", "--z", "0.0",
+            "--yaw", "3.14159", "--pitch", "0.0", "--roll", "0.0",
+            "--frame-id", "world", "--child-frame-id", "ChargingBase20",
+        ],
+    )
+
+    sitl_pad_circle = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--x", "0.5", "--y", "0.8", "--z", "1.0",
+            "--yaw", "0.0", "--pitch", "0.0", "--roll", "0.0",
+            "--frame-id", "ChargingBase20", "--child-frame-id", "pad_circle",
+        ],
+    )
+
+    sitl_container = Node(
+        package="crazyflie_sitl",
+        executable="container",
+        name="crazyflie_sitl_container",
+        parameters=[
+            {
+                "crazyflie_configuration": get_package_share_directory(
+                    "pad_management"
+                )
+                + "/config/crazyflie_sitl_container.yaml"
+            }
+        ],
+        output="screen",
+    )
+
+    sitl_elements = GroupAction(
+        actions=[
+            sitl_container,
+            sitl_creator,
+            sitl_charging_base,
+            sitl_pad_circle,
+        ],
+        condition=IfCondition(LaunchConfiguration("sitl")),
+    )
+
+    return [hardware_gateway, vicon_elements, sitl_elements]
 
 def generate_launch_description():
     backend_arg = DeclareLaunchArgument(
         "backend",
         default_value="simulation",
-        description="Select used backend, choose 'simulation', 'hardware' or 'both'.",
+        description="Select used backend: 'simulation' or 'hardware'.",
+    )
+    sitl_arg = DeclareLaunchArgument(
+        "sitl",
+        default_value="false",
+        description="Use SITL through the hardware UDP-radio backend.",
     )
     
     
@@ -205,14 +285,22 @@ def generate_launch_description():
         get_package_share_directory("pad_management")
         + "/config/pads_config_sim.yaml"
     )
+    pads_sitl_yaml = (
+        get_package_share_directory("pad_management")
+        + "/config/pads_config_sitl.yaml"
+    )
     pad_broadcaster = Node(
         package="pad_management",
         executable="pad_broadcaster",
         parameters=[
             {"pad_yaml": IfElseSubstitution(
                 condition=EqualsSubstitution(LaunchConfiguration("backend"), "hardware"),
-                if_value=pads_hardware_yaml,
-                else_value=pads_simulation_yaml
+                if_value=IfElseSubstitution(
+                    condition=LaunchConfiguration("sitl"),
+                    if_value=pads_sitl_yaml,
+                    else_value=pads_hardware_yaml,
+                ),
+                else_value=pads_simulation_yaml,
             ),
              "pad_size": 0.2,
              "base": "ChargingBase20"}
@@ -237,16 +325,13 @@ def generate_launch_description():
     return LaunchDescription(
         [
             backend_arg,
+            sitl_arg,
             hardware_elements,
             simulation_elements,
             pad_broadcaster,
             collision_avoidance,
             velocity_reciprocal_collision_avoidance,
             pad_circle,
-            OpaqueFunction(
-                function=lambda ctxt: generate_padflies(
-                    LaunchConfiguration("backend").perform(ctxt),
-                )
-            ),
+            OpaqueFunction(function=generate_padflies),
         ]
     )

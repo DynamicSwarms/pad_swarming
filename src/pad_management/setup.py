@@ -19,11 +19,15 @@ for launch_file in launch_files:
 config_files = [
     "config/crazyflie_config_lighthouse.yaml",
     "config/crazyflie_config_vicon.yaml",
+    "config/crazyflie_config_sitl.yaml",
+    "config/crazyflie_sitl_container.yaml",
     "config/flies_config_lighthouse.yaml",
     "config/flies_config_vicon.yaml",
+    "config/flies_config_sitl.yaml",
     "config/flies_config_sim.yaml",
     "config/pads_config_sim.yaml",
     "config/pads_config_vicon.yaml",
+    "config/pads_config_sitl.yaml",
     "config/tracker_config.yaml",
     "config/webots_config.yaml",
 ]

@@ -66,15 +66,22 @@ class DefaultCreator(Node):
                 return  # We already try to create.
 
             # Add the crazyflie to be created by creator
-            self.adder.enqueue_creation(cf_id, cf_channel=flie["channel"])
+            self.adder.enqueue_creation(
+                cf_id,
+                cf_channel=flie["channel"],
+                initial_position=flie.get("initial_position", [0.0, 0.0, 0.0]),
+            )
             self.added.append(cf_id)
 
-    def on_add_callback(self, cf_id: int, success: bool):
+    def on_add_callback(self, cf_id: int, success: bool, msg: str):
         do_transition = False
         with self.added_lock:
             if success:
                 do_transition = True
             else:
+                self.get_logger().warning(
+                    f"Failed to add Crazyflie {cf_id}: {msg}"
+                )
                 if cf_id in self.added:
                     self.added.remove(cf_id)  # Retrry creation
 
