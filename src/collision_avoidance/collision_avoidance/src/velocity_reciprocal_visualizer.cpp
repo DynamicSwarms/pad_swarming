@@ -34,10 +34,10 @@ void VelocityReciprocalVisualizer::publish(
   const std::unordered_map<uint8_t, ObjectInfo> & objects,
   std::optional<uint8_t> updated_id)
 {
-  const auto updated = updated_id ? objects.find(*updated_id) : objects.end();
-  if (updated != objects.end()) {
-    auto & trail = trails_[*updated_id];
-    trail.push_back(point(updated->second.position.x(), updated->second.position.y()));
+  for (const auto & [id, object] : objects) {
+    if (updated_id && id != *updated_id) continue;
+    auto & trail = trails_[id];
+    trail.push_back(point(object.position.x(), object.position.y()));
     if (trail.size() > kMaximumTrailPoints) {
       trail.pop_front();
     }

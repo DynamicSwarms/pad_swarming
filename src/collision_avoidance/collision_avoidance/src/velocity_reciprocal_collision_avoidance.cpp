@@ -5,11 +5,13 @@
 #include <cstdio>
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/executors.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
 #include "collision_avoidance_interfaces/srv/velocity_reciprocals_collision_avoidance.hpp"
 #include "orca.hpp"
 #include "velocity_reciprocal_visualizer.hpp"
 #include <cmath>
+#include <mutex>
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
@@ -81,19 +83,23 @@ public:
     m_time_step = this->declare_parameter("time_step", 0.1, read_only);
     m_time_horizon = this->declare_parameter("time_horizon", 1.0);
     m_neighbor_distance =
-      this->declare_parameter("neighbor_distance", 5.0, read_only);
+      this->declare_parameter("neighbor_distance", 1.0, read_only);
     m_publish_visualization =
       this->declare_parameter("publish_visualization", false);
     m_apply_collision_avoidance =
       this->declare_parameter("apply_collision_avoidance", true);
     if (m_publish_visualization) {
-      visualizer = std::make_unique<VelocityReciprocalVisualizer>(*this);
+      visualizer = std::make_shared<VelocityReciprocalVisualizer>(*this);
     }
+    reentrant_callback_group = this->create_callback_group(
+      rclcpp::CallbackGroupType::Reentrant);
     parameter_callback = this->add_on_set_parameters_callback(
       std::bind(&CollisionAvoidanceNode::parameters_changed, this, _1));
     service = this->create_service<collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance>(
       "/velocity_reciprocal_collision_avoidance",
-      std::bind(&CollisionAvoidanceNode::calculate_collisions, this, _1, _2)
+      std::bind(&CollisionAvoidanceNode::calculate_collisions, this, _1, _2),
+      rclcpp::ServicesQoS(),
+      reentrant_callback_group
     );
     
 
@@ -101,14 +107,26 @@ public:
       this,
       this->get_clock(),
       std::chrono::milliseconds(200),
-      std::bind(&CollisionAvoidanceNode::remove_old_objects, this)
+      std::bind(&CollisionAvoidanceNode::remove_old_objects, this),
+      reentrant_callback_group
+    );
+    visualization_timer = rclcpp::create_timer(
+      this,
+      this->get_clock(),
+      std::chrono::milliseconds(100),
+      std::bind(&CollisionAvoidanceNode::publish_visualization, this),
+      reentrant_callback_group
     );
   } 
 private: 
   rclcpp::Service<collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance>::SharedPtr service;
   rclcpp::TimerBase::SharedPtr cleanup_timer;
+  rclcpp::TimerBase::SharedPtr visualization_timer;
+  rclcpp::CallbackGroup::SharedPtr reentrant_callback_group;
   std::unordered_map<uint8_t, ObjectInfo> active_objects;
-  std::unique_ptr<VelocityReciprocalVisualizer> visualizer;
+  std::shared_ptr<VelocityReciprocalVisualizer> visualizer;
+  std::mutex state_mutex;
+  std::mutex visualizer_mutex;
   bool m_publish_visualization;
   bool m_apply_collision_avoidance;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
@@ -154,20 +172,27 @@ private:
       }
     }
 
-    for (const auto & parameter : parameters) {
-      if (parameter.get_name() == "publish_visualization") {
-        m_publish_visualization = parameter.as_bool();
-        if (m_publish_visualization && !visualizer) {
-          visualizer = std::make_unique<VelocityReciprocalVisualizer>(*this);
-        } else if (!m_publish_visualization) {
-          if (visualizer) visualizer->clear();
-          visualizer.reset();
+    std::shared_ptr<VelocityReciprocalVisualizer> visualizer_to_clear;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex);
+      for (const auto & parameter : parameters) {
+        if (parameter.get_name() == "publish_visualization") {
+          m_publish_visualization = parameter.as_bool();
+          if (m_publish_visualization && !visualizer) {
+            visualizer = std::make_shared<VelocityReciprocalVisualizer>(*this);
+          } else if (!m_publish_visualization) {
+            visualizer_to_clear = std::move(visualizer);
+          }
+        } else if (parameter.get_name() == "time_horizon") {
+          m_time_horizon = parameter.as_double();
+        } else if (parameter.get_name() == "apply_collision_avoidance") {
+          m_apply_collision_avoidance = parameter.as_bool();
         }
-      } else if (parameter.get_name() == "time_horizon") {
-        m_time_horizon = parameter.as_double();
-      } else if (parameter.get_name() == "apply_collision_avoidance") {
-        m_apply_collision_avoidance = parameter.as_bool();
       }
+    }
+    if (visualizer_to_clear) {
+      std::lock_guard<std::mutex> lock(visualizer_mutex);
+      visualizer_to_clear->clear();
     }
 
     result.successful = true;
@@ -176,23 +201,33 @@ private:
   }
 
   void remove_old_objects() {
-    RCLCPP_DEBUG(this->get_logger(), "Count: %ld", active_objects.size());
     rclcpp::Time current_time = this->now(); 
     rclcpp::Duration threshold(0, 200000000); // 0.2 seconds (200,000,000 nanoseconds)
 
-    bool removed_object = false;
+    std::lock_guard<std::mutex> lock(state_mutex);
+    RCLCPP_DEBUG(this->get_logger(), "Count: %ld", active_objects.size());
     for (auto it = active_objects.begin(); it != active_objects.end(); ) {
           if (current_time - it->second.last_update > threshold) {
               // RCLCPP_INFO(this->get_logger(), "Removing object ID: %d", it->first);
               it = active_objects.erase(it);  // Remove object and get next iterator
-              removed_object = true;
           } else {
               ++it;  // Move to the next item
           }
       }
-    if (removed_object && visualizer) {
-      visualizer->publish(active_objects);
+  }
+
+  void publish_visualization()
+  {
+    std::unordered_map<uint8_t, ObjectInfo> objects;
+    std::shared_ptr<VelocityReciprocalVisualizer> current_visualizer;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex);
+      if (!visualizer) return;
+      objects = active_objects;
+      current_visualizer = visualizer;
     }
+    std::lock_guard<std::mutex> lock(visualizer_mutex);
+    current_visualizer->publish(objects);
   }
   
   void calculate_collisions(
@@ -203,27 +238,32 @@ private:
     uint8_t id = request->id;
     Eigen::Vector2d position(request->position.x,request->position.y);
     Eigen::Vector2d preferred_velocity(request->velocity.x,request->velocity.y);
-    Eigen::Vector2d velocity;
-    if (active_objects.find(id) == active_objects.end()) {
-      velocity = preferred_velocity;
-    } else {
-      velocity = active_objects[id].velocity;
-    }
-    ObjectInfo self{
-      position, preferred_velocity, velocity, velocity, request->radius,
-      request->max_speed, this->now()};
-    active_objects[id] = self;
-
+    ObjectInfo self;
     std::vector<ObjectInfo> neighbors;
-    neighbors.reserve(
-        active_objects.size() > 0
-          ? active_objects.size() - 1
-          : 0);
+    double time_horizon;
+    double time_step;
+    double neighbor_distance;
+    bool apply_collision_avoidance;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex);
+      const auto previous = active_objects.find(id);
+      const Eigen::Vector2d velocity = previous == active_objects.end() ?
+        preferred_velocity : previous->second.velocity;
+      self = {
+        position, preferred_velocity, velocity, velocity, request->radius,
+        request->max_speed, this->now()};
+      active_objects[id] = self;
 
-    for (const auto &[other_id, object] : active_objects) {
-      if (other_id != id) {
-        neighbors.push_back(object);
+      neighbors.reserve(active_objects.size() > 0 ? active_objects.size() - 1 : 0);
+      for (const auto &[other_id, object] : active_objects) {
+        if (other_id != id) {
+          neighbors.push_back(object);
+        }
       }
+      time_horizon = m_time_horizon;
+      time_step = m_time_step;
+      neighbor_distance = m_neighbor_distance;
+      apply_collision_avoidance = m_apply_collision_avoidance;
     }
 
     bool constrained = false;
@@ -231,22 +271,25 @@ private:
       calculate_orca_velocity(
         self,
         neighbors,
-        m_time_horizon,
-        m_time_step,
-        m_neighbor_distance,
+        time_horizon,
+        time_step,
+        neighbor_distance,
         constrained);
 
-    active_objects[id].calculated_velocity = updated_velocity;
     const Eigen::Vector2d commanded_velocity =
-      m_apply_collision_avoidance ? updated_velocity : preferred_velocity;
-    active_objects[id].velocity = commanded_velocity;
+      apply_collision_avoidance ? updated_velocity : preferred_velocity;
+    {
+      std::lock_guard<std::mutex> lock(state_mutex);
+      const auto current = active_objects.find(id);
+      if (current != active_objects.end() && current->second.last_update == self.last_update) {
+        current->second.calculated_velocity = updated_velocity;
+        current->second.velocity = commanded_velocity;
+      }
+    }
     response->velocity.x = commanded_velocity.x();
     response->velocity.y = commanded_velocity.y();
     response->velocity.z = request->velocity.z;
     response->collision = constrained;
-    if (visualizer) {
-      visualizer->publish(active_objects, id);
-    }
   }
 
 
@@ -259,7 +302,10 @@ int main(int argc, char ** argv)
   (void) argv;
   rclcpp::init(argc, argv);
   auto node = std::make_shared<CollisionAvoidanceNode>();
-  rclcpp::spin(node);
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
+  executor.remove_node(node);
   rclcpp::shutdown();
 
   return 0;

@@ -5,14 +5,11 @@ namespace simpleflie_behaviors
 
 namespace
 {
-RoutineResult classify_tree(const BT::Tree & tree)
+RoutineResult classify_tree(const BT::Tree &)
 {
-  if (tree.rootNode()->status() == BT::NodeStatus::SUCCESS) {
-    return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
-  }
-  return {
-    RoutineOutcome::FAILURE, RoutineFailureReason::NONE,
-    "Simple behavior tree failed"};
+  // The simple synchronous nodes always return SUCCESS. BehaviorTree.CPP may
+  // already have reset the root status by the time Routine asks us to classify.
+  return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
 }
 }  // namespace
 

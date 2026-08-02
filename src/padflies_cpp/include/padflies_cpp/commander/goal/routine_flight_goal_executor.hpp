@@ -118,17 +118,21 @@ private:
 
   std::shared_ptr<Routine> create_deploy_routine()
   {
-    const auto site = m_site_selector->select_takeoff_site();
-    if (!site || site->takeoff_plugin_name.empty()) return {};
+    auto site = m_site_selector->select_takeoff_site();
+    if (!site || site->takeoff_plugin_name.empty()) {
+      site = create_simple_fallback_site();
+    }
     m_site_after_success.clear();
     return m_routine_factory->create_takeoff_routine(*site);
   }
 
   std::shared_ptr<Routine> create_return_routine()
   {
-    const auto site = m_site_selector->select_landing_site();
-    if (!site) return {};
-    m_site_after_success = site->name;
+    auto site = m_site_selector->select_landing_site();
+    if (!site) {
+      site = create_simple_fallback_site();
+    }
+    m_site_after_success = site->name == kFallbackSiteName ? "" : site->name;
     return m_routine_factory->create_land_routine(*site);
   }
 
@@ -138,6 +142,16 @@ private:
     if (!site) return {};
     m_site_after_success = site->name;
     return m_routine_factory->create_land_routine(*site);
+  }
+
+  SiteSelector::SiteInfo create_simple_fallback_site() const
+  {
+    SiteSelector::SiteInfo site;
+    site.name = kFallbackSiteName;
+    site.available = true;
+    site.takeoff_plugin_name = "simpleflie_behaviors::SimpleTakeoffPlugin";
+    site.landing_plugin_name = "simpleflie_behaviors::SimpleLandingPlugin";
+    return site;
   }
 
   void routine_finished(RoutineResult result)
@@ -177,6 +191,7 @@ private:
   std::string m_site_after_success;
   FlightGoalKind m_active_goal_kind{FlightGoalKind::DEPLOY};
   GoalRetryPolicy m_retry_policy{GoalRetryPolicy::NEVER};
+  static constexpr const char * kFallbackSiteName = "__simple_flight_fallback__";
 };
 
 }  // namespace padflies_cpp::commander

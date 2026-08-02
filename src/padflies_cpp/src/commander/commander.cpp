@@ -138,7 +138,7 @@ void PadflieCommander::m_on_state_callback()
 
     const auto current_site = m_site_selector->get_current_site();
     if (!current_site) {
-        RCLCPP_WARN(m_logger, "Cannot publish availability without current SiteInfo.");
+        RCLCPP_DEBUG(m_logger, "Cannot publish availability without current SiteInfo.");
         return;
     }
 
