@@ -150,6 +150,20 @@ public:
     return closest->second;
   }
 
+  std::optional<SiteInfo> select_landing_site(const std::string & site_name) const
+  {
+    const auto site = m_site_infos->get(site_name);
+    if (!site) {
+      RCLCPP_WARN(m_logger, "No SiteInfo received for landing site '%s'.", site_name.c_str());
+      return std::nullopt;
+    }
+    if (!site->available || site->landing_plugin_name.empty()) {
+      RCLCPP_WARN(m_logger, "Landing site '%s' is not available.", site_name.c_str());
+      return std::nullopt;
+    }
+    return site;
+  }
+
 private:
   rcl_interfaces::msg::SetParametersResult m_set_parameters_callback(
     const std::vector<rclcpp::Parameter> & parameters)

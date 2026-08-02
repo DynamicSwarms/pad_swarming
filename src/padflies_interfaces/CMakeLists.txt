@@ -14,6 +14,8 @@ find_package(pad_management_interfaces REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Connect.srv"
+  "srv/DeployTo.srv"
+  "srv/ReturnTo.srv"
   "msg/AvailabilityInfo.msg"
   "msg/SendTarget.msg"
   "msg/PadflieInfo.msg"

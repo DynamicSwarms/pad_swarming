@@ -77,7 +77,8 @@ static BT::Tree create_tree(
 }
 
 BT::Tree PadflieTakeoffPlugin::getTree(
-  BT::BehaviorTreeFactory & factory, std::shared_ptr<HardwareActor> hardware_actor,
+  BT::BehaviorTreeFactory & factory, 
+  std::shared_ptr<HardwareActor> hardware_actor,
   std::shared_ptr<PadflieTF> padflie_tf,
   const pad_management_interfaces::msg::SiteInfo & site_info)
 {
@@ -93,7 +94,8 @@ BT::Tree PadflieTakeoffPlugin::getTree(
 }
 
 BT::Tree PadflieLandingPlugin::getTree(
-  BT::BehaviorTreeFactory & factory, std::shared_ptr<HardwareActor> hardware_actor,
+  BT::BehaviorTreeFactory & factory, 
+  std::shared_ptr<HardwareActor> hardware_actor,
   std::shared_ptr<PadflieTF> padflie_tf,
   const pad_management_interfaces::msg::SiteInfo & site_info)
 {

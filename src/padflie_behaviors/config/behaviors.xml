@@ -3,19 +3,21 @@
   <BehaviorTree ID="LandBehavior">
     <Sequence>
       <LandInit status="{status}"/>
-      <ReactiveSequence>
-        <SendFeedback pad_client="{client}"
-                      status="{status}"/>
-        <TimeoutROS timeout_ms="40000">
-          <Parallel failure_count="1"
-                    success_count="1">
-            <ApproachIDLE pad_client="{client}"
-                          status="{status}"/>
-            <GetPadRight pad_client="{client}"
-                         action="LAND"/>
-          </Parallel>
-        </TimeoutROS>
-      </ReactiveSequence>
+      <Interruptable>
+        <ReactiveSequence>
+          <SendFeedback pad_client="{client}"
+                        status="{status}"/>
+          <TimeoutROS timeout_ms="40000">
+            <Parallel failure_count="1"
+                      success_count="1">
+              <ApproachIDLE pad_client="{client}"
+                            status="{status}"/>
+              <GetPadRight pad_client="{client}"
+                           action="LAND"/>
+            </Parallel>
+          </TimeoutROS>
+        </ReactiveSequence>
+      </Interruptable>
       <TryFinally>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
@@ -39,14 +41,16 @@
   <BehaviorTree ID="TakeoffBehavior">
     <Sequence>
       <TakeoffInit status="{status}"/>
-      <ReactiveSequence>
-        <SendFeedback pad_client="{client}"
-                      status="{status}"/>
-        <TimeoutROS timeout_ms="20000">
-          <GetPadRight pad_client="{client}"
-                       action="TAKEOFF"/>
-        </TimeoutROS>
-      </ReactiveSequence>
+      <Interruptable>
+        <ReactiveSequence>
+          <SendFeedback pad_client="{client}"
+                        status="{status}"/>
+          <TimeoutROS timeout_ms="20000">
+            <GetPadRight pad_client="{client}"
+                         action="TAKEOFF"/>
+          </TimeoutROS>
+        </ReactiveSequence>
+      </Interruptable>
       <TryFinally>
         <ReactiveSequence>
           <HasPadRight pad_client="{client}"/>
@@ -101,6 +105,8 @@
       <input_port name="pad_client"
                   type="std::shared_ptr&lt;PadClient&gt;"/>
     </Condition>
+    <Decorator ID="Interruptable"
+               editable="true"/>
     <Action ID="Land"
             editable="true">
       <input_port name="pad_client"

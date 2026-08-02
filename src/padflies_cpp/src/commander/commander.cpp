@@ -1,16 +1,11 @@
 #include "padflies_cpp/commander/commander.hpp"
 
-#include "padflies_cpp/commander/command/command_land.hpp"
-#include "padflies_cpp/commander/command/command_takeoff.hpp"
-#include "padflies_cpp/commander/command/completion_handler_trigger.hpp"
-
 PadflieCommander::PadflieCommander(
     const std::string & prefix,
     const std::string & cf_prefix,
     padflies_cpp::NodeInterfacesBundle node_interfaces_bundle
 )
 : PadflieCommanderBase(prefix, cf_prefix, node_interfaces_bundle)
-, ICommandContext()
 , m_node_base_interface(node_interfaces_bundle.base_interface)
 , m_node_timers_interface(node_interfaces_bundle.timers_interface)
 , m_node_clock_interface(node_interfaces_bundle.clock_interface)
@@ -21,63 +16,30 @@ PadflieCommander::PadflieCommander(
 , m_routine_factory(std::make_shared<RoutineFactory>(
     node_interfaces_bundle,
     m_logger))
-, m_clock(node_interfaces_bundle.clock_interface->get_clock())
 {
-    m_command_queue_timer = rclcpp::create_timer(
-        node_interfaces_bundle.base_interface,
-        node_interfaces_bundle.timers_interface,
-        node_interfaces_bundle.clock_interface->get_clock(),
-        std::chrono::milliseconds(100), // 10 Hz
-        std::bind(&PadflieCommander::m_command_queue_execute, this),
-        m_callback_group
+    using namespace padflies_cpp::commander;
+    m_goal_executor = std::make_unique<RoutineFlightGoalExecutor>(
+        m_routine_factory,
+        m_site_selector,
+        [this]() {
+            return m_hw_state_controller.is_flying();
+        },
+        [this](FlightGoalKind goal_kind) {
+            m_on_goal_started(goal_kind);
+        },
+        [this](FlightGoalKind goal_kind, GoalResult result) {
+            m_on_goal_finished(goal_kind, std::move(result));
+        }
     );
+    m_goal_manager = std::make_unique<FlightGoalManager>(
+        *m_goal_executor,
+        std::make_shared<RclcppCommanderEventSink>(m_logger));
 }
 
-void
-PadflieCommander::m_command_queue_execute()
+PadflieCommander::~PadflieCommander()
 {
-    std::lock_guard<std::mutex> lock(m_command_queue_mutex);
-
-    if (m_command_queue.empty()) return;
-
-    std::shared_ptr<Command> command = m_command_queue.front();
-    if (!command->has_been_started()) 
-    {
-        if (!command->preconditions_are_met(*this)) {
-            RCLCPP_WARN(m_logger, "Preconditions for command not met, skipping command.");
-            command->abort(); // No state update here??
-            m_command_queue.pop();
-            return;
-        }
-        RCLCPP_INFO(m_logger, "Starting command with target state %d", static_cast<int>(command->get_target_state()));
-        if (!command->start()) {
-            RCLCPP_ERROR(m_logger, "Could not start command: no suitable site or behavior plugin available.");
-            m_command_queue.pop();
-            return;
-        }
-        m_command_start_time = m_clock->now(); 
-        m_state = command->get_working_state();
-    }
-
-    command->update();
-
-    if (command->is_finished()) {
-        m_state = command->get_target_state();
-        auto duration = m_clock->now() - m_command_start_time;
-        RCLCPP_INFO(m_logger, "Command finished with target state %d in %f seconds", static_cast<int>(command->get_target_state()), duration.seconds());
-        m_command_queue.pop();
-    }
-}
-
-void 
-PadflieCommander::m_command_queue_on_deactivate()
-{
-    std::lock_guard<std::mutex> lock(m_command_queue_mutex);
-    if (m_command_queue.empty()) return;
-
-    std::shared_ptr<Command> command = m_command_queue.front();
-    if (command->is_running()) {
-        command->halt();
+    if (m_goal_manager) {
+        m_goal_manager->cancel_all_goals("Commander is being destroyed");
     }
 }
 
@@ -96,25 +58,6 @@ PadflieCommander::get_home_state() const
     return m_state != CommanderState::FLYING;
 }
 
-bool 
-PadflieCommander::can_takeoff() const 
-{
-    return m_state == CommanderState::CHARGED;
-}
-
-bool 
-PadflieCommander::can_land() const 
-{
-    return m_state == CommanderState::FLYING;
-}
-
-bool 
-PadflieCommander::is_flying() const 
-{
-    return m_state == CommanderState::FLYING;
-}
-
-
 void 
 PadflieCommander::m_configure_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
@@ -131,8 +74,8 @@ void
 PadflieCommander::m_activate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
 {
-    (void)node;
     m_remove_availability_interface();
+    m_create_goal_services(node);
 }
 
 void PadflieCommander::m_on_commander_activated() 
@@ -146,20 +89,23 @@ PadflieCommander::m_deactivate_commander(
     std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     bool force) 
 {    
+    m_remove_goal_services();
     if (force) {
+        m_goal_manager->cancel_all_goals("Commander was force-deactivated");
         m_create_availability_interface(node);
         return;
     }
 
-    std::shared_ptr<Command> command = std::make_shared<LandCommand>(
-        m_routine_factory, m_site_selector, m_logger);
-    
-    {
-        std::lock_guard<std::mutex> lock(m_command_queue_mutex);
-        m_command_queue.push(command);
+    auto completion = std::make_shared<padflies_cpp::commander::BlockingGoalCompletion>();
+    m_goal_manager->request_goal(
+        padflies_cpp::commander::Return{},
+        completion,
+        padflies_cpp::commander::GoalPolicy::LOCKED);
+    RCLCPP_INFO(m_logger, "Deactivating commander; returning padflie %s", m_cf_prefix.c_str());
+    const auto result = completion->wait();
+    if (result.outcome != padflies_cpp::commander::GoalOutcome::SUCCESS) {
+        RCLCPP_WARN(m_logger, "Deactivation return failed: %s", result.message.c_str());
     }
-    RCLCPP_INFO(m_logger, "Deactivating commander, landing padflie %s", m_cf_prefix.c_str());
-    command->wait_until_finished();
     m_create_availability_interface(node);
 
 }
@@ -219,21 +165,74 @@ void PadflieCommander::m_remove_availability_interface()
     m_availability_pub.reset();
 }
 
+void PadflieCommander::m_create_goal_services(
+    const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node)
+{
+    m_deploy_to_service = node->create_service<padflies_interfaces::srv::DeployTo>(
+        m_prefix + "/deploy_to",
+        std::bind(
+            &PadflieCommander::m_handle_deploy_to_goal, this,
+            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+        rclcpp::ServicesQoS(),
+        m_callback_group);
+
+    m_return_to_service = node->create_service<padflies_interfaces::srv::ReturnTo>(
+        m_prefix + "/return_to",
+        std::bind(
+            &PadflieCommander::m_handle_return_to_goal, this,
+            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
+        rclcpp::ServicesQoS(),
+        m_callback_group);
+}
+
+void PadflieCommander::m_remove_goal_services()
+{
+    m_deploy_to_service.reset();
+    m_return_to_service.reset();
+}
+
+void PadflieCommander::m_on_goal_started(
+    padflies_cpp::commander::FlightGoalKind goal_kind)
+{
+    using padflies_cpp::commander::FlightGoalKind;
+    const bool deploying =
+        goal_kind == FlightGoalKind::DEPLOY ||
+        goal_kind == FlightGoalKind::DEPLOY_TO;
+    m_state = deploying ? CommanderState::TAKEOFF : CommanderState::LANDING;
+}
+
+void PadflieCommander::m_on_goal_finished(
+    padflies_cpp::commander::FlightGoalKind goal_kind,
+    padflies_cpp::commander::GoalResult result)
+{
+    using namespace padflies_cpp::commander;
+    const bool deployed =
+        goal_kind == FlightGoalKind::DEPLOY ||
+        goal_kind == FlightGoalKind::DEPLOY_TO;
+
+    if (result.outcome == GoalOutcome::SUCCESS) {
+        m_state = deployed ? CommanderState::FLYING : CommanderState::CHARGING;
+    } else if (m_hw_state_controller.is_flying()) {
+        m_state = CommanderState::FLYING;
+    } else {
+        m_state = m_hw_state_controller.is_charged() ?
+            CommanderState::CHARGED : CommanderState::CHARGING;
+    }
+
+    m_goal_manager->active_routine_finished(std::move(result));
+}
+
 void 
 PadflieCommander::m_handle_takeoff_command(
     const std::shared_ptr<rclcpp::Service<std_srvs::srv::Trigger>> service_handle,
     const std::shared_ptr<rmw_request_id_t> request_id,
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {
-    RCLCPP_INFO(m_logger, "Takeoff command received for %s", m_cf_prefix.c_str());
-    std::shared_ptr<Command> command = std::make_shared<TakeoffCommand>(
-        m_routine_factory, m_site_selector, m_logger,
-        std::make_shared<TriggerCompletionHandler>(service_handle, request_id, req)
-    );
-    {
-        std::lock_guard<std::mutex> lock(m_command_queue_mutex);
-        m_command_queue.push(command);
-    }
+    (void)req;
+    using namespace padflies_cpp::commander;
+    m_goal_manager->request_goal(
+        Deploy{},
+        std::make_shared<TriggerGoalCompletion>(service_handle, request_id));
 }
 
 void 
@@ -242,15 +241,35 @@ PadflieCommander::m_handle_land_command(
     const std::shared_ptr<rmw_request_id_t> request_id,
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {   
-    RCLCPP_INFO(m_logger, "Land command received for %s", m_cf_prefix.c_str());
-    std::shared_ptr<Command> command = std::make_shared<LandCommand>(
-        m_routine_factory, m_site_selector, m_logger,
-        std::make_shared<TriggerCompletionHandler>(service_handle, request_id, req)
-    );
-    {
-        std::lock_guard<std::mutex> lock(m_command_queue_mutex);
-        m_command_queue.push(command);
-    }
+    (void)req;
+    using namespace padflies_cpp::commander;
+    m_goal_manager->request_goal(
+        Return{},
+        std::make_shared<TriggerGoalCompletion>(service_handle, request_id));
+}
+
+void PadflieCommander::m_handle_deploy_to_goal(
+    const std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::DeployTo>> service,
+    const std::shared_ptr<rmw_request_id_t> request_id,
+    const std::shared_ptr<padflies_interfaces::srv::DeployTo::Request> request)
+{
+    using namespace padflies_cpp::commander;
+    m_goal_manager->request_goal(
+        DeployTo{request->target},
+        std::make_shared<ServiceGoalCompletion<padflies_interfaces::srv::DeployTo>>(
+            service, request_id));
+}
+
+void PadflieCommander::m_handle_return_to_goal(
+    const std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::ReturnTo>> service,
+    const std::shared_ptr<rmw_request_id_t> request_id,
+    const std::shared_ptr<padflies_interfaces::srv::ReturnTo::Request> request)
+{
+    using namespace padflies_cpp::commander;
+    m_goal_manager->request_goal(
+        ReturnTo{request->site},
+        std::make_shared<ServiceGoalCompletion<padflies_interfaces::srv::ReturnTo>>(
+            service, request_id));
 }
 
 void 

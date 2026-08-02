@@ -12,7 +12,8 @@ enum class RoutineOutcome
 {
   SUCCESS,
   FAILURE,
-  RETRY
+  RETRY,
+  INTERRUPTED
 };
 
 enum class RoutineFailureReason
