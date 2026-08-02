@@ -1,0 +1,13 @@
+# When false, the commander selects the return site.
+bool has_site
+string site
+---
+uint8 SUCCESS=0
+uint8 FAILURE=1
+uint8 INTERRUPTED=2
+
+uint8 outcome
+string message
+---
+# Reserved for future generic progress information.
+string status

@@ -13,7 +13,9 @@ public:
   virtual ~IFlightGoalExecutor() = default;
 
   virtual void start_routine_for_goal(
-    std::uint64_t goal_id, const FlightGoal & goal) = 0;
+    std::uint64_t goal_id,
+    const FlightGoal & goal,
+    GoalRetryPolicy retry_policy) = 0;
 
   virtual bool interrupt_active_routine_if_possible() = 0;
   virtual void stop_active_routine_without_callback() = 0;

@@ -160,6 +160,7 @@ private:
         if (m_publish_visualization && !visualizer) {
           visualizer = std::make_unique<VelocityReciprocalVisualizer>(*this);
         } else if (!m_publish_visualization) {
+          if (visualizer) visualizer->clear();
           visualizer.reset();
         }
       } else if (parameter.get_name() == "time_horizon") {
@@ -179,14 +180,19 @@ private:
     rclcpp::Time current_time = this->now(); 
     rclcpp::Duration threshold(0, 200000000); // 0.2 seconds (200,000,000 nanoseconds)
 
+    bool removed_object = false;
     for (auto it = active_objects.begin(); it != active_objects.end(); ) {
           if (current_time - it->second.last_update > threshold) {
               // RCLCPP_INFO(this->get_logger(), "Removing object ID: %d", it->first);
               it = active_objects.erase(it);  // Remove object and get next iterator
+              removed_object = true;
           } else {
               ++it;  // Move to the next item
           }
       }
+    if (removed_object && visualizer) {
+      visualizer->publish(active_objects);
+    }
   }
   
   void calculate_collisions(

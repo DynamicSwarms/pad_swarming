@@ -16,6 +16,7 @@
   <depend>pad_management_interfaces</depend>
   <depend>collision_avoidance_interfaces</depend>
   <depend>std_srvs</depend>
+  <depend>rclcpp_action</depend>
 
 
 

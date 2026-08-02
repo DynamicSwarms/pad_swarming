@@ -9,13 +9,19 @@
 #include "padflies_cpp/commander/site/site_selector.hpp"
 #include "padflies_cpp/commander/goal/flight_goal_manager.hpp"
 #include "padflies_cpp/commander/goal/rclcpp_commander_event_sink.hpp"
-#include "padflies_cpp/commander/goal/ros_goal_completion.hpp"
+#include "padflies_cpp/commander/goal/completion/action_goal_completion.hpp"
+#include "padflies_cpp/commander/goal/completion/blocking_goal_completion.hpp"
+#include "padflies_cpp/commander/goal/completion/trigger_goal_completion.hpp"
 #include "padflies_cpp/commander/goal/routine_flight_goal_executor.hpp"
 
 #include "padflies_cpp/node_interfaces_bundle.hpp"
 #include "padflies_interfaces/msg/availability_info.hpp"
-#include "padflies_interfaces/srv/deploy_to.hpp"
-#include "padflies_interfaces/srv/return_to.hpp"
+#include "padflies_interfaces/action/deploy.hpp"
+#include "padflies_interfaces/action/return.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+
+#include <map>
+#include <mutex>
 
 class PadflieCommander : public PadflieCommanderBase
 {
@@ -32,32 +38,23 @@ class PadflieCommander : public PadflieCommanderBase
 
     private:
         
-        void m_configure_commander(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) override;
+        void m_configure_commander() override;
         void m_on_commander_configured() override;
 
-        void m_activate_commander(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) override;
+        void m_activate_commander() override;
         void m_on_commander_activated() override;
 
-        void m_deactivate_commander(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
-            bool force
-        ) override;
+        void m_deactivate_commander(bool force) override;
         void m_on_commander_deactivated() override;
 
         void m_on_charged_callback() override;
         void m_on_state_callback() override;
 
-        void m_create_availability_interface(
-            const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node);
+        void m_create_availability_interface();
         void m_remove_availability_interface();
 
-        void m_create_goal_services(
-            const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node);
-        void m_remove_goal_services();
+        void m_create_goal_interfaces();
+        void m_remove_goal_interfaces();
 
         void m_on_goal_started(
             padflies_cpp::commander::FlightGoalKind goal_kind);
@@ -82,15 +79,31 @@ class PadflieCommander : public PadflieCommanderBase
             const padflies_interfaces::msg::SendTarget::SharedPtr msg
         ) override;
 
-        void m_handle_deploy_to_goal(
-            const std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::DeployTo>> service,
-            const std::shared_ptr<rmw_request_id_t> request_id,
-            const std::shared_ptr<padflies_interfaces::srv::DeployTo::Request> request);
+        rclcpp_action::GoalResponse m_handle_deploy_action_goal(
+            const rclcpp_action::GoalUUID & goal_id,
+            std::shared_ptr<const padflies_interfaces::action::Deploy::Goal> goal);
+        rclcpp_action::CancelResponse m_handle_deploy_action_cancel(
+            std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Deploy>>
+                goal_handle);
+        void m_handle_deploy_action_accepted(
+            std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Deploy>>
+                goal_handle);
 
-        void m_handle_return_to_goal(
-            const std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::ReturnTo>> service,
-            const std::shared_ptr<rmw_request_id_t> request_id,
-            const std::shared_ptr<padflies_interfaces::srv::ReturnTo::Request> request);
+        rclcpp_action::GoalResponse m_handle_return_action_goal(
+            const rclcpp_action::GoalUUID & goal_id,
+            std::shared_ptr<const padflies_interfaces::action::Return::Goal> goal);
+        rclcpp_action::CancelResponse m_handle_return_action_cancel(
+            std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Return>>
+                goal_handle);
+        void m_handle_return_action_accepted(
+            std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Return>>
+                goal_handle);
+
+        template<typename ActionT>
+        rclcpp_action::CancelResponse m_cancel_action_goal(
+            const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> & goal_handle);
+
+        void m_remove_action_goal(const rclcpp_action::GoalUUID & goal_id);
 
     private: 
         std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> m_node_base_interface;
@@ -109,8 +122,18 @@ class PadflieCommander : public PadflieCommanderBase
 
         CommanderState m_state = CommanderState::UNCONFIGURED;
 
-        std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::DeployTo>>
-            m_deploy_to_service;
-        std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::ReturnTo>>
-            m_return_to_service;
+        std::shared_ptr<rclcpp_action::Server<padflies_interfaces::action::Deploy>>
+            m_deploy_action_server;
+        std::shared_ptr<rclcpp_action::Server<padflies_interfaces::action::Return>>
+            m_return_action_server;
+
+        struct ActionGoalRecord
+        {
+            std::uint64_t internal_id;
+            std::shared_ptr<padflies_cpp::commander::IActionGoalCompletion> completion;
+        };
+        std::map<rclcpp_action::GoalUUID, ActionGoalRecord> m_action_goals;
+        std::mutex m_action_goals_mutex;
+        std::shared_ptr<rclcpp::TimerBase> m_cancel_completion_timer;
+        bool m_accepting_goals{false};
 };

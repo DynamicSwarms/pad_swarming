@@ -1,5 +1,8 @@
 #include "padflies_cpp/commander/commander.hpp"
 
+#include <chrono>
+#include <vector>
+
 PadflieCommander::PadflieCommander(
     const std::string & prefix,
     const std::string & cf_prefix,
@@ -59,10 +62,9 @@ PadflieCommander::get_home_state() const
 }
 
 void 
-PadflieCommander::m_configure_commander(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
+PadflieCommander::m_configure_commander()
 {
-    m_create_availability_interface(node);
+    m_create_availability_interface();
 }
 
 void PadflieCommander::m_on_commander_configured() 
@@ -71,11 +73,10 @@ void PadflieCommander::m_on_commander_configured()
 }
 
 void
-PadflieCommander::m_activate_commander(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) 
+PadflieCommander::m_activate_commander()
 {
     m_remove_availability_interface();
-    m_create_goal_services(node);
+    m_create_goal_interfaces();
 }
 
 void PadflieCommander::m_on_commander_activated() 
@@ -86,28 +87,27 @@ void PadflieCommander::m_on_commander_activated()
 
 void 
 PadflieCommander::m_deactivate_commander(
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
     bool force) 
-{    
-    m_remove_goal_services();
+{
+    m_accepting_goals = false;
     if (force) {
         m_goal_manager->cancel_all_goals("Commander was force-deactivated");
-        m_create_availability_interface(node);
-        return;
+    } else {
+        auto completion = std::make_shared<padflies_cpp::commander::BlockingGoalCompletion>();
+        m_goal_manager->request_goal(
+            padflies_cpp::commander::Return{},
+            completion,
+            padflies_cpp::commander::GoalRetryPolicy::INFINITE,
+            padflies_cpp::commander::GoalPolicy::LOCKED);
+        RCLCPP_INFO(m_logger, "Deactivating commander; returning padflie %s", m_cf_prefix.c_str());
+        const auto result = completion->wait();
+        if (result.outcome != padflies_cpp::commander::GoalOutcome::SUCCESS) {
+            RCLCPP_WARN(m_logger, "Deactivation return failed: %s", result.message.c_str());
+        }
     }
 
-    auto completion = std::make_shared<padflies_cpp::commander::BlockingGoalCompletion>();
-    m_goal_manager->request_goal(
-        padflies_cpp::commander::Return{},
-        completion,
-        padflies_cpp::commander::GoalPolicy::LOCKED);
-    RCLCPP_INFO(m_logger, "Deactivating commander; returning padflie %s", m_cf_prefix.c_str());
-    const auto result = completion->wait();
-    if (result.outcome != padflies_cpp::commander::GoalOutcome::SUCCESS) {
-        RCLCPP_WARN(m_logger, "Deactivation return failed: %s", result.message.c_str());
-    }
-    m_create_availability_interface(node);
-
+    m_remove_goal_interfaces();
+    m_create_availability_interface();
 }
 
 void PadflieCommander::m_on_commander_deactivated() 
@@ -148,15 +148,15 @@ void PadflieCommander::m_on_state_callback()
     m_availability_pub->publish(message);
 }
 
-void PadflieCommander::m_create_availability_interface(
-    const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node)
+void PadflieCommander::m_create_availability_interface()
 {
     auto options = rclcpp::PublisherOptions();
     options.callback_group = m_callback_group;
     rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(1))
                 .best_effort()
                 .durability_volatile();
-    m_availability_pub = node->create_publisher<padflies_interfaces::msg::AvailabilityInfo>(
+    m_availability_pub = rclcpp::create_publisher<padflies_interfaces::msg::AvailabilityInfo>(
+        m_node_interfaces.topics_interface,
         "availability", qos, options);
 }
 
@@ -165,30 +165,75 @@ void PadflieCommander::m_remove_availability_interface()
     m_availability_pub.reset();
 }
 
-void PadflieCommander::m_create_goal_services(
-    const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> & node)
+void PadflieCommander::m_create_goal_interfaces()
 {
-    m_deploy_to_service = node->create_service<padflies_interfaces::srv::DeployTo>(
-        m_prefix + "/deploy_to",
+    m_accepting_goals = true;
+    m_deploy_action_server = rclcpp_action::create_server<padflies_interfaces::action::Deploy>(
+        m_node_interfaces.base_interface,
+        m_node_interfaces.clock_interface,
+        m_node_interfaces.logging_interface,
+        m_node_interfaces.waitables_interface,
+        m_prefix + "/deploy",
         std::bind(
-            &PadflieCommander::m_handle_deploy_to_goal, this,
-            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-        rclcpp::ServicesQoS(),
+            &PadflieCommander::m_handle_deploy_action_goal, this,
+            std::placeholders::_1, std::placeholders::_2),
+        std::bind(
+            &PadflieCommander::m_handle_deploy_action_cancel, this,
+            std::placeholders::_1),
+        std::bind(
+            &PadflieCommander::m_handle_deploy_action_accepted, this,
+            std::placeholders::_1),
+        rcl_action_server_get_default_options(),
         m_callback_group);
 
-    m_return_to_service = node->create_service<padflies_interfaces::srv::ReturnTo>(
-        m_prefix + "/return_to",
+    m_return_action_server = rclcpp_action::create_server<padflies_interfaces::action::Return>(
+        m_node_interfaces.base_interface,
+        m_node_interfaces.clock_interface,
+        m_node_interfaces.logging_interface,
+        m_node_interfaces.waitables_interface,
+        m_prefix + "/return",
         std::bind(
-            &PadflieCommander::m_handle_return_to_goal, this,
-            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-        rclcpp::ServicesQoS(),
+            &PadflieCommander::m_handle_return_action_goal, this,
+            std::placeholders::_1, std::placeholders::_2),
+        std::bind(
+            &PadflieCommander::m_handle_return_action_cancel, this,
+            std::placeholders::_1),
+        std::bind(
+            &PadflieCommander::m_handle_return_action_accepted, this,
+            std::placeholders::_1),
+        rcl_action_server_get_default_options(),
         m_callback_group);
+
+    m_cancel_completion_timer = rclcpp::create_wall_timer(
+        std::chrono::milliseconds(1),
+        [this]() {
+            m_goal_manager->complete_deferred_cancellations();
+            std::vector<std::shared_ptr<padflies_cpp::commander::IActionGoalCompletion>>
+                completions;
+            {
+                std::lock_guard<std::mutex> lock(m_action_goals_mutex);
+                for (const auto & [goal_id, goal] : m_action_goals) {
+                    (void)goal_id;
+                    completions.push_back(goal.completion);
+                }
+            }
+            for (const auto & completion : completions) {
+                completion->finish_deferred_cancellation();
+            }
+            m_cancel_completion_timer->cancel();
+        },
+        m_callback_group,
+        m_node_interfaces.base_interface.get(),
+        m_node_interfaces.timers_interface.get());
+    m_cancel_completion_timer->cancel();
 }
 
-void PadflieCommander::m_remove_goal_services()
+void PadflieCommander::m_remove_goal_interfaces()
 {
-    m_deploy_to_service.reset();
-    m_return_to_service.reset();
+    m_accepting_goals = false;
+    m_cancel_completion_timer.reset();
+    m_deploy_action_server.reset();
+    m_return_action_server.reset();
 }
 
 void PadflieCommander::m_on_goal_started(
@@ -232,7 +277,8 @@ PadflieCommander::m_handle_takeoff_command(
     using namespace padflies_cpp::commander;
     m_goal_manager->request_goal(
         Deploy{},
-        std::make_shared<TriggerGoalCompletion>(service_handle, request_id));
+        std::make_shared<TriggerGoalCompletion>(service_handle, request_id),
+        GoalRetryPolicy::INFINITE);
 }
 
 void 
@@ -245,31 +291,118 @@ PadflieCommander::m_handle_land_command(
     using namespace padflies_cpp::commander;
     m_goal_manager->request_goal(
         Return{},
-        std::make_shared<TriggerGoalCompletion>(service_handle, request_id));
+        std::make_shared<TriggerGoalCompletion>(service_handle, request_id),
+        GoalRetryPolicy::INFINITE);
 }
 
-void PadflieCommander::m_handle_deploy_to_goal(
-    const std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::DeployTo>> service,
-    const std::shared_ptr<rmw_request_id_t> request_id,
-    const std::shared_ptr<padflies_interfaces::srv::DeployTo::Request> request)
+rclcpp_action::GoalResponse PadflieCommander::m_handle_deploy_action_goal(
+    const rclcpp_action::GoalUUID &,
+    std::shared_ptr<const padflies_interfaces::action::Deploy::Goal>)
 {
-    using namespace padflies_cpp::commander;
-    m_goal_manager->request_goal(
-        DeployTo{request->target},
-        std::make_shared<ServiceGoalCompletion<padflies_interfaces::srv::DeployTo>>(
-            service, request_id));
+    return m_accepting_goals ?
+        rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE :
+        rclcpp_action::GoalResponse::REJECT;
 }
 
-void PadflieCommander::m_handle_return_to_goal(
-    const std::shared_ptr<rclcpp::Service<padflies_interfaces::srv::ReturnTo>> service,
-    const std::shared_ptr<rmw_request_id_t> request_id,
-    const std::shared_ptr<padflies_interfaces::srv::ReturnTo::Request> request)
+rclcpp_action::CancelResponse PadflieCommander::m_handle_deploy_action_cancel(
+    std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Deploy>>
+        goal_handle)
+{
+    return m_cancel_action_goal(goal_handle);
+}
+
+void PadflieCommander::m_handle_deploy_action_accepted(
+    std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Deploy>>
+        goal_handle)
 {
     using namespace padflies_cpp::commander;
-    m_goal_manager->request_goal(
-        ReturnTo{request->site},
-        std::make_shared<ServiceGoalCompletion<padflies_interfaces::srv::ReturnTo>>(
-            service, request_id));
+    const auto goal_id = goal_handle->get_goal_id();
+    auto completion = std::make_shared<ActionGoalCompletion<padflies_interfaces::action::Deploy>>(
+        goal_handle,
+        [this, goal_id]() {m_remove_action_goal(goal_id);});
+
+    const auto goal = goal_handle->get_goal();
+    const auto internal_id = goal->has_target ?
+        m_goal_manager->request_goal(
+            DeployTo{goal->target}, completion, GoalRetryPolicy::INFINITE) :
+        m_goal_manager->request_goal(
+            Deploy{}, completion, GoalRetryPolicy::INFINITE);
+
+    if (goal_handle->is_active()) {
+        std::lock_guard<std::mutex> lock(m_action_goals_mutex);
+        m_action_goals.insert_or_assign(goal_id, ActionGoalRecord{internal_id, completion});
+    }
+}
+
+rclcpp_action::GoalResponse PadflieCommander::m_handle_return_action_goal(
+    const rclcpp_action::GoalUUID &,
+    std::shared_ptr<const padflies_interfaces::action::Return::Goal>)
+{
+    return m_accepting_goals ?
+        rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE :
+        rclcpp_action::GoalResponse::REJECT;
+}
+
+rclcpp_action::CancelResponse PadflieCommander::m_handle_return_action_cancel(
+    std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Return>>
+        goal_handle)
+{
+    return m_cancel_action_goal(goal_handle);
+}
+
+void PadflieCommander::m_handle_return_action_accepted(
+    std::shared_ptr<rclcpp_action::ServerGoalHandle<padflies_interfaces::action::Return>>
+        goal_handle)
+{
+    using namespace padflies_cpp::commander;
+    const auto goal_id = goal_handle->get_goal_id();
+    auto completion = std::make_shared<ActionGoalCompletion<padflies_interfaces::action::Return>>(
+        goal_handle,
+        [this, goal_id]() {m_remove_action_goal(goal_id);});
+
+    const auto goal = goal_handle->get_goal();
+    const auto internal_id = goal->has_site ?
+        m_goal_manager->request_goal(
+            ReturnTo{goal->site}, completion, GoalRetryPolicy::INFINITE) :
+        m_goal_manager->request_goal(
+            Return{}, completion, GoalRetryPolicy::INFINITE);
+
+    if (goal_handle->is_active()) {
+        std::lock_guard<std::mutex> lock(m_action_goals_mutex);
+        m_action_goals.insert_or_assign(goal_id, ActionGoalRecord{internal_id, completion});
+    }
+}
+
+template<typename ActionT>
+rclcpp_action::CancelResponse PadflieCommander::m_cancel_action_goal(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<ActionT>> & goal_handle)
+{
+    std::shared_ptr<padflies_cpp::commander::IActionGoalCompletion> completion;
+    std::uint64_t internal_id;
+    {
+        std::lock_guard<std::mutex> lock(m_action_goals_mutex);
+        const auto goal = m_action_goals.find(goal_handle->get_goal_id());
+        if (goal == m_action_goals.end()) return rclcpp_action::CancelResponse::REJECT;
+        internal_id = goal->second.internal_id;
+        completion = goal->second.completion;
+    }
+
+    completion->set_cancel_requested(true);
+    if (!m_goal_manager->cancel_goal(internal_id)) {
+        completion->set_cancel_requested(false);
+        return rclcpp_action::CancelResponse::REJECT;
+    }
+
+    // A queued goal completes on the next callback, after rclcpp_action has
+    // transitioned the accepted cancellation into the CANCELING state.
+    m_cancel_completion_timer->reset();
+    return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void PadflieCommander::m_remove_action_goal(const rclcpp_action::GoalUUID & goal_id)
+{
+    std::lock_guard<std::mutex> lock(m_action_goals_mutex);
+    m_action_goals.erase(goal_id);
 }
 
 void 

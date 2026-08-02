@@ -9,9 +9,18 @@
 namespace
 {
 constexpr std::size_t kMaximumTrailPoints = 200;
-constexpr double kArrowShaftDiameter = 0.035;
-constexpr double kArrowHeadDiameter = 0.10;
-constexpr double kArrowHeadLength = 0.10;
+constexpr double kPreferredArrowShaftDiameter = 0.025;
+constexpr double kPreferredArrowHeadDiameter = 0.075;
+constexpr double kPreferredArrowHeadLength = 0.08;
+constexpr double kMinimumReferenceSpeed = 0.10;
+constexpr float kMinimumBodyOpacity = 0.10F;
+constexpr double kMarkerLifetimeSeconds = 0.5;
+constexpr const char * kMarkerNamespaces[] = {
+  "orca_agents",
+  "orca_preferred_velocity",
+  "orca_safe_velocity",
+  "orca_trails",
+  "orca_ids"};
 }
 
 VelocityReciprocalVisualizer::VelocityReciprocalVisualizer(rclcpp::Node & node)
@@ -23,11 +32,11 @@ VelocityReciprocalVisualizer::VelocityReciprocalVisualizer(rclcpp::Node & node)
 
 void VelocityReciprocalVisualizer::publish(
   const std::unordered_map<uint8_t, ObjectInfo> & objects,
-  uint8_t updated_id)
+  std::optional<uint8_t> updated_id)
 {
-  auto updated = objects.find(updated_id);
+  const auto updated = updated_id ? objects.find(*updated_id) : objects.end();
   if (updated != objects.end()) {
-    auto & trail = trails_[updated_id];
+    auto & trail = trails_[*updated_id];
     trail.push_back(point(updated->second.position.x(), updated->second.position.y()));
     if (trail.size() > kMaximumTrailPoints) {
       trail.pop_front();
@@ -43,8 +52,27 @@ void VelocityReciprocalVisualizer::publish(
   }
 
   visualization_msgs::msg::MarkerArray array;
-  array.markers.reserve(objects.size() * 5);
+  array.markers.reserve(objects.size() * 5 + published_ids_.size() * 5);
   const auto stamp = clock_->now();
+
+  for (const auto id : published_ids_) {
+    if (objects.find(id) != objects.end()) continue;
+    for (const auto * marker_namespace : kMarkerNamespaces) {
+      visualization_msgs::msg::Marker marker;
+      marker.header.frame_id = "world";
+      marker.header.stamp = stamp;
+      marker.ns = marker_namespace;
+      marker.id = static_cast<int32_t>(id);
+      marker.action = visualization_msgs::msg::Marker::DELETE;
+      array.markers.push_back(std::move(marker));
+    }
+  }
+
+  published_ids_.clear();
+  for (const auto & [id, object] : objects) {
+    (void)object;
+    published_ids_.insert(id);
+  }
 
   for (const auto & [id, object] : objects) {
     const auto color = color_for_id(id);
@@ -57,6 +85,7 @@ void VelocityReciprocalVisualizer::publish(
     body.id = marker_id;
     body.type = visualization_msgs::msg::Marker::SPHERE;
     body.action = visualization_msgs::msg::Marker::ADD;
+    body.lifetime = rclcpp::Duration::from_seconds(kMarkerLifetimeSeconds);
     body.pose.position = point(object.position.x(), object.position.y());
     body.pose.orientation.w = 1.0;
     body.scale.x = 2.0 * object.radius;
@@ -65,7 +94,14 @@ void VelocityReciprocalVisualizer::publish(
     body.color.r = color.red;
     body.color.g = color.green;
     body.color.b = color.blue;
-    body.color.a = 0.9F;
+    const double velocity_change = (object.velocity - object.preferred_velocity).norm();
+    const double reference_speed = std::max(
+      object.preferred_velocity.norm(), kMinimumReferenceSpeed);
+    const double relative_change = std::clamp(
+      velocity_change / reference_speed, 0.0, 1.0);
+    // Square-root scaling makes small but meaningful corrections visible.
+    const float intervention = static_cast<float>(std::sqrt(relative_change));
+    body.color.a = kMinimumBodyOpacity + (1.0F - kMinimumBodyOpacity) * intervention;
     array.markers.push_back(body);
 
     visualization_msgs::msg::Marker preferred;
@@ -74,26 +110,34 @@ void VelocityReciprocalVisualizer::publish(
     preferred.id = marker_id;
     preferred.type = visualization_msgs::msg::Marker::ARROW;
     preferred.action = visualization_msgs::msg::Marker::ADD;
+    preferred.lifetime = body.lifetime;
     preferred.points = {
       point(object.position.x(), object.position.y(), 0.02),
       point(
         object.position.x() + object.preferred_velocity.x(),
         object.position.y() + object.preferred_velocity.y(), 0.02)};
-    preferred.scale.x = kArrowShaftDiameter;
-    preferred.scale.y = kArrowHeadDiameter;
-    preferred.scale.z = kArrowHeadLength;
-    preferred.color.r = color.red;
-    preferred.color.g = color.green;
-    preferred.color.b = color.blue;
-    preferred.color.a = 0.35F;
+    preferred.scale.x = kPreferredArrowShaftDiameter;
+    preferred.scale.y = kPreferredArrowHeadDiameter;
+    preferred.scale.z = kPreferredArrowHeadLength;
+    preferred.color.r = 0.10F;
+    preferred.color.g = 0.55F;
+    preferred.color.b = 1.0F;
+    preferred.color.a = 0.55F;
     array.markers.push_back(preferred);
 
     visualization_msgs::msg::Marker safe = preferred;
     safe.ns = "orca_safe_velocity";
+    safe.points[0] = point(
+      object.position.x(), object.position.y(), 0.05);
     safe.points[1] = point(
-      object.position.x() + object.calculated_velocity.x(),
-      object.position.y() + object.calculated_velocity.y(), 0.05);
-    safe.scale.x = 1.8 * kArrowShaftDiameter;
+      object.position.x() + object.velocity.x(),
+      object.position.y() + object.velocity.y(), 0.05);
+    safe.scale.x = kPreferredArrowShaftDiameter;
+    safe.scale.y = kPreferredArrowHeadDiameter;
+    safe.scale.z = kPreferredArrowHeadLength;
+    safe.color.r = 1.0F;
+    safe.color.g = 0.0F;
+    safe.color.b = 0.0F;
     safe.color.a = 1.0F;
     array.markers.push_back(safe);
 
@@ -103,6 +147,7 @@ void VelocityReciprocalVisualizer::publish(
     trail.id = marker_id;
     trail.type = visualization_msgs::msg::Marker::LINE_STRIP;
     trail.action = visualization_msgs::msg::Marker::ADD;
+    trail.lifetime = body.lifetime;
     trail.pose.orientation.w = 1.0;
     trail.scale.x = 0.025;
     trail.color.r = color.red;
@@ -121,6 +166,7 @@ void VelocityReciprocalVisualizer::publish(
     label.id = marker_id;
     label.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
     label.action = visualization_msgs::msg::Marker::ADD;
+    label.lifetime = body.lifetime;
     label.pose.position = point(
       object.position.x(), object.position.y(), object.radius + 0.15);
     label.pose.orientation.w = 1.0;
@@ -134,6 +180,20 @@ void VelocityReciprocalVisualizer::publish(
   }
 
   publisher_->publish(array);
+}
+
+void VelocityReciprocalVisualizer::clear()
+{
+  if (!publisher_) return;
+  visualization_msgs::msg::MarkerArray array;
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "world";
+  marker.header.stamp = clock_->now();
+  marker.action = visualization_msgs::msg::Marker::DELETEALL;
+  array.markers.push_back(std::move(marker));
+  publisher_->publish(array);
+  published_ids_.clear();
+  trails_.clear();
 }
 
 VelocityReciprocalVisualizer::Color

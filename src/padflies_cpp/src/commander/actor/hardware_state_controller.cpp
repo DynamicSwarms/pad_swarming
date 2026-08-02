@@ -19,15 +19,17 @@ HardwareStateController::HardwareStateController(
 void 
 HardwareStateController::connect(
     const std::string & cf_prefix,
-    std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node)
+    const padflies_cpp::NodeInterfacesBundle & node_interfaces)
 {
-    m_callback_group = node->create_callback_group(
+    m_callback_group = node_interfaces.base_interface->create_callback_group(
         rclcpp::CallbackGroupType::MutuallyExclusive);
 
     auto sub_opt = rclcpp::SubscriptionOptions();
     sub_opt.callback_group = m_callback_group;
+    auto topics_interface = node_interfaces.topics_interface;
 
-    m_battery_sub = node->create_subscription<crazyflie_interfaces::msg::LogDataGeneric>(
+    m_battery_sub = rclcpp::create_subscription<crazyflie_interfaces::msg::LogDataGeneric>(
+        topics_interface,
         cf_prefix + "/state",
         10,
         std::bind(&HardwareStateController::m_on_state_data, this, std::placeholders::_1),

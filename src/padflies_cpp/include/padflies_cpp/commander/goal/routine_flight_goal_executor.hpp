@@ -43,32 +43,22 @@ public:
 
   void start_routine_for_goal(
     std::uint64_t,
-    const FlightGoal & goal) override
+    const FlightGoal & goal,
+    GoalRetryPolicy retry_policy) override
   {
     if (m_active_routine) {
       throw std::logic_error("A flight goal routine is already active");
     }
 
-    m_active_goal_kind = kind(goal);
+    m_active_goal = goal;
+    m_active_goal_kind = kind(m_active_goal);
+    m_retry_policy = retry_policy;
     if (goal_is_already_satisfied()) {
       report_goal_finished({GoalOutcome::SUCCESS, "Hardware is already in the requested state"});
       return;
     }
     m_goal_started(m_active_goal_kind);
-    try {
-      m_active_routine = create_routine(goal);
-    } catch (const std::exception & exception) {
-      report_goal_finished({GoalOutcome::FAILURE, exception.what()});
-      return;
-    }
-    if (!m_active_routine) {
-      report_goal_finished({GoalOutcome::FAILURE, "No suitable flight goal routine available"});
-      return;
-    }
-
-    m_active_routine->set_on_finished_callback(
-      [this](RoutineResult result) {routine_finished(std::move(result));});
-    m_active_routine->start();
+    start_routine_attempt();
   }
 
   bool interrupt_active_routine_if_possible() override
@@ -86,6 +76,23 @@ public:
   }
 
 private:
+  void start_routine_attempt()
+  {
+    try {
+      m_active_routine = create_routine(m_active_goal);
+    } catch (const std::exception & exception) {
+      report_goal_finished({GoalOutcome::FAILURE, exception.what()});
+      return;
+    }
+    if (!m_active_routine) {
+      report_goal_finished({GoalOutcome::FAILURE, "No suitable flight goal routine available"});
+      return;
+    }
+
+    m_active_routine->set_on_finished_callback(
+      [this](RoutineResult result) {routine_finished(std::move(result));});
+    m_active_routine->start();
+  }
   bool goal_is_already_satisfied() const
   {
     const bool deploy =
@@ -145,6 +152,11 @@ private:
       report_goal_finished({GoalOutcome::SUCCESS, std::move(result.message)});
     } else if (result.outcome == RoutineOutcome::INTERRUPTED) {
       report_goal_finished({GoalOutcome::INTERRUPTED, std::move(result.message)});
+    } else if (
+      result.outcome == RoutineOutcome::RETRY &&
+      m_retry_policy == GoalRetryPolicy::INFINITE)
+    {
+      start_routine_attempt();
     } else {
       report_goal_finished({GoalOutcome::FAILURE, std::move(result.message)});
     }
@@ -161,8 +173,10 @@ private:
   GoalStarted m_goal_started;
   GoalFinished m_goal_finished;
   std::shared_ptr<Routine> m_active_routine;
+  FlightGoal m_active_goal{Deploy{}};
   std::string m_site_after_success;
   FlightGoalKind m_active_goal_kind{FlightGoalKind::DEPLOY};
+  GoalRetryPolicy m_retry_policy{GoalRetryPolicy::NEVER};
 };
 
 }  // namespace padflies_cpp::commander

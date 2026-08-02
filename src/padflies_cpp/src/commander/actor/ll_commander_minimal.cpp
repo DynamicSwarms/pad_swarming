@@ -17,8 +17,6 @@ LowLevelCommanderMinimal::LowLevelCommanderMinimal(
     if (m_callback_groups.find(cf_prefix) == m_callback_groups.end())
         m_callback_groups[cf_prefix] = node_base_interface->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
-    //m_callback_group = node->create_callback_group(
-    //    rclcpp::CallbackGroupType::MutuallyExclusive);
     auto pub_options = rclcpp::PublisherOptions();
     pub_options.callback_group = m_callback_groups[cf_prefix];
 

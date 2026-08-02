@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <deque>
+#include <optional>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "geometry_msgs/msg/point.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -17,7 +19,9 @@ public:
 
   void publish(
     const std::unordered_map<uint8_t, ObjectInfo> & objects,
-    uint8_t updated_id);
+    std::optional<uint8_t> updated_id = std::nullopt);
+
+  void clear();
 
 private:
   struct Color
@@ -33,4 +37,5 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr publisher_;
   rclcpp::Clock::SharedPtr clock_;
   std::unordered_map<uint8_t, std::deque<geometry_msgs::msg::Point>> trails_;
+  std::unordered_set<uint8_t> published_ids_;
 };

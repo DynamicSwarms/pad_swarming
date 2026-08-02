@@ -89,7 +89,13 @@ HardwareActor::set_pose_target(const PoseTarget& target_pose) {
     if (m_state == ActorState::ERROR_STATE)
         return false;
 
+    const bool switching_to_position_control =
+        m_mode != ActorMode::POSITION_CONTROL;
     m_target_pose = target_pose;
+    if (switching_to_position_control) {
+        m_position_controller.initialize_target_history(
+            m_target_pose.pose.translation());
+    }
     m_mode = ActorMode::POSITION_CONTROL;
 
     m_transition_to_low_level_commander();
@@ -288,7 +294,11 @@ void HardwareActor::m_do_cmd_position_update(Eigen::Vector3d & position)
     bool collision = false;
     if (collision_avoidance)
     {
-        m_collision_avoidance_client->get_collision_avoidance_target(position, target_position, collision);
+        // TODO(architecture): Remove this compatibility mirror once both command modes
+        // publish a shared collision-object state consumed by both avoidance algorithms.
+        m_collision_avoidance_client->mirror_target_to_velocity_avoidance(
+            position, target_position, collision);
+        //m_collision_avoidance_client->get_collision_avoidance_target(position, target_position, collision);
     }
 
     m_position_controller.safe_command_position(position, target_position, collision);
@@ -313,6 +323,10 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
         bool collision = false;
         if (m_target_velocity.collision_avoidance)
         {
+            // TODO(architecture): Remove this compatibility mirror once both command modes
+            // publish a shared collision-object state consumed by both avoidance algorithms.
+            //m_collision_avoidance_client->mirror_velocity_to_target_avoidance(
+            //    position, safe_velocity);
             m_collision_avoidance_client->get_collision_avoidance_velocity(
                 position, safe_velocity, collision);
         }
@@ -334,26 +348,6 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
     } else {
         RCLCPP_WARN(m_logger, "Failed to transform velocity from frame %s to world frame. Using last valid target position.", m_target_velocity.frame_id.c_str());
     }
-
-
-    //m_target_pose = PoseTarget{ Eigen::Affine3d::Identity(), "world", false, false };
-    //       
-    //            m_target_pose.pose.translation() = position +  velocity_world.head<3>() * m_dt;
-    //            const double yaw_target = m_current_yaw + velocity_world(5) * m_dt;
-    //            m_target_pose.pose.linear() = Eigen::AngleAxisd(yaw_target, Eigen::Vector3d::UnitZ()).toRotationMatrix();                m_target_pose.use_yaw = m_target_velocity.use_angular;
-    //            m_target_pose.collision_avoidance = m_target_velocity.collision_avoidance;
-//
-    //            RCLCPP_INFO(m_logger, "Velocity target: (%f, %f, %f), yaw rate: %f, frame_id: %s. Resulting position target: (%f, %f, %f), yaw: %f, frame_id: %s", 
-    //                m_target_velocity.velocity(0), m_target_velocity.velocity(1), m_target_velocity.velocity(2),
-    //                m_target_velocity.velocity(5),
-    //                m_target_velocity.frame_id.c_str(),
-    //                m_target_pose.pose.translation().x(), m_target_pose.pose.translation().y(), m_target_pose.pose.translation().z(),
-    //                std::atan2(m_target_pose.pose.rotation()(1, 0), m_target_pose.pose.rotation()(0, 0)),
-    //                m_target_pose.frame_id.c_str());
-    //        } else {
-    //            RCLCPP_WARN(m_logger, "Failed to transform velocity from frame %s to world frame. Using last valid target position.", m_target_velocity.frame_id.c_str());
-    //        }
-//
 }
 
 

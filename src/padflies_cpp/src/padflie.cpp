@@ -127,7 +127,7 @@ public:
       success = true; // Maybe inform the commander??
     } else {
       try {
-        m_padflie_commander->on_configure(shared_from_this());
+        m_padflie_commander->on_configure();
         success = true;
       } catch (const CommanderException & e) {
         RCLCPP_ERROR(this->get_logger(), "Failed to configure PadflieCommander: %s", e.what());
@@ -151,7 +151,7 @@ public:
     RCLCPP_INFO(this->get_logger(), "Activating Padflie with prefix: %s", m_prefix.c_str());
     bool success = false;
     try {
-      m_padflie_commander->on_activate(shared_from_this());
+      m_padflie_commander->on_activate();
       success = true;
     } catch (const CommanderException & e) {
       RCLCPP_ERROR(this->get_logger(), "Failed to activate PadflieCommander: %s", e.what());
@@ -170,7 +170,7 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
     try {
-      m_padflie_commander->on_deactivate(shared_from_this(), m_force_deactivate);
+      m_padflie_commander->on_deactivate(m_force_deactivate);
     } catch (const CommanderException & e) {
       RCLCPP_ERROR(this->get_logger(), "Failed to deactivate PadflieCommander: %s", e.what());
       //return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;

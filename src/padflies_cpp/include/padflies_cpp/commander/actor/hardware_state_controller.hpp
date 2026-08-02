@@ -1,5 +1,5 @@
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "padflies_cpp/node_interfaces_bundle.hpp"
 
 #include "padflies_interfaces/msg/padflie_info.hpp"
 #include "crazyflie_interfaces/msg/log_data_generic.hpp"
@@ -14,7 +14,7 @@ class HardwareStateController
 
         void connect(    
             const std::string & cf_prefix,
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
+            const padflies_cpp::NodeInterfacesBundle & node_interfaces
         );
 
         void set_on_charged_callback(std::function<void()> callback);

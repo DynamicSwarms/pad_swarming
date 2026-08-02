@@ -105,3 +105,60 @@ void CollisionAvoidanceClient::get_collision_avoidance_target(
         collision = response->collision;
     }
 }
+
+void CollisionAvoidanceClient::mirror_target_to_velocity_avoidance(
+    const Eigen::Vector3d & position,
+    Eigen::Vector3d & target,
+    bool & collision)
+{
+    if (!m_velocity_client) return;
+
+    using VelocityService =
+        collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance;
+    auto request = std::make_shared<VelocityService::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+
+    Eigen::Vector2d velocity = (target - position).head<2>();
+    constexpr double max_speed = 0.8;
+    if (velocity.norm() > max_speed) {
+        velocity = velocity.normalized() * max_speed;
+    }
+    request->velocity.x = velocity.x();
+    request->velocity.y = velocity.y();
+    request->velocity.z = target.z() - position.z();
+    request->radius = 0.15;
+    request->max_speed = max_speed;
+
+    auto result = m_velocity_client->async_send_request(request);
+    const auto status = result.wait_for(std::chrono::milliseconds(100));
+    if (status == std::future_status::ready) {
+        const auto response = result.get();
+        target.x() = position.x() + response->velocity.x;
+        target.y() = position.y() + response->velocity.y;
+        collision = response->collision;
+    }
+}
+
+void CollisionAvoidanceClient::mirror_velocity_to_target_avoidance(
+    const Eigen::Vector3d & position,
+    const Eigen::Vector3d & velocity)
+{
+    if (!m_client) return;
+
+    using TargetService = collision_avoidance_interfaces::srv::CollisionAvoidance;
+    auto request = std::make_shared<TargetService::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+    request->target.x = position.x() + velocity.x();
+    request->target.y = position.y() + velocity.y();
+    request->target.z = position.z() + velocity.z();
+
+    m_client->async_send_request(
+        request,
+        [](rclcpp::Client<TargetService>::SharedFuture) {});
+}

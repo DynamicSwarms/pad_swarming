@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include "padflies_cpp/commander/goal/commander_event.hpp"
 #include "padflies_cpp/commander/goal/flight_goal_executor.hpp"
@@ -32,11 +33,12 @@ public:
   std::uint64_t request_goal(
     FlightGoal goal,
     std::shared_ptr<IGoalCompletion> completion,
+    GoalRetryPolicy retry_policy,
     GoalPolicy policy = GoalPolicy::REPLACEABLE)
   {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return handle_goal_request(create_goal_request(
-      std::move(goal), std::move(completion), policy));
+      std::move(goal), std::move(completion), retry_policy, policy));
   }
 
   void active_routine_finished(GoalResult result)
@@ -75,21 +77,56 @@ public:
       m_active_goal.reset();
     }
     if (m_next_goal) {
-      finish_goal(*m_next_goal, {GoalOutcome::INTERRUPTED, std::move(reason)});
+      finish_goal(*m_next_goal, {GoalOutcome::INTERRUPTED, reason});
       m_next_goal.reset();
     }
+    for (auto & goal : m_deferred_cancelled_goals) {
+      finish_goal(goal, {GoalOutcome::INTERRUPTED, reason});
+    }
+    m_deferred_cancelled_goals.clear();
     m_interruption_in_progress = false;
     m_no_active_goal.notify_all();
+  }
+
+  bool cancel_goal(std::uint64_t goal_id)
+  {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
+    if (m_active_goal && m_active_goal->id() == goal_id) {
+      if (!m_active_goal->can_be_replaced()) return false;
+      const bool accepted = try_interrupt_active_routine();
+      if (accepted) m_interruption_in_progress = true;
+      return accepted;
+    }
+
+    if (m_next_goal && m_next_goal->id() == goal_id) {
+      if (!m_next_goal->can_be_replaced()) return false;
+      m_deferred_cancelled_goals.push_back(std::move(*m_next_goal));
+      m_next_goal.reset();
+      return true;
+    }
+
+    return false;
+  }
+
+  void complete_deferred_cancellations()
+  {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    for (auto & goal : m_deferred_cancelled_goals) {
+      finish_goal(goal, {GoalOutcome::INTERRUPTED, "Flight goal was cancelled"});
+    }
+    m_deferred_cancelled_goals.clear();
   }
 
 private:
   FlightGoalRequest create_goal_request(
     FlightGoal goal,
     std::shared_ptr<IGoalCompletion> completion,
+    GoalRetryPolicy retry_policy,
     GoalPolicy policy)
   {
     return {
-      m_next_goal_id++, std::move(goal), std::move(completion), policy};
+      m_next_goal_id++, std::move(goal), std::move(completion), retry_policy, policy};
   }
 
   std::uint64_t handle_goal_request(FlightGoalRequest request)
@@ -139,7 +176,7 @@ private:
     m_active_goal = std::move(request);
     log_goal_event(CommanderEventType::GOAL_STARTED, *m_active_goal);
     m_executor.start_routine_for_goal(
-      m_active_goal->id(), m_active_goal->goal());
+      m_active_goal->id(), m_active_goal->goal(), m_active_goal->retry_policy());
   }
 
   void set_next_goal(FlightGoalRequest request)
@@ -187,6 +224,7 @@ private:
   std::shared_ptr<ICommanderEventSink> m_event_log;
   std::optional<FlightGoalRequest> m_active_goal;
   std::optional<FlightGoalRequest> m_next_goal;
+  std::vector<FlightGoalRequest> m_deferred_cancelled_goals;
   bool m_interruption_in_progress{false};
   std::uint64_t m_next_goal_id{1};
   mutable std::recursive_mutex m_mutex;

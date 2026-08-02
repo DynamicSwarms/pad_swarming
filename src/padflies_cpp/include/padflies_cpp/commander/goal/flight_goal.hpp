@@ -54,6 +54,12 @@ enum class GoalPolicy
   LOCKED
 };
 
+enum class GoalRetryPolicy
+{
+  NEVER,
+  INFINITE
+};
+
 inline FlightGoalKind kind(const FlightGoal & goal)
 {
   return std::visit(

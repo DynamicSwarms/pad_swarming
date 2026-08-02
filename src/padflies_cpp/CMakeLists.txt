@@ -10,6 +10,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
@@ -51,6 +52,7 @@ set(PADFLIE_DEPS
 
 target_link_libraries(padflie
   rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
   rclcpp_components::component
   pad_management_interfaces::pad_management_interfaces
   rclcpp_lifecycle::rclcpp_lifecycle
@@ -65,6 +67,7 @@ target_include_directories(padflie_deps PUBLIC
 )
 target_link_libraries(padflie_deps 
   rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
   crazyflie_interfaces::crazyflie_interfaces
   padflies_interfaces::padflies_interfaces
   pad_management_interfaces::pad_management_interfaces

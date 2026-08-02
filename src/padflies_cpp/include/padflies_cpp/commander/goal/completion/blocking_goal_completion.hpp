@@ -4,17 +4,10 @@
 #include <mutex>
 #include <optional>
 
-#include "padflies_cpp/commander/goal/flight_goal.hpp"
+#include "padflies_cpp/commander/goal/completion/goal_completion.hpp"
 
 namespace padflies_cpp::commander
 {
-
-class IGoalCompletion
-{
-public:
-  virtual ~IGoalCompletion() = default;
-  virtual void complete(const GoalResult & result) = 0;
-};
 
 class BlockingGoalCompletion final : public IGoalCompletion
 {

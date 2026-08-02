@@ -31,6 +31,15 @@ public:
         double radius = 0.15,
         double max_speed = 0.8);
 
+    void mirror_target_to_velocity_avoidance(
+        const Eigen::Vector3d & position,
+        Eigen::Vector3d & target,
+        bool & collision);
+
+    void mirror_velocity_to_target_avoidance(
+        const Eigen::Vector3d & position,
+        const Eigen::Vector3d & velocity);
+
 private: 
     uint8_t m_cf_id;
     std::shared_ptr<rclcpp::Client<collision_avoidance_interfaces::srv::CollisionAvoidance>> m_client;

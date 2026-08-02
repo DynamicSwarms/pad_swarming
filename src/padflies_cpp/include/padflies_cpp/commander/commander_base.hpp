@@ -1,7 +1,6 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 
 #include "padflies_cpp/commander/actor/hardware_state_controller.hpp"
@@ -33,18 +32,9 @@ class PadflieCommanderBase{
         virtual ~PadflieCommanderBase();
 
 
-        void on_configure(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        );
-
-        void on_activate(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        );
-
-        void on_deactivate(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
-            bool force
-        );
+        void on_configure();
+        void on_activate();
+        void on_deactivate(bool force);
 
 
         virtual bool is_healthy() const = 0;
@@ -56,9 +46,7 @@ class PadflieCommanderBase{
          * no tf available
          * availability is not yet sent
          */
-        virtual void m_configure_commander(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) {(void)node;};
+        virtual void m_configure_commander() {};
         /**
          * Gets called when base commander finished configuration. 
          * hw_state_controller is connected and starts listening to hardware state
@@ -74,9 +62,7 @@ class PadflieCommanderBase{
          * control interface is not yet available -> no commands incomming
          * availabilility is still sent
          */
-        virtual void m_activate_commander(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        ) {(void)node;};
+        virtual void m_activate_commander() {};
         /**
          * Gets called when base commander finished activation. 
          * hardware_actor is available
@@ -90,10 +76,7 @@ class PadflieCommanderBase{
          * -> no more commands are beeing sent to padflie. 
          * The hardware_actor and hardware_state controller are still available.
          */
-        virtual void m_deactivate_commander(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node,
-            bool force
-        ) {(void)node; (void)force;};
+        virtual void m_deactivate_commander(bool force) {(void)force;};
         /*
          * Gets called when base commander finished deactivation. 
          * hardware_actor is no longer available
@@ -127,13 +110,8 @@ class PadflieCommanderBase{
 
         void m_handle_info_timer();        
 
-        void m_create_control_interface (
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        );
-
-        void m_remove_control_interface(
-            std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node
-        );    
+        void m_create_control_interface();
+        void m_remove_control_interface();
     
 
         rcl_interfaces::msg::SetParametersResult 
@@ -142,6 +120,7 @@ class PadflieCommanderBase{
     protected: 
         std::string m_prefix;
         std::string m_cf_prefix;
+        padflies_cpp::NodeInterfacesBundle m_node_interfaces;
 
         HardwareStateController m_hw_state_controller;
         std::shared_ptr<PadflieTF> m_padflie_tf;
