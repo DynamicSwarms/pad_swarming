@@ -5,6 +5,7 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "padflies_cpp/commander/actor/hardware_actor.hpp"
+#include "padflies_cpp/commander/actor/hardware_state_controller.hpp"
 #include "padflies_cpp/commander/command/routine/routine_result.hpp"
 #include "padflies_cpp/node_interfaces_bundle.hpp"
 #include "padflies_cpp/commander/padflie_tf.hpp"
@@ -20,6 +21,7 @@ public:
   virtual BT::Tree getTree(
     BT::BehaviorTreeFactory & factory,
     std::shared_ptr<HardwareActor> hardware_actor,
+    std::shared_ptr<HardwareStateController> hardware_state_controller,
     std::shared_ptr<PadflieTF> padflie_tf,
     const pad_management_interfaces::msg::SiteInfo & site_info) = 0;
 

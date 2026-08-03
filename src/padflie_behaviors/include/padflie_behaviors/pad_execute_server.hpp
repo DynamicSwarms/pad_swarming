@@ -44,11 +44,13 @@ public:
     bool goal_received() { return m_goal_received; }
     bool goal_cancelled() { return m_goal_cancelled; }
 
-    void send_feedback(uint8_t status)
+    void send_feedback(uint8_t status, geometry_msgs::msg::PoseStamped current_pose, double battery_percentage)
     {
         if (m_current_pad_execute_goal_handle) {
             auto feedback = std::make_shared<PadExecuteActionT::Feedback>();
             feedback->status = status;
+            feedback->current_pose = current_pose;
+            feedback->battery_percentage = battery_percentage;
             m_current_pad_execute_goal_handle->publish_feedback(feedback);
         }
     }

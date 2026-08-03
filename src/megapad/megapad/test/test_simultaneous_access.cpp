@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "gtest/gtest.h"
+#include "megapad/megapad_access_policy.hpp"
 #include "megapad/megapad_resource_manager.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -16,6 +17,37 @@ using pad_management_cpp::AccessRequest;
 using pad_management_cpp::AccessResponse;
 using pad_management_cpp::ExecuteResult;
 using pad_management_cpp::NodeInterfacesBundle;
+
+TEST(MegaPadAccessPolicyTest, RejectsOverlappingMarkedPads)
+{
+  megapad::MegaPadAccessPolicy policy;
+  const megapad::AccessGeometry2D holder{{-1.0, 0.0}, {0.0, 0.0}};
+  const std::vector<megapad::AccessGeometry2D> all_accesses{
+    holder,
+    {{0.0, -1.0}, {0.0, 0.0}},
+    {{1.0, 2.0}, {1.0, 1.0}}};
+
+  EXPECT_FALSE(policy.can_grant(
+    {{0.0, -1.0}, {0.0, 0.0}}, {holder}, all_accesses));
+  const auto blocked = policy.blocked_associated_positions(
+    {{0.0, -1.0}, {0.0, 0.0}}, {holder}, all_accesses);
+  ASSERT_EQ(blocked.size(), 1U);
+  EXPECT_TRUE(blocked.front().isApprox(Eigen::Vector2d{0.0, 0.0}));
+  EXPECT_TRUE(policy.can_grant(
+    {{1.0, 2.0}, {1.0, 1.0}}, {holder}, all_accesses));
+}
+
+TEST(MegaPadAccessPolicyTest, RejectsCrossingPathsWithoutMarkedPadOverlap)
+{
+  megapad::MegaPadAccessPolicy policy;
+  const megapad::AccessGeometry2D holder{{-1.0, -1.0}, {1.0, 1.0}};
+  const megapad::AccessGeometry2D requesting{{-1.0, 1.0}, {1.0, -1.0}};
+  const std::vector<megapad::AccessGeometry2D> all_accesses{holder, requesting};
+
+  EXPECT_TRUE(policy.blocked_associated_positions(
+    requesting, {holder}, all_accesses).empty());
+  EXPECT_FALSE(policy.can_grant(requesting, {holder}, all_accesses));
+}
 
 class ResourceManagerTest : public ::testing::Test
 {

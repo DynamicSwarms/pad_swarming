@@ -48,7 +48,10 @@ def generate_padflies(context):
 
     yield Node(
         package="pad_management_cpp",
-        executable="pad_right_provider"
+        executable="pad_right_provider",
+        parameters=[
+            {"pad_resource_manager_plugin": "megapad::MegaPadResourceManagerV2"}
+        ]
     )
 
 

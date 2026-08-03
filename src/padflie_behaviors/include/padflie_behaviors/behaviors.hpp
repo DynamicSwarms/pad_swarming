@@ -812,10 +812,14 @@ public:
         const BT::NodeConfig& config,
         rclcpp::Logger logger, 
         std::shared_ptr<PadExecuteServer> pad_execute_server,
+        std::shared_ptr<PadflieTF> padflie_tf,
+        std::shared_ptr<HardwareStateController> hardware_state_controller,
         std::shared_ptr<padflie_behaviors::FailureContext> failure_context)
     : BT::SyncActionNode(name, config)
     , m_logger(logger.get_child(name))
     , m_pad_execute_server(pad_execute_server)
+    , m_padflie_tf(padflie_tf)
+    , m_hardware_state_controller(std::move(hardware_state_controller))
     , m_failure_context(std::move(failure_context))
     {}
 
@@ -841,7 +845,16 @@ public:
             RCLCPP_ERROR(m_logger, "Error getting input port [status]!");
             return BT::NodeStatus::FAILURE;
         }
-        m_pad_execute_server->send_feedback(status);
+
+        geometry_msgs::msg::PoseStamped cf_pose;
+        if (!m_padflie_tf->get_cf_pose_stamped("world", cf_pose))
+        {
+            RCLCPP_ERROR(m_logger, "Error getting Crazyflie pose!");
+            return BT::NodeStatus::FAILURE;
+        }
+        double voltage = m_hardware_state_controller->get_battery_voltage();
+        double percentage = voltage / 4.2 * 100.0; // Assuming 4.2V is 100% battery
+        m_pad_execute_server->send_feedback(status, cf_pose,  percentage);
 
         
         RCLCPP_DEBUG(m_logger, "Sending feedback from SendFeedback node...");
@@ -850,6 +863,8 @@ public:
 private:
     rclcpp::Logger m_logger;
     std::shared_ptr<PadExecuteServer> m_pad_execute_server;
+    std::shared_ptr<PadflieTF> m_padflie_tf;
+    std::shared_ptr<HardwareStateController> m_hardware_state_controller;
     std::shared_ptr<padflie_behaviors::FailureContext> m_failure_context;
     std::shared_ptr<PadClient> m_pad_client;
 };

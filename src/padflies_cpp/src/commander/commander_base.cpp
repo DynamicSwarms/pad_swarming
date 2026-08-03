@@ -10,16 +10,17 @@ PadflieCommanderBase::PadflieCommanderBase(
 : m_prefix(prefix)
 , m_cf_prefix(cf_prefix)
 , m_node_interfaces(std::move(node_interfaces_bundle))
-, m_hw_state_controller(m_node_interfaces.parameters_interface)
+, m_hw_state_controller(std::make_shared<HardwareStateController>(
+    m_node_interfaces.parameters_interface))
 , m_padflie_tf(std::make_shared<PadflieTF>(cf_prefix, WORLD, m_node_interfaces.clock_interface->get_clock(), m_node_interfaces.logging_interface->get_logger()))
 , m_callback_group(m_node_interfaces.base_interface->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive))
 , m_param_callback_handle(m_node_interfaces.parameters_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
 , m_node_clock_interface(m_node_interfaces.clock_interface)
 , m_logger(m_node_interfaces.logging_interface->get_logger())
 { 
-    m_hw_state_controller.set_on_state_callback(
+    m_hw_state_controller->set_on_state_callback(
         std::bind(&PadflieCommanderBase::m_on_state_callback, this));
-    m_hw_state_controller.set_on_charged_callback(
+    m_hw_state_controller->set_on_charged_callback(
         std::bind(&PadflieCommanderBase::m_on_charged_callback, this));
 }
 
@@ -32,7 +33,7 @@ PadflieCommanderBase::on_configure()
 
     m_configure_commander();
 
-    m_hw_state_controller.connect(m_cf_prefix, m_node_interfaces);
+    m_hw_state_controller->connect(m_cf_prefix, m_node_interfaces);
     m_padflie_tf->start_listening(
         m_node_interfaces.base_interface,
         m_node_interfaces.topics_interface,
@@ -50,8 +51,8 @@ void
 PadflieCommanderBase::on_activate()
 {
     if (m_base_state != CommanderBaseState::CONFIGURED) throw CommanderException("PadflieCommanderBase is not configured!");
-    if (!m_hw_state_controller.is_charged()) throw CommanderException("Crazyflie is not charged!");
-    if (!m_hw_state_controller.canfly()) throw CommanderException("Crazyflie cannot fly!");
+    if (!m_hw_state_controller->is_charged()) throw CommanderException("Crazyflie is not charged!");
+    if (!m_hw_state_controller->canfly()) throw CommanderException("Crazyflie cannot fly!");
     Eigen::Vector3d position;
     if (!m_padflie_tf->get_cf_position(position)) throw CommanderException("Crazyflie position is not available!");
 
@@ -85,7 +86,7 @@ PadflieCommanderBase::on_deactivate(bool force)
     m_deactivate_commander(force);
     
     m_hardware_actor.reset(); 
-    m_hw_state_controller.reset_state();
+    m_hw_state_controller->reset_state();
     m_on_commander_deactivated();
     m_base_state = CommanderBaseState::CONFIGURED;
     RCLCPP_INFO(m_logger, "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
@@ -111,8 +112,8 @@ PadflieCommanderBase::m_handle_info_timer()
         info_msg.pose_world.position.z = position.z();
     }
     info_msg.is_home = get_home_state();
-    if (m_hw_state_controller.is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;
-    else if (m_hw_state_controller.is_empty()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_LOW;
+    if (m_hw_state_controller->is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;
+    else if (m_hw_state_controller->is_empty()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_LOW;
     else info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_OK;
 
     info_msg.padflie_state = 1; // STATE ISNT USED YET, but 0 throws an error

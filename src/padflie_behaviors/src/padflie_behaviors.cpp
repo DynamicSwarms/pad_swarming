@@ -40,7 +40,9 @@ create_pad_interfaces(
 static BT::Tree create_tree(
   BT::BehaviorTreeFactory & factory, const std::string & tree_id,
   const padflies_cpp::NodeInterfacesBundle & node_interfaces_bundle,
-  rclcpp::Logger logger, std::shared_ptr<HardwareActor> hardware_actor,
+  rclcpp::Logger logger,
+  std::shared_ptr<HardwareActor> hardware_actor,
+  std::shared_ptr<HardwareStateController> hardware_state_controller,
   std::shared_ptr<PadflieTF> padflie_tf, std::shared_ptr<PadExecuteServer> server,
   std::shared_ptr<PadClient> pad_client,
   std::shared_ptr<FailureContext> failure_context)
@@ -64,7 +66,7 @@ static BT::Tree create_tree(
   factory.registerNodeType<TimeoutROS>(
     "TimeoutROS", logger, node_interfaces_bundle.clock_interface, failure_context);
   factory.registerNodeType<TryFinally>("TryFinally", logger, failure_context);
-  factory.registerNodeType<SendFeedback>("SendFeedback", logger, server, failure_context);
+  factory.registerNodeType<SendFeedback>("SendFeedback", logger, server, padflie_tf, hardware_state_controller, failure_context);
   factory.registerNodeType<HasPadRight>("HasPadRight", logger, failure_context);
   factory.registerNodeType<ReleasePadRight>(
     "ReleasePadRight", logger, server, failure_context);
@@ -79,6 +81,7 @@ static BT::Tree create_tree(
 BT::Tree PadflieTakeoffPlugin::getTree(
   BT::BehaviorTreeFactory & factory, 
   std::shared_ptr<HardwareActor> hardware_actor,
+  std::shared_ptr<HardwareStateController> hardware_state_controller,
   std::shared_ptr<PadflieTF> padflie_tf,
   const pad_management_interfaces::msg::SiteInfo & site_info)
 {
@@ -90,12 +93,13 @@ BT::Tree PadflieTakeoffPlugin::getTree(
     site_info.pad_idle_target_service_name);
   return create_tree(
     factory, "TakeoffBehavior", m_node_interfaces_bundle, m_logger,
-    hardware_actor, padflie_tf, pad_execute_server, pad_client, m_failure_context);
+    hardware_actor, hardware_state_controller, padflie_tf, pad_execute_server, pad_client, m_failure_context);
 }
 
 BT::Tree PadflieLandingPlugin::getTree(
   BT::BehaviorTreeFactory & factory, 
   std::shared_ptr<HardwareActor> hardware_actor,
+  std::shared_ptr<HardwareStateController> hardware_state_controller,
   std::shared_ptr<PadflieTF> padflie_tf,
   const pad_management_interfaces::msg::SiteInfo & site_info)
 {
@@ -107,7 +111,7 @@ BT::Tree PadflieLandingPlugin::getTree(
     site_info.pad_idle_target_service_name);
   return create_tree(
     factory, "LandBehavior", m_node_interfaces_bundle, m_logger,
-    hardware_actor, padflie_tf, pad_execute_server, pad_client, m_failure_context);
+    hardware_actor, hardware_state_controller, padflie_tf, pad_execute_server, pad_client, m_failure_context);
 }
 
 RoutineResultClassifier PadflieTakeoffPlugin::getResultClassifier() const

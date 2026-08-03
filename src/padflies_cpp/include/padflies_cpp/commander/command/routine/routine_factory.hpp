@@ -15,6 +15,7 @@ public:
 
   void set_padflie_shared_ptrs(
     std::shared_ptr<HardwareActor> hardware_actor,
+    std::shared_ptr<HardwareStateController> hardware_state_controller,
     std::shared_ptr<PadflieTF> padflie_tf);
   void reset_padflie_shared_ptrs();
 
@@ -29,5 +30,6 @@ private:
   padflies_cpp::NodeInterfacesBundle m_node_interfaces_bundle;
   rclcpp::Logger m_logger;
   std::shared_ptr<HardwareActor> m_hardware_actor;
+  std::shared_ptr<HardwareStateController> m_hardware_state_controller;
   std::shared_ptr<PadflieTF> m_padflie_tf;
 };

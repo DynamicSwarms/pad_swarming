@@ -25,7 +25,7 @@ PadflieCommander::PadflieCommander(
         m_routine_factory,
         m_site_selector,
         [this]() {
-            return m_hw_state_controller.is_flying();
+            return m_hw_state_controller->is_flying();
         },
         [this](FlightGoalKind goal_kind) {
             m_on_goal_started(goal_kind);
@@ -50,8 +50,8 @@ PadflieCommander::~PadflieCommander()
 bool 
 PadflieCommander::is_healthy() const  
 {
-    bool isnt_flying = m_state == CommanderState::FLYING && !m_hw_state_controller.is_flying();
-    bool cant_flying = m_state == CommanderState::FLYING && !m_hw_state_controller.canfly();
+    bool isnt_flying = m_state == CommanderState::FLYING && !m_hw_state_controller->is_flying();
+    bool cant_flying = m_state == CommanderState::FLYING && !m_hw_state_controller->canfly();
     return !isnt_flying && !cant_flying; 
 }
 
@@ -81,8 +81,9 @@ PadflieCommander::m_activate_commander()
 
 void PadflieCommander::m_on_commander_activated() 
 {
-    m_routine_factory->set_padflie_shared_ptrs(m_hardware_actor, m_padflie_tf);
-    m_state = m_hw_state_controller.is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
+    m_routine_factory->set_padflie_shared_ptrs(
+        m_hardware_actor, m_hw_state_controller, m_padflie_tf);
+    m_state = m_hw_state_controller->is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
 }
 
 void 
@@ -126,9 +127,9 @@ PadflieCommander::m_on_charged_callback()
 void PadflieCommander::m_on_state_callback()
 {
     if (!m_availability_pub ||
-        !m_hw_state_controller.is_charged() ||
-        !m_hw_state_controller.canfly() ||
-        m_hw_state_controller.is_tumbled())
+        !m_hw_state_controller->is_charged() ||
+        !m_hw_state_controller->canfly() ||
+        m_hw_state_controller->is_tumbled())
     {
         return;
     }
@@ -257,10 +258,10 @@ void PadflieCommander::m_on_goal_finished(
 
     if (result.outcome == GoalOutcome::SUCCESS) {
         m_state = deployed ? CommanderState::FLYING : CommanderState::CHARGING;
-    } else if (m_hw_state_controller.is_flying()) {
+    } else if (m_hw_state_controller->is_flying()) {
         m_state = CommanderState::FLYING;
     } else {
-        m_state = m_hw_state_controller.is_charged() ?
+        m_state = m_hw_state_controller->is_charged() ?
             CommanderState::CHARGED : CommanderState::CHARGING;
     }
 

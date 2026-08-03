@@ -122,7 +122,7 @@ class PadflieCommanderBase{
         std::string m_cf_prefix;
         padflies_cpp::NodeInterfacesBundle m_node_interfaces;
 
-        HardwareStateController m_hw_state_controller;
+        std::shared_ptr<HardwareStateController> m_hw_state_controller;
         std::shared_ptr<PadflieTF> m_padflie_tf;
         std::shared_ptr<rclcpp::CallbackGroup> m_callback_group;
 

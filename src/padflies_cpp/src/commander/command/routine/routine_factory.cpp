@@ -13,18 +13,21 @@ RoutineFactory::RoutineFactory(
 
 void RoutineFactory::set_padflie_shared_ptrs(
   std::shared_ptr<HardwareActor> hardware_actor,
+  std::shared_ptr<HardwareStateController> hardware_state_controller,
   std::shared_ptr<PadflieTF> padflie_tf)
 {
-  if (!hardware_actor || !padflie_tf) {
+  if (!hardware_actor || !hardware_state_controller || !padflie_tf) {
     throw std::invalid_argument("Null shared pointer provided to RoutineFactory");
   }
   m_hardware_actor = std::move(hardware_actor);
+  m_hardware_state_controller = std::move(hardware_state_controller);
   m_padflie_tf = std::move(padflie_tf);
 }
 
 void RoutineFactory::reset_padflie_shared_ptrs()
 {
   m_hardware_actor.reset();
+  m_hardware_state_controller.reset();
   m_padflie_tf.reset();
 }
 
@@ -40,7 +43,8 @@ std::shared_ptr<Routine> RoutineFactory::create_takeoff_routine(
     site_info.takeoff_plugin_name, m_node_interfaces_bundle, m_logger);
   RCLCPP_INFO(m_logger, "Loaded takeoff plugin '%s' for site '%s'",
     site_info.takeoff_plugin_name.c_str(), site_info.name.c_str());
-  auto tree = plugin->getTree(factory, m_hardware_actor, m_padflie_tf, site_info);
+  auto tree = plugin->getTree(
+    factory, m_hardware_actor, m_hardware_state_controller, m_padflie_tf, site_info);
   auto result_classifier = plugin->getResultClassifier();
   return std::make_shared<Routine>(
     std::move(tree), std::move(result_classifier), std::move(interruption),
@@ -61,7 +65,8 @@ std::shared_ptr<Routine> RoutineFactory::create_land_routine(
     site_info.landing_plugin_name, m_node_interfaces_bundle, m_logger);
   RCLCPP_INFO(m_logger, "Loaded landing plugin '%s' for site '%s'",
     site_info.landing_plugin_name.c_str(), site_info.name.c_str());
-  auto tree = plugin->getTree(factory, m_hardware_actor, m_padflie_tf, site_info);
+  auto tree = plugin->getTree(
+    factory, m_hardware_actor, m_hardware_state_controller, m_padflie_tf, site_info);
   auto result_classifier = plugin->getResultClassifier();
   return std::make_shared<Routine>(
     std::move(tree), std::move(result_classifier), std::move(interruption),

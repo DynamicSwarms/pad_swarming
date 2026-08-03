@@ -6,4 +6,11 @@
       Mega pad implementation of the IPadResourceManager plugin interface.
     </description>
   </class>
+  <class
+    type="megapad::MegaPadResourceManagerV2"
+    base_class_type="pad_management_cpp::IPadResourceManager">
+    <description>
+      Version 2 of the mega pad IPadResourceManager plugin.
+    </description>
+  </class>
 </library>

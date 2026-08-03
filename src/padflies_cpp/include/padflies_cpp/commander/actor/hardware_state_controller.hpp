@@ -1,7 +1,8 @@
+#pragma once
+
 #include "rclcpp/rclcpp.hpp"
 #include "padflies_cpp/node_interfaces_bundle.hpp"
 
-#include "padflies_interfaces/msg/padflie_info.hpp"
 #include "crazyflie_interfaces/msg/log_data_generic.hpp"
 using std::placeholders::_1;
 

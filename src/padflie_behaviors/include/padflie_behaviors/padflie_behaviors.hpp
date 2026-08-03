@@ -16,6 +16,7 @@ public:
   BT::Tree getTree(
     BT::BehaviorTreeFactory & factory,
     std::shared_ptr<HardwareActor> hardware_actor,
+    std::shared_ptr<HardwareStateController> hardware_state_controller,
     std::shared_ptr<PadflieTF> padflie_tf,
     const pad_management_interfaces::msg::SiteInfo & site_info) override;
 
@@ -37,6 +38,7 @@ public:
   BT::Tree getTree(
     BT::BehaviorTreeFactory & factory,
     std::shared_ptr<HardwareActor> hardware_actor,
+    std::shared_ptr<HardwareStateController> hardware_state_controller,
     std::shared_ptr<PadflieTF> padflie_tf,
     const pad_management_interfaces::msg::SiteInfo & site_info) override;
 
