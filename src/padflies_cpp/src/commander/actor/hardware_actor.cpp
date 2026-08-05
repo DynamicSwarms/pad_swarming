@@ -91,11 +91,18 @@ HardwareActor::set_pose_target(const PoseTarget& target_pose) {
 
     const bool switching_to_position_control =
         m_mode != ActorMode::POSITION_CONTROL;
-    m_target_pose = target_pose;
+    
     if (switching_to_position_control) {
-        m_position_controller.initialize_target_history(
-            m_target_pose.pose.translation());
+    
+        Eigen::Vector3d my_position = Eigen::Vector3d::Zero();
+        if (!m_padflie_tf->get_cf_position(my_position))
+        {
+            RCLCPP_WARN(m_logger, "Failed to get current position for changing to position control.");
+            my_position = m_target_pose.pose.translation(); 
+        }
+        m_position_controller.initialize_target_history(my_position);
     }
+    m_target_pose = target_pose;
     m_mode = ActorMode::POSITION_CONTROL;
 
     m_transition_to_low_level_commander();

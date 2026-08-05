@@ -82,6 +82,7 @@ BT::Tree
 SimpleTakeoffPlugin::getTree(
   BT::BehaviorTreeFactory & factory,
   std::shared_ptr<HardwareActor> hardware_actor,
+  std::shared_ptr<HardwareStateController>,
   std::shared_ptr<PadflieTF>,
   const pad_management_interfaces::msg::SiteInfo &)
 {
@@ -103,6 +104,7 @@ BT::Tree
 SimpleLandingPlugin::getTree(
   BT::BehaviorTreeFactory & factory,
   std::shared_ptr<HardwareActor> hardware_actor,
+  std::shared_ptr<HardwareStateController>,
   std::shared_ptr<PadflieTF>,
   const pad_management_interfaces::msg::SiteInfo &)
 {

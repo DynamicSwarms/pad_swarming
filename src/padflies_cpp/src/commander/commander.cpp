@@ -129,6 +129,7 @@ void PadflieCommander::m_on_state_callback()
     if (!m_availability_pub ||
         !m_hw_state_controller->is_charged() ||
         !m_hw_state_controller->canfly() ||
+        m_hw_state_controller->is_flying() ||
         m_hw_state_controller->is_tumbled())
     {
         return;

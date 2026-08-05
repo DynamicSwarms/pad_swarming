@@ -4,6 +4,8 @@
       stabilizer:
         estimator: 2 # 1: complementary, 2: ekf
         controller: 1 # 1: PID, 2: Mellinger
+        # Mellinger dont work with velocity control
+        # 1: PID, 2: Mellinger, 3: INDI, 4: Brescianini, 5: Lee
       locSrv:
         extPosStdDev: 1e-3
       ctrlMel:
