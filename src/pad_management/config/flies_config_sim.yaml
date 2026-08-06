@@ -1,4 +1,4 @@
-flies: 
+flies:
 - id: 0
   initial_position: [0.0, -0.2, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
@@ -28,4 +28,34 @@ flies:
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
 - id: 9
   initial_position: [-0.2, -0.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 10
+  initial_position: [-0.2, -0.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 11
+  initial_position: [-0.2, -0.8, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 12
+  initial_position: [-0.2, -1.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 13
+  initial_position: [-0.2, -1.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 14
+  initial_position: [-0.2, -1.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 15
+  initial_position: [-0.2, -1.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 16
+  initial_position: [-0.4, 0.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 17
+  initial_position: [-0.4, -0.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 18
+  initial_position: [-0.4, -0.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 19
+  initial_position: [-0.4, -0.6, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]

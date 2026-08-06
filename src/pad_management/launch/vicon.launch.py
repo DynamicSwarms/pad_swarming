@@ -19,6 +19,9 @@ import yaml
 def generate_padflies(context):
     backend = LaunchConfiguration("backend").perform(context)
     sitl = LaunchConfiguration("sitl").perform(context).lower() == "true"
+    use_components = (
+        LaunchConfiguration("padflies_as_components").perform(context).lower() == "true"
+    )
 
     if backend == "hardware" and sitl:
         yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sitl.yaml"
@@ -29,21 +32,38 @@ def generate_padflies(context):
 
     with open(yaml_file, "r") as file:
         flies = yaml.safe_load(file)["flies"]
+
+    def padflie_parameters(id):
+        return [
+            {
+                "id": id,
+                "initial_site": "megapad",
+                "battery_voltage_charged": 4.1,
+            }
+        ]
+
+    if use_components:
+        yield Node(
+            package="padflies_cpp",
+            executable="container",
+            name="padflie_container",
+            parameters=[
+                {
+                    "padflie_ids": [flie["id"] for flie in flies],
+                    "initial_site": "megapad",
+                    "battery_voltage_charged": 4.1,
+                }
+            ],
+            output="screen",
+        )
+    else:
         for flie in flies:
             id = flie["id"]
-            #if id >= 0xC0:
-            #    continue
             yield Node(
                 package="padflies_cpp",
                 executable="padflie",
                 name=f"padflie{id}",
-                parameters=[
-                    {
-                        "id": id,
-                        "initial_site": "megapad",
-                        "battery_voltage_charged": 4.1,
-                    }
-                ],
+                parameters=padflie_parameters(id),
             )
 
     yield Node(
@@ -265,6 +285,11 @@ def generate_launch_description():
         default_value="false",
         description="Use SITL through the hardware UDP-radio backend.",
     )
+    padflies_as_components_arg = DeclareLaunchArgument(
+        "padflies_as_components",
+        default_value="false",
+        description="Run Padflies as components with one executor per Padflie.",
+    )
     
     
 
@@ -329,6 +354,7 @@ def generate_launch_description():
         [
             backend_arg,
             sitl_arg,
+            padflies_as_components_arg,
             hardware_elements,
             simulation_elements,
             pad_broadcaster,

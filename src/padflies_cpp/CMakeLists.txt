@@ -9,6 +9,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
@@ -61,6 +62,7 @@ target_link_libraries(padflie
   std_srvs::std_srvs)
 
 add_library(padflie_deps ${PADFLIE_DEPS})
+set_target_properties(padflie_deps PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_features(padflie_deps PUBLIC cxx_std_17)
 target_include_directories(padflie_deps PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
@@ -86,6 +88,31 @@ target_link_libraries(padflie_deps
 
 target_link_libraries(padflie
   padflie_deps)
+
+# Also make Padflie available for composition.
+add_library(padflie_component SHARED src/padflie.cpp)
+target_compile_definitions(padflie_component
+  PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(padflie_component
+  padflie_deps
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  rclcpp_components::component
+  pad_management_interfaces::pad_management_interfaces
+  rclcpp_lifecycle::rclcpp_lifecycle
+  lifecycle_msgs::lifecycle_msgs
+  std_srvs::std_srvs)
+
+rclcpp_components_register_nodes(padflie_component "Padflie")
+install(TARGETS padflie_component DESTINATION lib)
+
+add_executable(container src/padflie_container.cpp)
+target_compile_features(container PUBLIC cxx_std_17)
+target_link_libraries(container
+  rclcpp::rclcpp
+  rclcpp_components::component
+  ament_index_cpp::ament_index_cpp)
+install(TARGETS container DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS padflie_deps
   EXPORT export_padflie_behavior_plugins
