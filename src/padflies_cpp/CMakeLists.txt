@@ -42,6 +42,7 @@ set(PADFLIE_DEPS
   src/commander/actor/hl_commander_minimal.cpp
   src/commander/actor/ll_commander_minimal.cpp
   src/commander/actor/position_controller.cpp
+  src/commander/actor/velocity_controller.cpp
   src/commander/actor/yaw_controller.cpp
   src/commander/commander.cpp
   src/commander/commander_base.cpp

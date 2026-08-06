@@ -23,6 +23,7 @@ HardwareActor::HardwareActor(
 , m_fixed_yaw(false)
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
 , m_position_controller(m_dt, 5.0, 2.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
+, m_velocity_controller(0.8, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 })
 , m_collision_avoidance_client(
     std::make_unique<CollisionAvoidanceClient>(
         std::stoi(cf_prefix.substr(2)), // Extract ID from cf_prefix (cfID)
@@ -337,6 +338,8 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
             m_collision_avoidance_client->get_collision_avoidance_velocity(
                 position, safe_velocity, collision);
         }
+
+        m_velocity_controller.safe_command_velocity(position, safe_velocity);
 
         if (collision)
         {

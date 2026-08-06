@@ -7,6 +7,7 @@
 
 #include "padflies_cpp/commander/actor/yaw_controller.hpp"
 #include "padflies_cpp/commander/actor/position_controller.hpp"
+#include "padflies_cpp/commander/actor/velocity_controller.hpp"
 
 #include "padflies_cpp/commander/actor/hl_commander_minimal.hpp"
 #include "padflies_cpp/commander/actor/ll_commander_minimal.hpp"
@@ -150,6 +151,7 @@ private: // Internal state for ll_commander_callback
 
     YawController m_yaw_controller;
     PositionController m_position_controller;
+    VelocityController m_velocity_controller;
     std::unique_ptr<CollisionAvoidanceClient> m_collision_avoidance_client;
 
     std::shared_ptr<HardwareParameterController> m_hardware_parameter_controller;
