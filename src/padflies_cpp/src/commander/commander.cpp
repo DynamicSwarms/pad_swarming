@@ -117,6 +117,13 @@ void PadflieCommander::m_on_commander_deactivated()
     m_state = CommanderState::CONFIGURED;
 }
 
+void PadflieCommander::m_cleanup_commander()
+{
+    m_remove_availability_interface();
+    m_site_selector->reset();
+    m_state = CommanderState::UNCONFIGURED;
+}
+
 void 
 PadflieCommander::m_on_charged_callback() 
 {

@@ -92,6 +92,18 @@ PadflieCommanderBase::on_deactivate(bool force)
     RCLCPP_INFO(m_logger, "Padflie Commander deactivated for %s", m_cf_prefix.c_str());
 }
 
+void
+PadflieCommanderBase::on_cleanup()
+{
+    if (m_base_state != CommanderBaseState::CONFIGURED) {
+        throw CommanderException("PadflieCommanderBase must be inactive before cleanup!");
+    }
+    m_cleanup_commander();
+    m_hw_state_controller->reset_state();
+    m_base_state = CommanderBaseState::UNCONFIGURED;
+    RCLCPP_INFO(m_logger, "Padflie Commander cleaned up for %s", m_cf_prefix.c_str());
+}
+
 void PadflieCommanderBase::m_on_state_callback()
 {
 }

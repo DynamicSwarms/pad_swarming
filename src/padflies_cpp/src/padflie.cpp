@@ -80,7 +80,11 @@ public:
       {
         m_force_deactivate = true; // Force deactivation
         this->deactivate();
-      }      
+      }
+      if (this->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
+      {
+        this->cleanup();
+      }
     }
   }
 
@@ -198,8 +202,15 @@ public:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_cleanup(const rclcpp_lifecycle::State &) 
   { 
-    RCLCPP_INFO(this->get_logger(), "Cleanup not supported for padflies");
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+    RCLCPP_INFO(this->get_logger(), "Cleaning up Padflie with id: %d", m_cf_id);
+    try {
+      m_padflie_commander->on_cleanup();
+      m_is_configured = false;
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    } catch (const CommanderException & e) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to clean up PadflieCommander: %s", e.what());
+      return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
+    }
   }
 
 private: 

@@ -12,6 +12,7 @@
   <depend>eigen3_cmake_module</depend>
   <depend>geometry_msgs</depend>
   <depend>pad_management_cpp</depend>
+  <depend>pad_management_interfaces</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>tf2_msgs</depend>

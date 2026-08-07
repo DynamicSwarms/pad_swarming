@@ -64,9 +64,10 @@ public:
       std::bind(&SiteInfos::update, m_site_infos, std::placeholders::_1),
       options);
 
-    m_current_site = node_interfaces_bundle.parameters_interface->declare_parameter(
+    m_initial_site = node_interfaces_bundle.parameters_interface->declare_parameter(
       "initial_site", rclcpp::ParameterValue(""),
       rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>();
+    m_current_site = m_initial_site;
     m_exclude_slow_pads = node_interfaces_bundle.parameters_interface->declare_parameter(
       "exclude_slow_pads", rclcpp::ParameterValue(false)).get<bool>();
     m_exclude_fast_pads = node_interfaces_bundle.parameters_interface->declare_parameter(
@@ -79,6 +80,12 @@ public:
   {
     std::lock_guard<std::mutex> lock(m_current_site_mutex);
     m_current_site = site_name;
+  }
+
+  void reset()
+  {
+    std::lock_guard<std::mutex> lock(m_current_site_mutex);
+    m_current_site = m_initial_site;
   }
 
   std::optional<SiteInfo> get_current_site() const
@@ -185,6 +192,7 @@ private:
   std::shared_ptr<rclcpp::node_interfaces::OnSetParametersCallbackHandle> m_param_callback_handle;
   mutable std::mutex m_current_site_mutex;
   std::string m_current_site;
+  std::string m_initial_site;
   bool m_exclude_slow_pads{false};
   bool m_exclude_fast_pads{false};
 };

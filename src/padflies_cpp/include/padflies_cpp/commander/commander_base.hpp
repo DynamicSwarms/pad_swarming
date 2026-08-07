@@ -35,6 +35,7 @@ class PadflieCommanderBase{
         void on_configure();
         void on_activate();
         void on_deactivate(bool force);
+        void on_cleanup();
 
 
         virtual bool is_healthy() const = 0;
@@ -83,6 +84,7 @@ class PadflieCommanderBase{
          * hardware_state_controller is reset
          */
         virtual void m_on_commander_deactivated() {};
+        virtual void m_cleanup_commander() {};
 
         virtual void m_on_charged_callback() {};
     

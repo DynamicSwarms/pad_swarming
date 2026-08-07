@@ -135,7 +135,7 @@ public:
         if (m_current_goal_handle && !m_received_result) {
             m_pad_right_control_action_client->async_cancel_goal(m_current_goal_handle);
         } else {
-            RCLCPP_WARN(m_logger, "No current goal to cancel");
+            RCLCPP_WARN(m_logger, "Canceling, Current goal handle %p, received result %d", m_current_goal_handle.get(), m_received_result);
         }
     }
 

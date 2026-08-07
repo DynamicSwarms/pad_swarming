@@ -46,6 +46,7 @@ class PadflieCommander : public PadflieCommanderBase
 
         void m_deactivate_commander(bool force) override;
         void m_on_commander_deactivated() override;
+        void m_cleanup_commander() override;
 
         void m_on_charged_callback() override;
         void m_on_state_callback() override;

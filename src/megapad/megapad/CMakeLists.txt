@@ -9,6 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pad_management_cpp REQUIRED)
+find_package(pad_management_interfaces REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(tf2_msgs REQUIRED)
@@ -50,6 +51,17 @@ target_link_libraries(access_policy_test_node
   Qt6::Widgets
   rclcpp::rclcpp)
 install(TARGETS access_policy_test_node
+  RUNTIME DESTINATION lib/${PROJECT_NAME})
+
+add_executable(pad_land_circle src/pad_land_circle.cpp)
+target_compile_features(pad_land_circle PUBLIC cxx_std_20)
+target_link_libraries(pad_land_circle
+  ${geometry_msgs_TARGETS}
+  Eigen3::Eigen
+  ${pad_management_interfaces_TARGETS}
+  rclcpp::rclcpp
+  tf2_ros::tf2_ros)
+install(TARGETS pad_land_circle
   RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/

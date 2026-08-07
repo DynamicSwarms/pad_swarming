@@ -187,6 +187,12 @@ public:
                 RoutineFailureReason::SITE,
                 "PadRight request was cancelled"
             });
+        } else if (m_pad_client && !m_request_sent) {
+            m_failure_context->report({
+                RoutineOutcome::RETRY,
+                RoutineFailureReason::SITE,
+                "PadRight request was not yet sent, can retry."
+            });
         } else {
             m_failure_context->report({
                 RoutineOutcome::FAILURE,
@@ -558,6 +564,11 @@ public:
         Eigen::Affine3d my_pose;
         if (!m_padflie_tf->get_cf_pose(my_pose))
         {
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::HARDWARE,
+                "Failed to get Crazyflie pose"
+            });
             RCLCPP_ERROR(m_logger, "Error getting Crazyflie position!");
             return BT::NodeStatus::FAILURE;
         } else {
@@ -568,6 +579,11 @@ public:
         bool success = m_pad_client->get_pad_idle_target(1.0, my_pose, "world", idle_pose_remote_frame, target_frame_id);
         if (!success)
         {
+            m_failure_context->report({
+                RoutineOutcome::RETRY,
+                RoutineFailureReason::SITE,
+                "Failed to get idle target from PadClient"
+            });
             RCLCPP_ERROR(m_logger, "Error getting idle target!");
             return BT::NodeStatus::FAILURE;
         }

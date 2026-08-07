@@ -345,7 +345,7 @@ def generate_launch_description():
     )
 
     pad_circle = Node(
-        package="pad_management",
+        package="megapad",
         executable="pad_land_circle",
         parameters=[{"radius": 1.45, "tf_frame": "pad_circle"}],
     )
