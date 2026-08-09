@@ -66,6 +66,7 @@ public:
     BT::NodeStatus onStart() override
     {
         m_request_sent = false;
+        m_request_attempts = 0;
 
         RCLCPP_DEBUG(m_logger, "GetPadRight started, trying to acquire right and waiting for Execute goal...");
         if (!getInput("pad_client", m_pad_client))
@@ -73,6 +74,9 @@ public:
             RCLCPP_ERROR(m_logger, "Error getting input port [pad_client]!");
             return BT::NodeStatus::FAILURE;
         }
+        m_stagger = std::chrono::milliseconds(
+            (m_pad_client->get_padflie_id() % 25) * 4);
+        m_next_request_time = std::chrono::steady_clock::now() + m_stagger * 2;
 
         std::string action_string; 
         if (!getInput("action", action_string))
@@ -101,7 +105,10 @@ public:
     BT::NodeStatus onRunning() override
     {
         RCLCPP_DEBUG(m_logger, "GetPadRight running, waiting to acquire right and for Execute goal...");
-        if (!m_request_sent)
+        const auto now = std::chrono::steady_clock::now();
+        if (
+            !m_request_sent && !m_pad_client->goal_responded() &&
+            now >= m_next_request_time)
         {
             if (m_pad_client->is_action_server_available()) {
                 PadRightRequest request;
@@ -113,7 +120,24 @@ public:
 
                 m_pad_client->send_request(request);
                 m_request_sent = true;
+                ++m_request_attempts;
+                m_last_request_time = now;
+                RCLCPP_INFO(
+                    m_logger,
+                    "Sent PadRight request attempt %u after %ld ms stagger.",
+                    m_request_attempts, static_cast<long>(m_stagger.count()));
             }   
+        }
+        else if (
+            m_request_sent && !m_pad_client->goal_responded() &&
+            now - m_last_request_time >= std::chrono::seconds(1) + m_stagger)
+        {
+            RCLCPP_WARN(
+                m_logger,
+                "No PadRight goal response after %ld ms; retrying request.",
+                static_cast<long>((std::chrono::seconds(1) + m_stagger).count()));
+            m_request_sent = false;
+            m_next_request_time = now;
         }
     
         if (!m_pad_client->goal_responded()) return BT::NodeStatus::RUNNING;
@@ -212,6 +236,10 @@ private:
     uint8_t m_action;
 
     bool m_request_sent = false;
+    uint32_t m_request_attempts = 0;
+    std::chrono::milliseconds m_stagger{0};
+    std::chrono::steady_clock::time_point m_next_request_time;
+    std::chrono::steady_clock::time_point m_last_request_time;
 };
 
 class HasPadRight : public BT::ConditionNode

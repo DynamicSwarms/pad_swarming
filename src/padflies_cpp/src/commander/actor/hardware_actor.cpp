@@ -325,38 +325,42 @@ void HardwareActor::m_do_cmd_position_update(Eigen::Vector3d & position)
 void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
 {
     Eigen::Matrix<double, 6, 1> velocity_world;
+
+    Eigen::Vector3d safe_velocity = Eigen::Vector3d::Zero();
     if (m_padflie_tf->velocity_transform(m_target_velocity.velocity, m_target_velocity.frame_id, "world", velocity_world))
     {
-        Eigen::Vector3d safe_velocity = velocity_world.head<3>();
-        bool collision = false;
-        if (m_target_velocity.collision_avoidance)
-        {
-            // TODO(architecture): Remove this compatibility mirror once both command modes
-            // publish a shared collision-object state consumed by both avoidance algorithms.
-            //m_collision_avoidance_client->mirror_velocity_to_target_avoidance(
-            //    position, safe_velocity);
-            m_collision_avoidance_client->get_collision_avoidance_velocity(
-                position, safe_velocity, collision);
-        }
-
-        m_velocity_controller.safe_command_velocity(position, safe_velocity);
-
-        if (collision)
-        {
-            RCLCPP_DEBUG(
-                m_logger,
-                "Velocity collision avoidance adjusted (%f, %f, %f) to (%f, %f, %f)",
-                velocity_world.x(), velocity_world.y(), velocity_world.z(),
-                safe_velocity.x(), safe_velocity.y(), safe_velocity.z());
-        }
-
-        if (m_state == ActorState::LOW_LEVEL_COMMANDER)
-        {
-            m_ll_commander.cmd_velocity_world(safe_velocity, velocity_world(5));
-            m_current_yaw += velocity_world(5) * m_dt; // Update current yaw based on commanded yaw rate
-        }
+           safe_velocity = velocity_world.head<3>(); 
     } else {
-        RCLCPP_WARN(m_logger, "Failed to transform velocity from frame %s to world frame. Using last valid target position.", m_target_velocity.frame_id.c_str());
+        RCLCPP_WARN(m_logger, "Failed to transform velocity from frame %s to world frame. Sending zero velocity.", m_target_velocity.frame_id.c_str());
+        velocity_world.setZero();
+        safe_velocity.setZero();
+    }
+
+    bool collision = false;
+    if (m_target_velocity.collision_avoidance)
+    {
+        m_collision_avoidance_client->get_collision_avoidance_velocity(
+            position, safe_velocity, collision);
+    }
+
+    m_velocity_controller.safe_command_velocity(position, safe_velocity);
+
+    if (collision)
+    {
+        RCLCPP_DEBUG(
+            m_logger,
+            "Velocity collision avoidance adjusted (%f, %f, %f) to (%f, %f, %f)",
+            velocity_world.x(), velocity_world.y(), velocity_world.z(),
+            safe_velocity.x(), safe_velocity.y(), safe_velocity.z());
+    }
+
+  
+
+
+    if (m_state == ActorState::LOW_LEVEL_COMMANDER)
+    {
+        m_ll_commander.cmd_velocity_world(safe_velocity, velocity_world(5));
+        m_current_yaw += velocity_world(5) * m_dt; // Update current yaw based on commanded yaw rate
     }
 }
 

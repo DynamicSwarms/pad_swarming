@@ -4,6 +4,8 @@
 #include "pad_management_interfaces/action/pad_right_control.hpp"
 #include "pad_management_interfaces/srv/pad_idle_target.hpp"
 #include "padflies_cpp/commander/padflie_tf.hpp"
+#include <atomic>
+#include <chrono>
 #include <mutex>
 struct PadRightRequest
 {
@@ -113,6 +115,14 @@ public:
 
     void send_request(PadRightRequest request) 
     {
+        const uint64_t attempt = ++m_goal_attempt;
+        m_goal_responded = false;
+        m_goal_accepted = false;
+        m_right_acquired = false;
+        m_received_result = false;
+        m_result_success = false;
+        m_current_goal_handle.reset();
+
         auto goal_msg = PadRightControlActionT::Goal();
         goal_msg.action = request.action;
         goal_msg.max_wait_time = request.max_wait_time;
@@ -122,9 +132,23 @@ public:
 
         goal_msg.name = m_prefix;
         auto send_goal_options = rclcpp_action::Client<PadRightControlActionT>::SendGoalOptions();
-        send_goal_options.goal_response_callback = std::bind(&PadClient::goal_response_callback, this, std::placeholders::_1);
-        send_goal_options.feedback_callback = std::bind(&PadClient::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
-        send_goal_options.result_callback = std::bind(&PadClient::result_callback, this, std::placeholders::_1);
+        send_goal_options.goal_response_callback =
+            [this, attempt](const typename PadRightControlGoalHandleT::SharedPtr & goal_handle) {
+                goal_response_callback(goal_handle, attempt);
+            };
+        send_goal_options.feedback_callback =
+            [this, attempt](
+                typename PadRightControlGoalHandleT::SharedPtr goal_handle,
+                const std::shared_ptr<const PadRightControlActionT::Feedback> feedback) {
+                feedback_callback(goal_handle, feedback, attempt);
+            };
+        send_goal_options.result_callback =
+            [this, attempt](const typename PadRightControlGoalHandleT::WrappedResult & result) {
+                result_callback(result, attempt);
+            };
+        RCLCPP_INFO(
+            m_logger, "Sending PadRight goal attempt %lu for %s",
+            static_cast<unsigned long>(attempt), m_prefix.c_str());
         m_pad_right_control_action_client->async_send_goal(goal_msg, send_goal_options);
     }
 
@@ -143,6 +167,19 @@ public:
 
     std::string get_pad_name() const { return m_pad_name; }
 
+    uint8_t get_padflie_id() const
+    {
+        try {
+            const auto first_digit = m_prefix.find_last_not_of("0123456789") + 1;
+            return static_cast<uint8_t>(std::stoul(m_prefix.substr(first_digit)));
+        } catch (const std::exception &) {
+            RCLCPP_WARN(
+                m_logger, "Could not parse Padflie ID from %s; using no stagger",
+                m_prefix.c_str());
+            return 0;
+        }
+    }
+
     bool goal_responded() { return m_goal_responded; }
     bool goal_accepted() { return m_goal_accepted; }
 
@@ -152,8 +189,16 @@ public:
     bool result_success() { return m_result_success; }
 
 private:
-    void goal_response_callback(const typename PadRightControlGoalHandleT::SharedPtr & goal_handle) 
+    void goal_response_callback(
+        const typename PadRightControlGoalHandleT::SharedPtr & goal_handle,
+        uint64_t attempt)
     {
+        if (attempt != m_goal_attempt.load()) {
+            RCLCPP_WARN(
+                m_logger, "Ignoring late PadRight goal response for attempt %lu",
+                static_cast<unsigned long>(attempt));
+            return;
+        }
         m_current_goal_handle = goal_handle;
         m_goal_accepted = !!goal_handle;
         m_goal_responded = true;
@@ -167,8 +212,10 @@ private:
 
     void feedback_callback(
         typename PadRightControlGoalHandleT::SharedPtr goal_handle,
-        const std::shared_ptr<const PadRightControlActionT::Feedback> feedback)
+        const std::shared_ptr<const PadRightControlActionT::Feedback> feedback,
+        uint64_t attempt)
     {
+        if (attempt != m_goal_attempt.load()) return;
         (void)goal_handle;
         m_right_acquired = feedback->status == PadRightControlActionT::Feedback::STATUS_ACQUIRED_RIGHT;
         m_target_pose = feedback->target_pose;
@@ -179,8 +226,11 @@ private:
             RCLCPP_DEBUG(m_logger, "FBD: Pad says PadClient acquired right!");
     }
 
-    void result_callback(const typename PadRightControlGoalHandleT::WrappedResult & result) 
+    void result_callback(
+        const typename PadRightControlGoalHandleT::WrappedResult & result,
+        uint64_t attempt)
     {
+        if (attempt != m_goal_attempt.load()) return;
         m_result_success = result.code == rclcpp_action::ResultCode::SUCCEEDED;
         m_received_result = true;
 
@@ -218,5 +268,6 @@ private:
     
     bool m_received_result = false;
     bool m_result_success = false;
+    std::atomic<uint64_t> m_goal_attempt{0};
 };
     

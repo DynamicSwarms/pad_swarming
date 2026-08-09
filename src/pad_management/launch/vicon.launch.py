@@ -218,7 +218,8 @@ def hardware_group():
 
     sitl_creator = Node(
         package="pad_management",
-        executable="default_creator",
+        executable="sitl_creator",
+        name="sitl_creator",
         parameters=[
             {
                 "setup_yaml": get_package_share_directory("pad_management")

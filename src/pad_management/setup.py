@@ -56,7 +56,7 @@ setup(
             "pad_broadcaster = pad_management.pad_broadcaster:main",
             "point_finder = pad_management.point_finder:main",
             "pointcloud_combiner = pad_management.point_cloud_combiner:main",
-            "default_creator = pad_management.default_creator:main",
+            "sitl_creator = pad_management.sitl_creator:main",
             "pad_creator = pad_management.pad_creator:main",
             "pad_land_circle = pad_management.pad_land_circle:main",
             "pad_spawner = pad_management.pad_spawner:main",
