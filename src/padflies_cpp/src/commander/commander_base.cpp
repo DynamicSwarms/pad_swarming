@@ -18,6 +18,15 @@ PadflieCommanderBase::PadflieCommanderBase(
 , m_node_clock_interface(m_node_interfaces.clock_interface)
 , m_logger(m_node_interfaces.logging_interface->get_logger())
 { 
+    m_hardware_parameter_controller = std::make_shared<HardwareParameterController>(
+        m_node_interfaces.base_interface,
+        m_node_interfaces.graph_interface,
+        m_node_interfaces.services_interface,
+        m_cf_prefix,
+        m_logger);
+    m_hardware_log_profile_controller = std::make_shared<HardwareLogProfileController>(
+        m_cf_prefix, m_node_interfaces, m_hardware_parameter_controller);
+
     m_hw_state_controller->set_on_state_callback(
         std::bind(&PadflieCommanderBase::m_on_state_callback, this));
     m_hw_state_controller->set_on_charged_callback(
@@ -39,6 +48,7 @@ PadflieCommanderBase::on_configure()
         m_node_interfaces.topics_interface,
         m_node_interfaces.clock_interface,
         m_node_interfaces.logging_interface);
+    m_hardware_log_profile_controller->configure();
 
 
     m_on_commander_configured();
@@ -58,20 +68,25 @@ PadflieCommanderBase::on_activate()
 
     m_activate_commander();
 
-    m_hardware_actor = std::make_shared<HardwareActor>(
-        m_node_interfaces.base_interface,
-        m_node_interfaces.topics_interface,
-        m_node_interfaces.graph_interface,
-        m_node_interfaces.services_interface,
-        m_node_interfaces.timers_interface,
-        m_node_interfaces.clock_interface,
-        m_node_interfaces.logging_interface,
-        m_cf_prefix,
-        m_padflie_tf);
+    m_hardware_log_profile_controller->activate();
+    try {
+        m_hardware_actor = std::make_shared<HardwareActor>(
+            m_node_interfaces.base_interface,
+            m_node_interfaces.topics_interface,
+            m_node_interfaces.graph_interface,
+            m_node_interfaces.services_interface,
+            m_node_interfaces.timers_interface,
+            m_node_interfaces.clock_interface,
+            m_node_interfaces.logging_interface,
+            m_cf_prefix,
+            m_padflie_tf);
 
-    m_create_control_interface();
-
-    m_on_commander_activated();
+        m_create_control_interface();
+        m_on_commander_activated();
+    } catch (...) {
+        m_hardware_log_profile_controller->deactivate();
+        throw;
+    }
     m_base_state = CommanderBaseState::ACTIVATED;
     RCLCPP_INFO(m_logger, "Padflie Commander activated for %s", m_cf_prefix.c_str());
 }
@@ -83,7 +98,13 @@ PadflieCommanderBase::on_deactivate(bool force)
 
     m_remove_control_interface(); // First block all incomming commands
 
-    m_deactivate_commander(force);
+    try {
+        m_deactivate_commander(force);
+    } catch (...) {
+        m_hardware_log_profile_controller->deactivate();
+        throw;
+    }
+    m_hardware_log_profile_controller->deactivate();
     
     m_hardware_actor.reset(); 
     m_hw_state_controller->reset_state();
@@ -99,9 +120,16 @@ PadflieCommanderBase::on_cleanup()
         throw CommanderException("PadflieCommanderBase must be inactive before cleanup!");
     }
     m_cleanup_commander();
+    m_hardware_log_profile_controller->cleanup();
     m_hw_state_controller->reset_state();
     m_base_state = CommanderBaseState::UNCONFIGURED;
     RCLCPP_INFO(m_logger, "Padflie Commander cleaned up for %s", m_cf_prefix.c_str());
+}
+
+const std::vector<std::string> &
+PadflieCommanderBase::get_hardware_capabilities() const
+{
+    return m_hardware_log_profile_controller->capabilities();
 }
 
 void PadflieCommanderBase::m_on_state_callback()

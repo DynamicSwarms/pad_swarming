@@ -154,6 +154,7 @@ void PadflieCommander::m_on_state_callback()
     padflies_interfaces::msg::AvailabilityInfo message;
     message.name = m_prefix;
     message.site_info = *current_site;
+    message.capabilities = get_hardware_capabilities();
     m_availability_pub->publish(message);
 }
 

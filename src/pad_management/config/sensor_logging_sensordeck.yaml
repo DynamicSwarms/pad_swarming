@@ -1,0 +1,36 @@
+profiles:
+  sensordeck:
+    capability: deck.sensordeck
+    detection_parameter: deck.sensordeck
+    blocks:
+      environment:
+        topic: sensors/sensordeck/environment
+        frequency: 10
+        variables:
+          - sensordeck.lux
+          - sensordeck.voltage
+          - sensordeck.temperature
+          - sensordeck.humidity
+          - stateEstimate.yaw
+      vl53l5cx_a:
+        topic: sensors/sensordeck/vl53l5cx/a
+        frequency: 10
+        variables:
+          - vl53l5cx.frame
+          - vl53l5cx.a0
+          - vl53l5cx.a1
+          - vl53l5cx.a2
+          - vl53l5cx.a3
+          - vl53l5cx.a4
+          - vl53l5cx.a5
+      vl53l5cx_b:
+        topic: sensors/sensordeck/vl53l5cx/b
+        frequency: 10
+        variables:
+          - vl53l5cx.frame
+          - vl53l5cx.b0
+          - vl53l5cx.b1
+          - vl53l5cx.b2
+          - vl53l5cx.b3
+          - vl53l5cx.b4
+          - vl53l5cx.b5

@@ -22,6 +22,9 @@ def generate_padflies(context):
     use_components = (
         LaunchConfiguration("padflies_as_components").perform(context).lower() == "true"
     )
+    sensor_logging_profiles = LaunchConfiguration(
+        "sensor_logging_profiles"
+    ).perform(context)
 
     if backend == "hardware" and sitl:
         yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sitl.yaml"
@@ -39,6 +42,7 @@ def generate_padflies(context):
                 "id": id,
                 "initial_site": "megapad",
                 "battery_voltage_charged": 4.1,
+                "sensor_logging_profiles": sensor_logging_profiles,
             }
         ]
 
@@ -52,6 +56,7 @@ def generate_padflies(context):
                     "padflie_ids": [flie["id"] for flie in flies],
                     "initial_site": "megapad",
                     "battery_voltage_charged": 4.1,
+                    "sensor_logging_profiles": sensor_logging_profiles,
                 }
             ],
             output="screen",
@@ -291,6 +296,12 @@ def generate_launch_description():
         default_value="false",
         description="Run Padflies as components with one executor per Padflie.",
     )
+    sensor_logging_profiles_arg = DeclareLaunchArgument(
+        "sensor_logging_profiles",
+        default_value=get_package_share_directory("pad_management")
+        + "/config/sensor_logging_sensordeck.yaml",
+        description="YAML profile used to detect capabilities and configure firmware logging.",
+    )
     
     
 
@@ -356,6 +367,7 @@ def generate_launch_description():
             backend_arg,
             sitl_arg,
             padflies_as_components_arg,
+            sensor_logging_profiles_arg,
             hardware_elements,
             simulation_elements,
             pad_broadcaster,

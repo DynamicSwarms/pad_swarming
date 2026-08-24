@@ -1,2 +1,3 @@
 string name
 pad_management_interfaces/SiteInfo site_info
+string[] capabilities

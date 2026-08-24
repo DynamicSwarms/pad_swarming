@@ -15,11 +15,14 @@
   <depend>padflies_interfaces</depend>
   <depend>ament_index_cpp</depend>
   <depend>rclcpp</depend>
+  <depend>rcl_interfaces</depend>
   <depend>rclcpp_components</depend>
   <depend>pad_management_interfaces</depend>
   <depend>collision_avoidance_interfaces</depend>
   <depend>std_srvs</depend>
   <depend>rclcpp_action</depend>
+  <depend>crazyflie_interfaces</depend>
+  <depend>yaml-cpp</depend>
 
 
 

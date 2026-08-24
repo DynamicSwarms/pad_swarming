@@ -22,6 +22,13 @@ HardwareParameterController::HardwareParameterController(
         cf_prefix+"/get_parameters",
         rclcpp::ServicesQoS(),
         m_callback_groups[cf_prefix]);
+    m_get_firmware_parameter_client = rclcpp::create_client<rcl_interfaces::srv::GetParameters>(
+        node_base_interface,
+        node_graph_interface,
+        node_services_interface,
+        cf_prefix+"/get_firmware_parameters",
+        rclcpp::ServicesQoS(),
+        m_callback_groups[cf_prefix]);
     m_set_parameters_client = rclcpp::create_client<rcl_interfaces::srv::SetParameters>(
         node_base_interface,
         node_graph_interface,
@@ -29,6 +36,38 @@ HardwareParameterController::HardwareParameterController(
         cf_prefix+"/set_parameters",
         rclcpp::ServicesQoS(),
         m_callback_groups[cf_prefix]);
+}
+
+bool
+HardwareParameterController::get_firmware_parameter(
+    const std::string & name,
+    rcl_interfaces::msg::ParameterValue & param_value) const
+{
+    if (!m_get_firmware_parameter_client) return false;
+
+    if (!m_get_firmware_parameter_client->wait_for_service(std::chrono::milliseconds(500))) {
+        RCLCPP_WARN(m_logger, "GetFirmwareParameters service not available");
+        return false;
+    }
+
+    auto request = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
+    request->names.push_back(name);
+
+    auto result = m_get_firmware_parameter_client->async_send_request(request);
+    if (result.wait_for(std::chrono::milliseconds(500)) != std::future_status::ready) {
+        RCLCPP_WARN(m_logger, "Timed out reading firmware parameter %s", name.c_str());
+        return false;
+    }
+
+    const auto response = result.get();
+    if (response->values.empty() ||
+        response->values[0].type == rcl_interfaces::msg::ParameterType::PARAMETER_NOT_SET) {
+        RCLCPP_WARN(m_logger, "Firmware parameter %s not found", name.c_str());
+        return false;
+    }
+
+    param_value = response->values[0];
+    return true;
 }
 
 
@@ -56,7 +95,7 @@ HardwareParameterController::get_parameter(
         if (!response->values.empty()) {
             param_value = response->values[0];
             return true;
-        } else RCLCPP_DEBUG(m_logger, "Parameter %s not found", name.c_str());
+        } else RCLCPP_WARN(m_logger, "Parameter %s not found", name.c_str());
     }
     
     return false;

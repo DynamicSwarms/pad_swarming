@@ -20,6 +20,7 @@ config_files = [
     "config/crazyflie_config_lighthouse.yaml",
     "config/crazyflie_config_vicon.yaml",
     "config/crazyflie_config_sitl.yaml",
+    "config/sensor_logging_sensordeck.yaml",
     "config/crazyflie_sitl_container.yaml",
     "config/flies_config_lighthouse.yaml",
     "config/flies_config_vicon.yaml",
