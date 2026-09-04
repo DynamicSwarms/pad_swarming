@@ -1,0 +1,15 @@
+/**:
+  ros__parameters:  
+    crazyflieTypes:
+      tracked: 
+        sendExternalPosition: true
+        sendExternalPose: false
+        maxInitialDeviation: 0.4
+        markerConfigurationIndex: 0
+        dynamicsConfigurationIndex: 0
+      default: 
+        sendExternalPosition: false
+        sendExternalPose: false
+        maxInitialDeviation: 0.4
+        markerConfigurationIndex: 0
+        dynamicsConfigurationIndex: 0

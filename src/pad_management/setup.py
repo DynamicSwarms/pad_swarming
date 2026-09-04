@@ -17,6 +17,7 @@ for launch_file in launch_files:
     data_files.append(("share/" + package_name + "/launch", [launch_file]))
 
 config_files = [
+    "config/crazyflie_types.yaml",
     "config/crazyflie_config_lighthouse.yaml",
     "config/crazyflie_config_vicon.yaml",
     "config/crazyflie_config_sitl.yaml",

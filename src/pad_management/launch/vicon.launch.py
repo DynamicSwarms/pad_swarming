@@ -140,6 +140,8 @@ def hardware_group():
              "/launch/hardware.launch.py"]
         ),
         launch_arguments={
+            "crazyflie_types_yaml": get_package_share_directory("pad_management")
+            + "/config/crazyflie_types.yaml",
             "crazyflie_configuration_yaml": IfElseSubstitution(
                 condition=LaunchConfiguration("sitl"),
                 if_value=get_package_share_directory("pad_management")
