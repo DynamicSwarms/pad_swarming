@@ -17,6 +17,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(crazyflie_interfaces REQUIRED)
 find_package(padflies_interfaces REQUIRED)
 find_package(pad_management_interfaces REQUIRED)
@@ -40,7 +41,7 @@ target_compile_features(padflie PUBLIC c_std_99 cxx_std_17)  # Require C99 and C
 set(PADFLIE_DEPS
   src/commander/actor/collision_avoidance_client.cpp
   src/commander/actor/hardware_actor.cpp
-  src/commander/actor/hardware_log_profile_controller.cpp
+  src/commander/actor/hardware_profile_controller.cpp
   src/commander/actor/hardware_parameter_controller.cpp
   src/commander/actor/hardware_state_controller.cpp
   src/commander/actor/hl_commander_minimal.cpp
@@ -85,6 +86,7 @@ target_link_libraries(padflie_deps
   tf2_geometry_msgs::tf2_geometry_msgs
   collision_avoidance_interfaces::collision_avoidance_interfaces
   std_srvs::std_srvs
+  std_msgs::std_msgs
   behaviortree_cpp::behaviortree_cpp
   pluginlib::pluginlib
   yaml-cpp::yaml-cpp

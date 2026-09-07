@@ -243,6 +243,21 @@ bool PadflieTF::get_cf_pose_stamped(
     return false;
 }
 
+bool PadflieTF::get_cf_pose_stamped_with_world_yaw(
+    const std::string & frame_id,
+    double world_yaw,
+    geometry_msgs::msg::PoseStamped & pose_stamped)
+{
+    if (m_last_position_time + m_position_timeout <= get_now()) return false;
+
+    geometry_msgs::msg::PoseStamped world_pose = m_last_position;
+    world_pose.header.frame_id = m_world_frame;
+    tf2::Quaternion orientation;
+    orientation.setRPY(0.0, 0.0, world_yaw);
+    world_pose.pose.orientation = tf2::toMsg(orientation);
+    return transform_pose_stamped(world_pose, frame_id, pose_stamped);
+}
+
 
 bool PadflieTF::get_cf_position(Eigen::Vector3d & position)
 {

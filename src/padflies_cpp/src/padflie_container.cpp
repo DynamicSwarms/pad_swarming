@@ -45,8 +45,8 @@ public:
       declare_parameter<std::vector<int64_t>>("padflie_ids", std::vector<int64_t>{})),
     m_initial_site(declare_parameter<std::string>("initial_site", "megapad")),
     m_battery_voltage_charged(declare_parameter<double>("battery_voltage_charged", 4.1)),
-    m_sensor_logging_profiles(
-      declare_parameter<std::string>("sensor_logging_profiles", ""))
+    m_hardware_profiles(
+      declare_parameter<std::string>("hardware_profiles", ""))
   {
     m_factory = create_component_factory("padflies_cpp", "Padflie");
     if (!m_factory) {
@@ -147,7 +147,7 @@ private:
       "-p", "id:=" + std::to_string(id),
       "-p", "initial_site:=" + m_initial_site,
       "-p", "battery_voltage_charged:=" + std::to_string(m_battery_voltage_charged),
-      "-p", "sensor_logging_profiles:=" + m_sensor_logging_profiles};
+      "-p", "hardware_profiles:=" + m_hardware_profiles};
     return rclcpp::NodeOptions().arguments(arguments);
   }
 
@@ -209,7 +209,7 @@ private:
   std::vector<int64_t> m_padflie_ids;
   std::string m_initial_site;
   double m_battery_voltage_charged;
-  std::string m_sensor_logging_profiles;
+  std::string m_hardware_profiles;
   std::unique_ptr<class_loader::ClassLoader> m_loader;
   std::shared_ptr<rclcpp_components::NodeFactory> m_factory;
   std::map<uint8_t, PadflieEntry> m_padflies;

@@ -10,10 +10,11 @@
 #include <string>
 #include <vector>
 
-class HardwareLogProfileController
+class HardwareProfileController
 {
 public:
-  HardwareLogProfileController(
+  HardwareProfileController(
+    const std::string & prefix,
     const std::string & cf_prefix,
     const padflies_cpp::NodeInterfacesBundle & node_interfaces,
     std::shared_ptr<HardwareParameterController> parameter_controller);
@@ -45,6 +46,13 @@ private:
     std::string capability;
     std::string detection_parameter;
     std::vector<LogBlock> blocks;
+    struct ActingTopic
+    {
+      std::string topic;
+      std::string parameter;
+      std::string type;
+    };
+    std::vector<ActingTopic> acting_topics;
     bool detected{false};
   };
 
@@ -52,7 +60,9 @@ private:
   bool detect(const Profile & profile) const;
   bool add_block(const LogBlock & block);
   void remove_block(const std::string & topic);
+  void add_acting_topic(const Profile::ActingTopic & acting_topic);
 
+  std::string m_prefix;
   std::string m_cf_prefix;
   rclcpp::Logger m_logger;
   std::shared_ptr<HardwareParameterController> m_parameter_controller;
@@ -60,8 +70,10 @@ private:
   std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::AddLogging>> m_add_client;
   std::shared_ptr<rclcpp::Client<crazyflie_interfaces::srv::RemoveLogging>> m_remove_client;
   std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> m_parameters_interface;
+  std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> m_topics_interface;
 
   std::vector<Profile> m_profiles;
   std::vector<std::string> m_capabilities;
   std::vector<std::string> m_active_topics;
+  std::vector<rclcpp::SubscriptionBase::SharedPtr> m_acting_subscriptions;
 };

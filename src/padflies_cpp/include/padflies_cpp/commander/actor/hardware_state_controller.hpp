@@ -24,6 +24,8 @@ class HardwareStateController
         bool is_empty() const;
         bool is_critical() const;
         double get_battery_voltage() const;
+        bool yaw_valid() const;
+        double get_yaw() const;
 
         bool canfly() const;
         bool is_flying() const;
@@ -47,6 +49,8 @@ class HardwareStateController
         bool m_canfly = false;
         bool m_is_flying = false;
         bool m_is_tumbled = false;
+        double m_yaw = 0.0;
+        bool m_yaw_valid = false;
 
         rclcpp::node_interfaces::NodeParametersInterface::SharedPtr m_param_iface;
 

@@ -6,7 +6,7 @@
 #include "padflies_cpp/commander/actor/hardware_state_controller.hpp"
 #include "padflies_cpp/commander/padflie_tf.hpp"
 #include "padflies_cpp/commander/actor/hardware_actor.hpp"
-#include "padflies_cpp/commander/actor/hardware_log_profile_controller.hpp"
+#include "padflies_cpp/commander/actor/hardware_profile_controller.hpp"
 
 #include "std_msgs/msg/empty.hpp"
 #include "padflies_interfaces/msg/send_target.hpp"
@@ -146,7 +146,7 @@ class PadflieCommanderBase{
     protected:
         std::shared_ptr<HardwareActor> m_hardware_actor;
         std::shared_ptr<HardwareParameterController> m_hardware_parameter_controller;
-        std::shared_ptr<HardwareLogProfileController> m_hardware_log_profile_controller;
+        std::shared_ptr<HardwareProfileController> m_hardware_profile_controller;
 
     private: 
         enum class CommanderBaseState {

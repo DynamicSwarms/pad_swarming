@@ -2,6 +2,11 @@ profiles:
   sensordeck:
     capability: deck.sensordeck
     detection_parameter: deck.sensordeck
+    acting:
+      color:
+        topic: actuators/sensordeck/color
+        parameter: led_deck_ctrl.rgb888
+        type: uint32
     blocks:
       environment:
         topic: sensors/sensordeck/environment
@@ -11,7 +16,6 @@ profiles:
           - sensordeck.voltage
           - sensordeck.temperature
           - sensordeck.humidity
-          - stateEstimate.yaw
       vl53l5cx_a:
         topic: sensors/sensordeck/vl53l5cx/a
         frequency: 10

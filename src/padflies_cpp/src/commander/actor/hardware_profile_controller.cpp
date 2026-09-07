@@ -1,23 +1,32 @@
-#include "padflies_cpp/commander/actor/hardware_log_profile_controller.hpp"
+#include "padflies_cpp/commander/actor/hardware_profile_controller.hpp"
 
 #include "rcl_interfaces/msg/parameter_type.hpp"
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
+#include "rcl_interfaces/msg/parameter.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/int64.hpp"
+#include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/u_int32.hpp"
 #include "yaml-cpp/yaml.h"
 
 #include <chrono>
 
 using namespace std::chrono_literals;
 
-HardwareLogProfileController::HardwareLogProfileController(
+HardwareProfileController::HardwareProfileController(
+  const std::string & prefix,
   const std::string & cf_prefix,
   const padflies_cpp::NodeInterfacesBundle & node_interfaces,
   std::shared_ptr<HardwareParameterController> parameter_controller)
-: m_cf_prefix(cf_prefix),
-  m_logger(node_interfaces.logging_interface->get_logger().get_child("HardwareLogProfiles")),
+: m_prefix(prefix),
+  m_cf_prefix(cf_prefix),
+  m_logger(node_interfaces.logging_interface->get_logger().get_child("HardwareProfiles")),
   m_parameter_controller(std::move(parameter_controller)),
   m_callback_group(node_interfaces.base_interface->create_callback_group(
       rclcpp::CallbackGroupType::MutuallyExclusive)),
-  m_parameters_interface(node_interfaces.parameters_interface)
+  m_parameters_interface(node_interfaces.parameters_interface),
+  m_topics_interface(node_interfaces.topics_interface)
 {
   m_add_client = rclcpp::create_client<crazyflie_interfaces::srv::AddLogging>(
     node_interfaces.base_interface,
@@ -37,13 +46,14 @@ HardwareLogProfileController::HardwareLogProfileController(
   read_profiles();
 }
 
-void HardwareLogProfileController::read_profiles()
+void HardwareProfileController::read_profiles()
 {
   auto descriptor = rcl_interfaces::msg::ParameterDescriptor();
   descriptor.read_only = true;
-  descriptor.description = "YAML file defining capability detection and firmware log blocks";
+  descriptor.description =
+    "YAML file defining capability detection, firmware logging, and acting topics";
   const auto config_path = m_parameters_interface->declare_parameter(
-    "sensor_logging_profiles", rclcpp::ParameterValue(""), descriptor).get<std::string>();
+    "hardware_profiles", rclcpp::ParameterValue(""), descriptor).get<std::string>();
   if (config_path.empty()) {
     return;
   }
@@ -82,6 +92,27 @@ void HardwareLogProfileController::read_profiles()
           profile.blocks.push_back(std::move(block));
         }
       }
+
+      const auto acting = profile_node["acting"];
+      if (acting && acting.IsMap()) {
+        for (const auto & acting_entry : acting) {
+          const auto acting_name = acting_entry.first.as<std::string>();
+          const auto acting_node = acting_entry.second;
+          Profile::ActingTopic acting_topic;
+          acting_topic.topic = acting_node["topic"].as<std::string>("");
+          acting_topic.parameter = acting_node["parameter"].as<std::string>("");
+          acting_topic.type = acting_node["type"].as<std::string>("");
+          if (acting_topic.topic.empty() || acting_topic.parameter.empty() ||
+            acting_topic.type.empty())
+          {
+            RCLCPP_WARN(
+              m_logger, "Ignoring invalid acting topic '%s' in profile '%s'",
+              acting_name.c_str(), profile.name.c_str());
+            continue;
+          }
+          profile.acting_topics.push_back(std::move(acting_topic));
+        }
+      }
       m_profiles.push_back(std::move(profile));
     }
   } catch (const YAML::Exception & error) {
@@ -91,7 +122,7 @@ void HardwareLogProfileController::read_profiles()
   }
 }
 
-bool HardwareLogProfileController::detect(const Profile & profile) const
+bool HardwareProfileController::detect(const Profile & profile) const
 {
   if (profile.detection_parameter.empty()) {
     return true;
@@ -121,7 +152,7 @@ bool HardwareLogProfileController::detect(const Profile & profile) const
   }
 }
 
-void HardwareLogProfileController::configure()
+void HardwareProfileController::configure()
 {
   m_capabilities.clear();
   for (auto & profile : m_profiles) {
@@ -137,13 +168,13 @@ void HardwareLogProfileController::configure()
   if (!m_parameters_interface->has_parameter("capabilities")) {
     auto descriptor = rcl_interfaces::msg::ParameterDescriptor();
     descriptor.read_only = true;
-    descriptor.description = "Capabilities successfully initialized from sensor_logging_profiles";
+    descriptor.description = "Capabilities successfully initialized from hardware_profiles";
     m_parameters_interface->declare_parameter(
       "capabilities", rclcpp::ParameterValue(m_capabilities), descriptor, true);
   }
 }
 
-bool HardwareLogProfileController::add_block(const LogBlock & block)
+bool HardwareProfileController::add_block(const LogBlock & block)
 {
   if (!m_add_client->wait_for_service(500ms)) {
     RCLCPP_WARN(m_logger, "AddLogging service is unavailable for %s", m_cf_prefix.c_str());
@@ -162,10 +193,10 @@ bool HardwareLogProfileController::add_block(const LogBlock & block)
   return true;
 }
 
-void HardwareLogProfileController::activate()
+void HardwareProfileController::activate()
 {
-  if (!m_active_topics.empty()) {
-    RCLCPP_WARN(m_logger, "Log profiles are already active for %s", m_cf_prefix.c_str());
+  if (!m_active_topics.empty() || !m_acting_subscriptions.empty()) {
+    RCLCPP_WARN(m_logger, "Hardware profiles are already active for %s", m_cf_prefix.c_str());
     return;
   }
 
@@ -178,10 +209,85 @@ void HardwareLogProfileController::activate()
         m_active_topics.push_back(block.topic);
       }
     }
+    for (const auto & acting_topic : profile.acting_topics) {
+      add_acting_topic(acting_topic);
+    }
   }
 }
 
-void HardwareLogProfileController::remove_block(const std::string & topic)
+void HardwareProfileController::add_acting_topic(
+  const Profile::ActingTopic & acting_topic)
+{
+  const auto topic = m_prefix + "/" + acting_topic.topic;
+  auto subscription_options = rclcpp::SubscriptionOptions();
+  subscription_options.callback_group = m_callback_group;
+  const auto set_parameter = [this, parameter_name = acting_topic.parameter](
+    rcl_interfaces::msg::ParameterValue value)
+    {
+      rcl_interfaces::msg::Parameter parameter;
+      parameter.name = parameter_name;
+      parameter.value = std::move(value);
+      m_parameter_controller->set_parameters({parameter});
+    };
+
+  if (acting_topic.type == "uint32") {
+    m_acting_subscriptions.push_back(
+      rclcpp::create_subscription<std_msgs::msg::UInt32>(
+        m_topics_interface, topic, 10,
+        [set_parameter](const std_msgs::msg::UInt32::SharedPtr message) {
+          rcl_interfaces::msg::ParameterValue value;
+          value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
+          value.integer_value = message->data;
+          set_parameter(std::move(value));
+        }, subscription_options));
+  } else if (acting_topic.type == "integer") {
+    m_acting_subscriptions.push_back(
+      rclcpp::create_subscription<std_msgs::msg::Int64>(
+        m_topics_interface, topic, 10,
+        [set_parameter](const std_msgs::msg::Int64::SharedPtr message) {
+          rcl_interfaces::msg::ParameterValue value;
+          value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
+          value.integer_value = message->data;
+          set_parameter(std::move(value));
+        }, subscription_options));
+  } else if (acting_topic.type == "double") {
+    m_acting_subscriptions.push_back(
+      rclcpp::create_subscription<std_msgs::msg::Float64>(
+        m_topics_interface, topic, 10,
+        [set_parameter](const std_msgs::msg::Float64::SharedPtr message) {
+          rcl_interfaces::msg::ParameterValue value;
+          value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+          value.double_value = message->data;
+          set_parameter(std::move(value));
+        }, subscription_options));
+  } else if (acting_topic.type == "bool") {
+    m_acting_subscriptions.push_back(
+      rclcpp::create_subscription<std_msgs::msg::Bool>(
+        m_topics_interface, topic, 10,
+        [set_parameter](const std_msgs::msg::Bool::SharedPtr message) {
+          rcl_interfaces::msg::ParameterValue value;
+          value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
+          value.bool_value = message->data;
+          set_parameter(std::move(value));
+        }, subscription_options));
+  } else if (acting_topic.type == "string") {
+    m_acting_subscriptions.push_back(
+      rclcpp::create_subscription<std_msgs::msg::String>(
+        m_topics_interface, topic, 10,
+        [set_parameter](const std_msgs::msg::String::SharedPtr message) {
+          rcl_interfaces::msg::ParameterValue value;
+          value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
+          value.string_value = message->data;
+          set_parameter(std::move(value));
+        }, subscription_options));
+  } else {
+    RCLCPP_WARN(
+      m_logger, "Ignoring acting topic '%s': unsupported type '%s'",
+      topic.c_str(), acting_topic.type.c_str());
+  }
+}
+
+void HardwareProfileController::remove_block(const std::string & topic)
 {
   if (!m_remove_client->wait_for_service(200ms)) {
     RCLCPP_WARN(m_logger, "RemoveLogging service is unavailable for %s", m_cf_prefix.c_str());
@@ -196,15 +302,16 @@ void HardwareLogProfileController::remove_block(const std::string & topic)
   }
 }
 
-void HardwareLogProfileController::deactivate()
+void HardwareProfileController::deactivate()
 {
+  m_acting_subscriptions.clear();
   for (auto it = m_active_topics.rbegin(); it != m_active_topics.rend(); ++it) {
     remove_block(*it);
   }
   m_active_topics.clear();
 }
 
-void HardwareLogProfileController::cleanup()
+void HardwareProfileController::cleanup()
 {
   deactivate();
   for (auto & profile : m_profiles) {
@@ -212,7 +319,7 @@ void HardwareLogProfileController::cleanup()
   }
 }
 
-const std::vector<std::string> & HardwareLogProfileController::capabilities() const
+const std::vector<std::string> & HardwareProfileController::capabilities() const
 {
   return m_capabilities;
 }

@@ -1,5 +1,8 @@
 #include "padflies_cpp/commander/actor/hardware_state_controller.hpp"
 
+#include <numbers>
+#include <cmath>
+
 
 HardwareStateController::HardwareStateController(
     rclcpp::node_interfaces::NodeParametersInterface::SharedPtr param_iface)
@@ -73,6 +76,16 @@ HardwareStateController::get_battery_voltage() const
     return m_battery_voltage;
 }
 
+bool HardwareStateController::yaw_valid() const
+{
+    return m_yaw_valid;
+}
+
+double HardwareStateController::get_yaw() const
+{
+    return m_yaw;
+}
+
 bool 
 HardwareStateController::canfly() const
 {
@@ -98,25 +111,35 @@ HardwareStateController::reset_state()
     m_canfly = false;
     m_is_flying = false;
     m_is_tumbled = true;
+    m_yaw = 0.0;
+    m_yaw_valid = false;
 }
 
 void 
 HardwareStateController::m_on_state_data(
     const crazyflie_interfaces::msg::LogDataGeneric::SharedPtr msg)
 {
-    // Variables: "pm.vbat", "pm.chargeCurrent", "pm.state", "sys.canfly", "sys.isFlying", "sys.isTumbled"
-    if (msg->values.size() == 6) { // Full state data
+    // Variables: pm.vbat, pm.chargeCurrent, pm.state, sys.canfly,
+    // sys.isFlying, sys.isTumbled, stateEstimate.yaw (degrees).
+    if (msg->values.size() == 7 || msg->values.size() == 6) { // Full state data
         m_battery_voltage = msg->values[0];
         m_battery_charge_current = msg->values[1];
         m_battery_charge_state = (int)msg->values[2];
         m_canfly = (bool)(int)msg->values[3];
         m_is_flying = (bool)(int)msg->values[4];
         m_is_tumbled = (bool)(int)msg->values[5];
+        if (msg->values.size() == 7) {
+            m_yaw = msg->values[6] * std::numbers::pi / 180.0;
+            m_yaw_valid = std::isfinite(m_yaw);
+        } else {
+            m_yaw_valid = false;
+        }
     } else if (msg->values.size() == 1) { // Only battery voltage
         m_battery_voltage = msg->values[0];
         m_canfly = true;
         m_is_flying = true;
         m_is_tumbled = false;
+        m_yaw_valid = false;
     } else {
         RCLCPP_WARN(
             rclcpp::get_logger("HardwareStateController"),

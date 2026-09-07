@@ -1,5 +1,8 @@
 #include "padflies_cpp/commander/commander_base.hpp"
 
+#include <tf2/LinearMath/Quaternion.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 #define WORLD "world"
 
 PadflieCommanderBase::PadflieCommanderBase(
@@ -24,8 +27,8 @@ PadflieCommanderBase::PadflieCommanderBase(
         m_node_interfaces.services_interface,
         m_cf_prefix,
         m_logger);
-    m_hardware_log_profile_controller = std::make_shared<HardwareLogProfileController>(
-        m_cf_prefix, m_node_interfaces, m_hardware_parameter_controller);
+    m_hardware_profile_controller = std::make_shared<HardwareProfileController>(
+        m_prefix, m_cf_prefix, m_node_interfaces, m_hardware_parameter_controller);
 
     m_hw_state_controller->set_on_state_callback(
         std::bind(&PadflieCommanderBase::m_on_state_callback, this));
@@ -48,7 +51,7 @@ PadflieCommanderBase::on_configure()
         m_node_interfaces.topics_interface,
         m_node_interfaces.clock_interface,
         m_node_interfaces.logging_interface);
-    m_hardware_log_profile_controller->configure();
+    m_hardware_profile_controller->configure();
 
 
     m_on_commander_configured();
@@ -68,7 +71,7 @@ PadflieCommanderBase::on_activate()
 
     m_activate_commander();
 
-    m_hardware_log_profile_controller->activate();
+    m_hardware_profile_controller->activate();
     try {
         m_hardware_actor = std::make_shared<HardwareActor>(
             m_node_interfaces.base_interface,
@@ -84,7 +87,7 @@ PadflieCommanderBase::on_activate()
         m_create_control_interface();
         m_on_commander_activated();
     } catch (...) {
-        m_hardware_log_profile_controller->deactivate();
+        m_hardware_profile_controller->deactivate();
         throw;
     }
     m_base_state = CommanderBaseState::ACTIVATED;
@@ -101,10 +104,10 @@ PadflieCommanderBase::on_deactivate(bool force)
     try {
         m_deactivate_commander(force);
     } catch (...) {
-        m_hardware_log_profile_controller->deactivate();
+        m_hardware_profile_controller->deactivate();
         throw;
     }
-    m_hardware_log_profile_controller->deactivate();
+    m_hardware_profile_controller->deactivate();
     
     m_hardware_actor.reset(); 
     m_hw_state_controller->reset_state();
@@ -120,7 +123,7 @@ PadflieCommanderBase::on_cleanup()
         throw CommanderException("PadflieCommanderBase must be inactive before cleanup!");
     }
     m_cleanup_commander();
-    m_hardware_log_profile_controller->cleanup();
+    m_hardware_profile_controller->cleanup();
     m_hw_state_controller->reset_state();
     m_base_state = CommanderBaseState::UNCONFIGURED;
     RCLCPP_INFO(m_logger, "Padflie Commander cleaned up for %s", m_cf_prefix.c_str());
@@ -129,7 +132,7 @@ PadflieCommanderBase::on_cleanup()
 const std::vector<std::string> &
 PadflieCommanderBase::get_hardware_capabilities() const
 {
-    return m_hardware_log_profile_controller->capabilities();
+    return m_hardware_profile_controller->capabilities();
 }
 
 void PadflieCommanderBase::m_on_state_callback()
@@ -141,8 +144,16 @@ PadflieCommanderBase::m_handle_info_timer()
 {
     padflies_interfaces::msg::PadflieInfo info_msg;
     info_msg.cf_prefix = m_cf_prefix;
-    if (m_padflie_tf->get_cf_pose_stamped(m_hardware_actor->get_current_target_frame(), info_msg.pose)) 
-         info_msg.pose_valid = true;
+    const bool yaw_valid = m_hw_state_controller->yaw_valid();
+    const double world_yaw = yaw_valid ? m_hw_state_controller->get_yaw() : 0.0;
+    info_msg.yaw_valid = yaw_valid;
+    if (yaw_valid) {
+        info_msg.pose_valid = m_padflie_tf->get_cf_pose_stamped_with_world_yaw(
+            m_hardware_actor->get_current_target_frame(), world_yaw, info_msg.pose);
+    } else {
+        info_msg.pose_valid = m_padflie_tf->get_cf_pose_stamped(
+            m_hardware_actor->get_current_target_frame(), info_msg.pose);
+    }
     Eigen::Vector3d position;
     if (m_padflie_tf->get_cf_position(position))
     {    
@@ -150,6 +161,12 @@ PadflieCommanderBase::m_handle_info_timer()
         info_msg.pose_world.position.x = position.x();
         info_msg.pose_world.position.y = position.y();
         info_msg.pose_world.position.z = position.z();
+        info_msg.pose_world.orientation.w = 1.0;
+        if (yaw_valid) {
+            tf2::Quaternion orientation;
+            orientation.setRPY(0.0, 0.0, world_yaw);
+            info_msg.pose_world.orientation = tf2::toMsg(orientation);
+        }
     }
     info_msg.is_home = get_home_state();
     if (m_hw_state_controller->is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;

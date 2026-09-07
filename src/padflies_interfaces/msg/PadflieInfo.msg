@@ -3,6 +3,7 @@ geometry_msgs/PoseStamped pose
 bool pose_valid false
 geometry_msgs/Pose pose_world
 bool pose_world_valid false
+bool yaw_valid false
 bool is_home
 uint8 battery
 uint8 padflie_state

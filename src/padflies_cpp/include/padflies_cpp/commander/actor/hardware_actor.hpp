@@ -14,6 +14,7 @@
 
 #include "padflies_cpp/commander/padflie_tf.hpp"
 #include <tf2_eigen/tf2_eigen.hpp>
+#include <atomic>
 enum ActorState {
   DEACTIVATED,
   LOW_LEVEL_COMMANDER,
@@ -62,6 +63,7 @@ public:
 
     ~HardwareActor();
     std::string get_current_target_frame() const;
+    void set_current_yaw(double yaw) { m_current_yaw.store(yaw); }
 
     bool set_pose_target(const PoseTarget & target_pose);
 
@@ -131,7 +133,7 @@ private:
     ActorState m_state;
     ActorMode m_mode;
     double m_dt;
-    double m_current_yaw = 0.0;
+    std::atomic<double> m_current_yaw{0.0};
 
 private: // Targets 
     PoseTarget m_target_pose;

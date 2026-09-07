@@ -95,6 +95,11 @@ public:
     bool get_cf_pose_stamped(
         const std::string & frame_id,
         geometry_msgs::msg::PoseStamped & pose_stamped);
+
+    bool get_cf_pose_stamped_with_world_yaw(
+        const std::string & frame_id,
+        double world_yaw,
+        geometry_msgs::msg::PoseStamped & pose_stamped);
     
     /**
      * Returns the position of the cf in world frame, as a vector of doubles.

@@ -228,7 +228,7 @@ HardwareActor::reset_kalman_to(Eigen::Affine3d & pose)
         rclcpp::Parameter kalmanReset("kalman.resetEstimation", 1);
         kalman_params.push_back(kalmanReset.to_parameter_msg());
         m_hardware_parameter_controller->set_parameters(kalman_params);
-        m_current_yaw = pad_yaw;
+        m_current_yaw.store(pad_yaw);
     } else {
         RCLCPP_DEBUG(m_logger, "Did not reset Kalman");  
     }
@@ -310,9 +310,10 @@ void HardwareActor::m_do_cmd_position_update(Eigen::Vector3d & position)
     }
 
     m_position_controller.safe_command_position(position, target_position, collision);
-    double safe_yaw = m_yaw_controller.safe_cmd_yaw(m_current_yaw, target_yaw);
-    RCLCPP_DEBUG(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", m_current_yaw, target_yaw, safe_yaw);
-    m_current_yaw = safe_yaw; 
+    const double current_yaw = m_current_yaw.load();
+    double safe_yaw = m_yaw_controller.safe_cmd_yaw(current_yaw, target_yaw);
+    RCLCPP_DEBUG(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", current_yaw, target_yaw, safe_yaw);
+    m_current_yaw.store(safe_yaw);
 
     
     // This is for race conditions and should be removed if possible.
@@ -360,7 +361,7 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
     if (m_state == ActorState::LOW_LEVEL_COMMANDER)
     {
         m_ll_commander.cmd_velocity_world(safe_velocity, velocity_world(5));
-        m_current_yaw += velocity_world(5) * m_dt; // Update current yaw based on commanded yaw rate
+        m_current_yaw.store(m_current_yaw.load() + velocity_world(5) * m_dt);
     }
 }
 
