@@ -22,8 +22,8 @@ HardwareActor::HardwareActor(
 , m_target_pose()
 , m_fixed_yaw(false)
 , m_yaw_controller(m_dt, 0.5) // Default max rotational velocity of 0.5 rad/s
-, m_position_controller(m_dt, 5.0, 2.5, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 }) // Default clipping box
-, m_velocity_controller(0.8, { 3.5, 4.0, 4.500, -7.5, -4.0, 0.0 })
+, m_position_controller(m_dt, 5.0, 2.5, { 3.5, 3.5, 4.500, -6.0, -2.5, 0.2 }) // Default clipping box
+, m_velocity_controller(0.8, { 3.5, 3.5, 4.500, -6.0, -2.5, 0.2 })
 , m_collision_avoidance_client(
     std::make_unique<CollisionAvoidanceClient>(
         std::stoi(cf_prefix.substr(2)), // Extract ID from cf_prefix (cfID)
@@ -228,7 +228,7 @@ HardwareActor::reset_kalman_to(Eigen::Affine3d & pose)
         rclcpp::Parameter kalmanReset("kalman.resetEstimation", 1);
         kalman_params.push_back(kalmanReset.to_parameter_msg());
         m_hardware_parameter_controller->set_parameters(kalman_params);
-        m_current_yaw.store(pad_yaw);
+        m_padflie_tf->set_yaw(pad_yaw);
     } else {
         RCLCPP_DEBUG(m_logger, "Did not reset Kalman");  
     }
@@ -310,10 +310,11 @@ void HardwareActor::m_do_cmd_position_update(Eigen::Vector3d & position)
     }
 
     m_position_controller.safe_command_position(position, target_position, collision);
-    const double current_yaw = m_current_yaw.load();
+    double current_yaw = m_fixed_yaw_target;
+    m_padflie_tf->get_yaw(current_yaw);
     double safe_yaw = m_yaw_controller.safe_cmd_yaw(current_yaw, target_yaw);
     RCLCPP_DEBUG(m_logger, "Current yaw: %f, Target yaw: %f, Safe yaw: %f", current_yaw, target_yaw, safe_yaw);
-    m_current_yaw.store(safe_yaw);
+    m_padflie_tf->set_yaw(safe_yaw);
 
     
     // This is for race conditions and should be removed if possible.
@@ -360,8 +361,9 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
 
     if (m_state == ActorState::LOW_LEVEL_COMMANDER)
     {
-        m_ll_commander.cmd_velocity_world(safe_velocity, velocity_world(5));
-        m_current_yaw.store(m_current_yaw.load() + velocity_world(5) * m_dt);
+        const double yaw_rate = m_use_angular_velocity ? velocity_world(5) : 0.0;
+        m_ll_commander.cmd_velocity_world(safe_velocity, yaw_rate);
+        m_padflie_tf->step_yaw(yaw_rate, m_dt);
     }
 }
 

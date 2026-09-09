@@ -133,8 +133,8 @@ PadflieCommander::m_on_charged_callback()
 
 void PadflieCommander::m_on_state_callback()
 {
-    if (m_hardware_actor && m_hw_state_controller->yaw_valid()) {
-        m_hardware_actor->set_current_yaw(m_hw_state_controller->get_yaw());
+    if (m_hw_state_controller->yaw_valid()) {
+        m_padflie_tf->set_yaw(m_hw_state_controller->get_yaw());
     }
     if (!m_availability_pub ||
         !m_hw_state_controller->is_charged() ||

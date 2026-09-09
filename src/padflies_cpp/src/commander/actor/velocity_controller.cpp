@@ -13,6 +13,7 @@ void VelocityController::safe_command_velocity(
     Eigen::Vector3d & target_velocity)
 {
     m_clip_velocity(target_velocity);
+    // Stop outward motion at the flight boundary while allowing inward motion.
     m_clip_box(current_position, target_velocity);
 }
 
@@ -26,9 +27,20 @@ void VelocityController::m_clip_velocity(Eigen::Vector3d & target_velocity)
 }
 
 void VelocityController::m_clip_box(
-    const Eigen::Vector3d &,
-    Eigen::Vector3d &)
+    const Eigen::Vector3d & current_position,
+    Eigen::Vector3d & target_velocity)
 {
-    // Intentionally left empty until velocity clipping at the flight boundary
-    // is defined.
+    for (Eigen::Index axis = 0; axis < 3; ++axis)
+    {
+        const bool outside_upper_bound =
+            current_position(axis) >= m_clipping_box[axis];
+        const bool outside_lower_bound =
+            current_position(axis) <= m_clipping_box[axis + 3];
+
+        if ((outside_upper_bound && target_velocity(axis) > 0.0) ||
+            (outside_lower_bound && target_velocity(axis) < 0.0))
+        {
+            target_velocity(axis) = 0.0;
+        }
+    }
 }

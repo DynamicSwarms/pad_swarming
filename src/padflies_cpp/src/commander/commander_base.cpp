@@ -1,8 +1,5 @@
 #include "padflies_cpp/commander/commander_base.hpp"
 
-#include <tf2/LinearMath/Quaternion.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-
 #define WORLD "world"
 
 PadflieCommanderBase::PadflieCommanderBase(
@@ -144,29 +141,14 @@ PadflieCommanderBase::m_handle_info_timer()
 {
     padflies_interfaces::msg::PadflieInfo info_msg;
     info_msg.cf_prefix = m_cf_prefix;
-    const bool yaw_valid = m_hw_state_controller->yaw_valid();
-    const double world_yaw = yaw_valid ? m_hw_state_controller->get_yaw() : 0.0;
-    info_msg.yaw_valid = yaw_valid;
-    if (yaw_valid) {
-        info_msg.pose_valid = m_padflie_tf->get_cf_pose_stamped_with_world_yaw(
-            m_hardware_actor->get_current_target_frame(), world_yaw, info_msg.pose);
-    } else {
-        info_msg.pose_valid = m_padflie_tf->get_cf_pose_stamped(
-            m_hardware_actor->get_current_target_frame(), info_msg.pose);
-    }
-    Eigen::Vector3d position;
-    if (m_padflie_tf->get_cf_position(position))
-    {    
-        info_msg.pose_world_valid = true;
-        info_msg.pose_world.position.x = position.x();
-        info_msg.pose_world.position.y = position.y();
-        info_msg.pose_world.position.z = position.z();
-        info_msg.pose_world.orientation.w = 1.0;
-        if (yaw_valid) {
-            tf2::Quaternion orientation;
-            orientation.setRPY(0.0, 0.0, world_yaw);
-            info_msg.pose_world.orientation = tf2::toMsg(orientation);
-        }
+    info_msg.pose_valid = m_padflie_tf->get_cf_pose_stamped(
+        m_hardware_actor->get_current_target_frame(), info_msg.pose);
+
+    geometry_msgs::msg::PoseStamped pose_world;
+    info_msg.pose_world_valid = m_padflie_tf->get_cf_pose_stamped(WORLD, pose_world);
+    info_msg.yaw_estimated = m_padflie_tf->yaw_is_estimated();
+    if (info_msg.pose_world_valid) {
+        info_msg.pose_world = pose_world.pose;
     }
     info_msg.is_home = get_home_state();
     if (m_hw_state_controller->is_critical()) info_msg.battery = padflies_interfaces::msg::PadflieInfo::BATTERY_STATE_CRITICAL;

@@ -3,6 +3,9 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "tf2_eigen/tf2_eigen.hpp"
 
+#include <cmath>
+#include <numbers>
+
 using std::placeholders::_1;
 
 
@@ -22,6 +25,7 @@ PadflieTF::PadflieTF(
 , m_clock(clock)
 , m_logger(logger)
 {
+    m_last_position.pose.orientation.w = 1.0;
     m_tf_buffer->setUsingDedicatedThread(true);
     RCLCPP_DEBUG(m_logger, "PadflieTF initialized for CF: %s, world frame: %s", 
                 m_cf_name.c_str(), m_world_frame.c_str());      
@@ -30,6 +34,51 @@ PadflieTF::PadflieTF(
 PadflieTF::~PadflieTF()
 {
     RCLCPP_INFO(m_logger, "PadflieTF destructor called");
+}
+
+void PadflieTF::set_yaw(double yaw)
+{
+    if (!std::isfinite(yaw)) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_pose_mutex);
+    if (m_cf_positions_yaw_valid) {
+        return;
+    }
+    tf2::Quaternion orientation;
+    orientation.setRPY(0.0, 0.0, std::remainder(yaw, 2.0 * std::numbers::pi));
+    m_last_position.pose.orientation = tf2::toMsg(orientation);
+}
+
+void PadflieTF::step_yaw(double yaw_rate, double dt)
+{
+    if (!std::isfinite(yaw_rate) || !std::isfinite(dt)) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_pose_mutex);
+    if (m_cf_positions_yaw_valid) {
+        return;
+    }
+    const double yaw = tf2::getYaw(m_last_position.pose.orientation);
+    tf2::Quaternion orientation;
+    orientation.setRPY(0.0, 0.0,
+        std::remainder(yaw + yaw_rate * dt, 2.0 * std::numbers::pi));
+    m_last_position.pose.orientation = tf2::toMsg(orientation);
+}
+
+bool PadflieTF::get_yaw(double & yaw) const
+{
+    std::lock_guard<std::mutex> lock(m_pose_mutex);
+    yaw = tf2::getYaw(m_last_position.pose.orientation);
+    return true;
+}
+
+bool PadflieTF::yaw_is_estimated() const
+{
+    std::lock_guard<std::mutex> lock(m_pose_mutex);
+    return !m_cf_positions_yaw_valid;
 }
 
 void PadflieTF::start_listening(
@@ -232,15 +281,14 @@ bool PadflieTF::get_cf_pose_stamped(
     const std::string & frame_id,
     geometry_msgs::msg::PoseStamped & pose_stamped)
 {
-    geometry_msgs::msg::TransformStamped transform;
-
-    if (m_last_position_time + m_position_timeout > get_now()
-        && lookup_transform(frame_id, m_world_frame, transform))
+    if (m_last_position_time + m_position_timeout <= get_now()) return false;
+    geometry_msgs::msg::PoseStamped world_pose;
     {
-        tf2::doTransform(m_last_position, pose_stamped, transform);    
-        return true;
+        std::lock_guard<std::mutex> lock(m_pose_mutex);
+        world_pose = m_last_position;
     }
-    return false;
+    world_pose.header.frame_id = m_world_frame;
+    return transform_pose_stamped(world_pose, frame_id, pose_stamped);
 }
 
 bool PadflieTF::get_cf_pose_stamped_with_world_yaw(
@@ -250,7 +298,11 @@ bool PadflieTF::get_cf_pose_stamped_with_world_yaw(
 {
     if (m_last_position_time + m_position_timeout <= get_now()) return false;
 
-    geometry_msgs::msg::PoseStamped world_pose = m_last_position;
+    geometry_msgs::msg::PoseStamped world_pose;
+    {
+        std::lock_guard<std::mutex> lock(m_pose_mutex);
+        world_pose = m_last_position;
+    }
     world_pose.header.frame_id = m_world_frame;
     tf2::Quaternion orientation;
     orientation.setRPY(0.0, 0.0, world_yaw);
@@ -262,6 +314,7 @@ bool PadflieTF::get_cf_pose_stamped_with_world_yaw(
 bool PadflieTF::get_cf_position(Eigen::Vector3d & position)
 {
     if (m_last_position_time + m_position_timeout > get_now()) {
+        std::lock_guard<std::mutex> lock(m_pose_mutex);
         position = Eigen::Vector3d(
             m_last_position.pose.position.x,
             m_last_position.pose.position.y,
@@ -273,6 +326,7 @@ bool PadflieTF::get_cf_position(Eigen::Vector3d & position)
 bool PadflieTF::get_cf_pose(Eigen::Affine3d & pose)
 {
     if (m_last_position_time + m_position_timeout > get_now()) {
+        std::lock_guard<std::mutex> lock(m_pose_mutex);
         tf2::fromMsg(m_last_position.pose, pose);
         return true;
     }
@@ -372,9 +426,15 @@ void PadflieTF::cf_positions_callback(
 {
     for (const auto & pose : msg->poses) {
         if (pose.name == m_cf_name) {
+            std::lock_guard<std::mutex> lock(m_pose_mutex);
+            const auto previous_orientation = m_last_position.pose.orientation;
             m_last_position = geometry_msgs::msg::PoseStamped();
             m_last_position.header.frame_id = msg->header.frame_id;
             m_last_position.pose = pose.pose;
+            m_cf_positions_yaw_valid = pose.rotation_valid;
+            if (!pose.rotation_valid) {
+                m_last_position.pose.orientation = previous_orientation;
+            }
             m_last_position_time = get_now();
         }
     }

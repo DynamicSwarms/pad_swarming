@@ -82,7 +82,8 @@ void LowLevelCommanderMinimal::cmd_velocity_world(
     msg.vel.x = linear_velocity.x();
     msg.vel.y = linear_velocity.y();
     msg.vel.z = linear_velocity.z();
-    msg.yaw_rate = yaw_rate;
+    // Crazyflie expects yaw rate in degrees per second
+    msg.yaw_rate = yaw_rate * 180.0 / 3.14159265358979323846;
 
     m_cmd_velocity_world_pub->publish(msg);
 }

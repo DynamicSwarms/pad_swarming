@@ -10,6 +10,7 @@
 #include "geometry_msgs/msg/point_stamped.hpp"
 
 #include <Eigen/Dense>
+#include <mutex>
 #include <optional>
 
 class PadflieTF
@@ -110,6 +111,14 @@ public:
     bool get_cf_pose(
         Eigen::Affine3d & pose);
 
+    void set_yaw(double yaw);
+
+    void step_yaw(double yaw_rate, double dt);
+
+    bool get_yaw(double & yaw) const;
+
+    bool yaw_is_estimated() const;
+
     bool pose_stamped_to_world_position_and_yaw(
         const geometry_msgs::msg::PoseStamped & pose_stamped,
         Eigen::Vector3d & position,
@@ -155,6 +164,9 @@ private:
     geometry_msgs::msg::PoseStamped m_last_position;
     rclcpp::Time m_last_position_time;
     rclcpp::Duration m_position_timeout;
+
+    mutable std::mutex m_pose_mutex;
+    bool m_cf_positions_yaw_valid{false};
     
     std::unique_ptr<tf2_ros::Buffer> m_tf_buffer;
 
