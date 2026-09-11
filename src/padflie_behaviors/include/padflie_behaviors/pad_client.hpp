@@ -6,6 +6,7 @@
 #include "padflies_cpp/commander/padflie_tf.hpp"
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include <mutex>
 struct PadRightRequest
 {
@@ -16,7 +17,7 @@ struct PadRightRequest
     geometry_msgs::msg::PoseStamped pose;
 };
 
-class PadClient
+class PadClient : public std::enable_shared_from_this<PadClient>
 {
 public:
     using PadRightControlActionT = pad_management_interfaces::action::PadRightControl;
@@ -132,19 +133,26 @@ public:
 
         goal_msg.name = m_prefix;
         auto send_goal_options = rclcpp_action::Client<PadRightControlActionT>::SendGoalOptions();
+        const std::weak_ptr<PadClient> weak_self = weak_from_this();
         send_goal_options.goal_response_callback =
-            [this, attempt](const typename PadRightControlGoalHandleT::SharedPtr & goal_handle) {
-                goal_response_callback(goal_handle, attempt);
+            [weak_self, attempt](const typename PadRightControlGoalHandleT::SharedPtr & goal_handle) {
+                if (const auto self = weak_self.lock()) {
+                    self->goal_response_callback(goal_handle, attempt);
+                }
             };
         send_goal_options.feedback_callback =
-            [this, attempt](
+            [weak_self, attempt](
                 typename PadRightControlGoalHandleT::SharedPtr goal_handle,
                 const std::shared_ptr<const PadRightControlActionT::Feedback> feedback) {
-                feedback_callback(goal_handle, feedback, attempt);
+                if (const auto self = weak_self.lock()) {
+                    self->feedback_callback(goal_handle, feedback, attempt);
+                }
             };
         send_goal_options.result_callback =
-            [this, attempt](const typename PadRightControlGoalHandleT::WrappedResult & result) {
-                result_callback(result, attempt);
+            [weak_self, attempt](const typename PadRightControlGoalHandleT::WrappedResult & result) {
+                if (const auto self = weak_self.lock()) {
+                    self->result_callback(result, attempt);
+                }
             };
         RCLCPP_INFO(
             m_logger, "Sending PadRight goal attempt %lu for %s",

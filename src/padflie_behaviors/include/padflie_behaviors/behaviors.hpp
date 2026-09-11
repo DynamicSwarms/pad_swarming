@@ -893,6 +893,11 @@ public:
         geometry_msgs::msg::PoseStamped cf_pose;
         if (!m_padflie_tf->get_cf_pose_stamped("world", cf_pose))
         {
+            m_failure_context->report({
+                RoutineOutcome::FAILURE,
+                RoutineFailureReason::HARDWARE,
+                "Failed to get Crazyflie pose while sending flight feedback"
+            });
             RCLCPP_ERROR(m_logger, "Error getting Crazyflie pose!");
             return BT::NodeStatus::FAILURE;
         }
