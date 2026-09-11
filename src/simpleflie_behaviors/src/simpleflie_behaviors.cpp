@@ -5,11 +5,21 @@ namespace simpleflie_behaviors
 
 namespace
 {
-RoutineResult classify_tree(const BT::Tree &)
+RoutineResult classify_result(RoutineTermination termination)
 {
-  // The simple synchronous nodes always return SUCCESS. BehaviorTree.CPP may
-  // already have reset the root status by the time Routine asks us to classify.
-  return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
+  if (termination == RoutineTermination::HALTED) {
+    return {
+      RoutineOutcome::INTERRUPTED,
+      RoutineFailureReason::NONE,
+      "Simple behavior tree was halted"};
+  }
+  if (termination == RoutineTermination::SUCCESS) {
+    return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
+  }
+  return {
+    RoutineOutcome::FAILURE,
+    RoutineFailureReason::INTERNAL,
+    "Simple behavior tree did not succeed"};
 }
 }  // namespace
 
@@ -123,12 +133,12 @@ SimpleLandingPlugin::getTree(
 
 RoutineResultClassifier SimpleTakeoffPlugin::getResultClassifier() const
 {
-  return classify_tree;
+  return classify_result;
 }
 
 RoutineResultClassifier SimpleLandingPlugin::getResultClassifier() const
 {
-  return classify_tree;
+  return classify_result;
 }
 
 

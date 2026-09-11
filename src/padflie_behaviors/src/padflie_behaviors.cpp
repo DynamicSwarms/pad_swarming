@@ -7,14 +7,33 @@
 
 namespace padflie_behaviors
 {
-static RoutineResult classify_tree(
-  const BT::Tree & tree, const std::shared_ptr<FailureContext> & failure_context)
+static RoutineResult classify_result(
+  RoutineTermination termination,
+  const std::shared_ptr<FailureContext> & failure_context)
 {
 
   if (const auto result = failure_context->result()) {
     return *result;
   }
-  return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
+  if (termination == RoutineTermination::HALTED) {
+    return {
+      RoutineOutcome::INTERRUPTED,
+      RoutineFailureReason::NONE,
+      "Behavior tree was halted without a detailed outcome"};
+  }
+  if (termination == RoutineTermination::SUCCESS) {
+    return {RoutineOutcome::SUCCESS, RoutineFailureReason::NONE, {}};
+  }
+  if (termination == RoutineTermination::FAILURE) {
+    return {
+      RoutineOutcome::FAILURE,
+      RoutineFailureReason::INTERNAL,
+      "Behavior tree failed without a detailed failure report"};
+  }
+  return {
+    RoutineOutcome::FAILURE,
+    RoutineFailureReason::INTERNAL,
+    "Behavior tree completed with an unexpected status"};
 }
 
 static std::pair<std::shared_ptr<PadExecuteServer>, std::shared_ptr<PadClientFactory>>
@@ -117,16 +136,16 @@ BT::Tree PadflieLandingPlugin::getTree(
 RoutineResultClassifier PadflieTakeoffPlugin::getResultClassifier() const
 {
   const auto failure_context = m_failure_context;
-  return [failure_context](const BT::Tree & tree) {
-    return classify_tree(tree, failure_context);
+  return [failure_context](RoutineTermination termination) {
+    return classify_result(termination, failure_context);
   };
 }
 
 RoutineResultClassifier PadflieLandingPlugin::getResultClassifier() const
 {
   const auto failure_context = m_failure_context;
-  return [failure_context](const BT::Tree & tree) {
-    return classify_tree(tree, failure_context);
+  return [failure_context](RoutineTermination termination) {
+    return classify_result(termination, failure_context);
   };
 }
 }  // namespace padflie_behaviors

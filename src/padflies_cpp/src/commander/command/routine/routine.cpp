@@ -28,7 +28,7 @@ Routine::Routine(
       std::lock_guard<std::mutex> lock(m_mutex);
       m_tree_is_running = false;
       m_behavior_tree.haltTree();
-      result = m_result_classifier(m_behavior_tree);
+      result = m_result_classifier(RoutineTermination::HALTED);
       finished_callback = m_on_finished_callback;
       m_finished = true;
     }
@@ -58,7 +58,11 @@ Routine::Routine(
         BT::NodeStatus status = m_behavior_tree.tickOnce();
         if (status == BT::NodeStatus::SUCCESS || status == BT::NodeStatus::FAILURE || status == BT::NodeStatus::SKIPPED) {
           m_tree_is_running = false;
-          result = m_result_classifier(m_behavior_tree);
+          const auto termination = status == BT::NodeStatus::SUCCESS ?
+            RoutineTermination::SUCCESS :
+            status == BT::NodeStatus::FAILURE ?
+            RoutineTermination::FAILURE : RoutineTermination::SKIPPED;
+          result = m_result_classifier(termination);
           finished_callback = m_on_finished_callback;
           m_finished = true;
         }

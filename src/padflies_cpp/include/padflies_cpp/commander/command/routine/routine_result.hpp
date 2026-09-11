@@ -3,10 +3,13 @@
 #include <functional>
 #include <string>
 
-namespace BT
+enum class RoutineTermination
 {
-class Tree;
-}
+  SUCCESS,
+  FAILURE,
+  SKIPPED,
+  HALTED
+};
 
 enum class RoutineOutcome
 {
@@ -31,4 +34,5 @@ struct RoutineResult
   std::string message;
 };
 
-using RoutineResultClassifier = std::function<RoutineResult(const BT::Tree &)>;
+using RoutineResultClassifier =
+  std::function<RoutineResult(RoutineTermination)>;
