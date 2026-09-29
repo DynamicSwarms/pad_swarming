@@ -52,27 +52,24 @@ std::vector<Eigen::Vector2d> MegaPadAccessPolicy::blocked_associated_positions(
     const std::vector<AccessGeometry2D> & current_holders,
     const std::vector<AccessGeometry2D> & all_accesses) const
 {
-    const auto requesting_marks =
-        marked_associated_positions(requesting, all_accesses);
     std::vector<Eigen::Vector2d> blocked;
+
     for (const auto & holder : current_holders) {
-        const auto holder_marks = marked_associated_positions(holder, all_accesses);
-        for (const auto & requested_position : requesting_marks) {
-            const bool is_double_marked = std::any_of(
-                holder_marks.begin(), holder_marks.end(),
-                [&requested_position](const Eigen::Vector2d & holder_position) {
-                    return requested_position.isApprox(holder_position);
-                });
-            const bool already_recorded = std::any_of(
-                blocked.begin(), blocked.end(),
-                [&requested_position](const Eigen::Vector2d & blocked_position) {
-                    return requested_position.isApprox(blocked_position);
-                });
-            if (is_double_marked && !already_recorded) {
-                blocked.push_back(requested_position);
-            }
+        const auto holder_marks =
+            marked_associated_positions(holder, all_accesses);
+
+        const bool requesting_position_is_marked = std::any_of(
+            holder_marks.begin(), holder_marks.end(),
+            [&requesting](const Eigen::Vector2d & marked_position) {
+                return requesting.associated_position.isApprox(marked_position);
+            });
+
+        if (requesting_position_is_marked) {
+            blocked.push_back(requesting.associated_position);
+            break;
         }
     }
+
     return blocked;
 }
 
