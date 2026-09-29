@@ -1,5 +1,8 @@
 #include "padflies_cpp/commander/commander_base.hpp"
 
+#include <cmath>
+#include <stdexcept>
+
 #define WORLD "world"
 
 PadflieCommanderBase::PadflieCommanderBase(
@@ -18,6 +21,18 @@ PadflieCommanderBase::PadflieCommanderBase(
 , m_node_clock_interface(m_node_interfaces.clock_interface)
 , m_logger(m_node_interfaces.logging_interface->get_logger())
 { 
+    const auto clipping_box = m_node_interfaces.parameters_interface->declare_parameter(
+        "clipping_box", rclcpp::ParameterValue(std::vector<double>{3.5, 3.5, 4.5, -6.0, -2.5, 0.2}),
+        rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::vector<double>>();
+    if (clipping_box.size() != 6) {
+        throw std::invalid_argument("clipping_box must contain [max_x, max_y, max_z, min_x, min_y, min_z]");
+    }
+    for (size_t axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(clipping_box[axis]) || !std::isfinite(clipping_box[axis + 3]) ||
+            clipping_box[axis] <= clipping_box[axis + 3]) {
+            throw std::invalid_argument("clipping_box bounds must be finite and ordered");
+        }
+    }
     m_hardware_parameter_controller = std::make_shared<HardwareParameterController>(
         m_node_interfaces.base_interface,
         m_node_interfaces.graph_interface,
@@ -79,7 +94,8 @@ PadflieCommanderBase::on_activate()
             m_node_interfaces.clock_interface,
             m_node_interfaces.logging_interface,
             m_cf_prefix,
-            m_padflie_tf);
+            m_padflie_tf,
+            m_node_interfaces.parameters_interface->get_parameter("clipping_box").as_double_array());
 
         m_create_control_interface();
         m_on_commander_activated();

@@ -33,7 +33,7 @@
 
 namespace
 {
-const QColor kBackground{24, 28, 36};
+const QColor kBackground{255, 255, 255};
 const QColor kNeutral{91, 102, 120};
 const QColor kGreen{46, 204, 113};
 const QColor kRed{231, 76, 60};
@@ -71,8 +71,8 @@ protected:
             }
         };
 
-        draw_grid(minor_spacing, QPen(QColor(43, 49, 61), 1.0));
-        draw_grid(major_spacing, QPen(QColor(64, 73, 89), 2.0));
+        draw_grid(minor_spacing, QPen(QColor(235, 238, 242), 1.0));
+        draw_grid(major_spacing, QPen(QColor(205, 211, 219), 2.0));
     }
 };
 
@@ -218,6 +218,7 @@ public:
         resize(1120, 820);
 
         auto * central = new QWidget;
+        central->setStyleSheet("background: white;");
         auto * layout = new QHBoxLayout(central);
         m_scene = new MetricScene(-430, -390, 860, 780, this);
         auto * view = new QGraphicsView(m_scene);
@@ -229,7 +230,7 @@ public:
         auto * information = new QWidget;
         information->setFixedWidth(230);
         information->setStyleSheet(
-            "background:#232934;color:#e9edf3;border-radius:8px;padding:8px;");
+            "background:#ffffff;color:#232934;border-radius:8px;padding:8px;");
         auto * info_layout = new QVBoxLayout(information);
         auto * title = new QLabel("Access policy");
         QFont title_font;
@@ -264,8 +265,6 @@ public:
 
         create_pads();
         create_quadcopters();
-        m_selection_line = m_scene->addLine(QLineF(), QPen(kSelected, 2.5, Qt::DashLine));
-        m_selection_line->setZValue(1.0);
         evaluate();
 
         auto * timer = new QTimer(this);
@@ -286,12 +285,15 @@ private:
         constexpr double size = 50.0;
         constexpr double gap = 2.0;
         constexpr double pitch = size + gap;
-        constexpr double origin = -2.0 * pitch - size / 2.0;
-        for (int row = 0; row < 5; ++row) {
-            for (int column = 0; column < 5; ++column) {
-                const int id = row * 5 + column;
+        constexpr int rows = 1;
+        constexpr int columns = 4;
+        constexpr double origin_x = -(columns - 1) * pitch / 2.0 - size / 2.0;
+        constexpr double origin_y = -(rows - 1) * pitch / 2.0 - size / 2.0;
+        for (int row = 0; row < rows; ++row) {
+            for (int column = 0; column < columns; ++column) {
+                const int id = row * columns + column;
                 const QRectF rectangle(
-                    origin + column * pitch, origin + row * pitch, size, size);
+                    origin_x + column * pitch, origin_y + row * pitch, size, size);
                 auto * pad = new PadItem(
                     id, rectangle,
                     [this](int pad_id) { assign_selected_to(pad_id); });
@@ -303,7 +305,7 @@ private:
 
     void create_quadcopters()
     {
-        constexpr int count = 25;
+        constexpr int count = 4;
         constexpr double radius = 340.0;
         m_associated_pad.reserve(count);
         for (int index = 0; index < count; ++index) {
@@ -318,6 +320,10 @@ private:
             quadcopter->setPos(radius * std::cos(angle), radius * std::sin(angle));
             m_scene->addItem(quadcopter);
             m_quadcopters.push_back(quadcopter);
+            auto * connection = m_scene->addLine(QLineF(), QPen(kRed, 2.5, Qt::DashLine));
+            connection->setZValue(10.0);
+            connection->setAcceptedMouseButtons(Qt::NoButton);
+            m_pad_connections.push_back(connection);
             m_associated_pad.push_back(index);
             m_is_holder.push_back(false);
         }
@@ -363,18 +369,14 @@ private:
             for (auto * pad : m_pads) {
                 pad->set_selected(false);
             }
-            m_selection_line->setVisible(false);
             return;
         }
 
-        m_selection_line->setVisible(true);
         const auto selected_index = static_cast<std::size_t>(m_selected_id);
         const auto pad_index = static_cast<std::size_t>(m_associated_pad[selected_index]);
         for (std::size_t index = 0; index < m_pads.size(); ++index) {
             m_pads[index]->set_selected(index == pad_index);
         }
-        m_selection_line->setLine(QLineF(
-            m_quadcopters[selected_index]->scenePos(), m_pads[pad_index]->center()));
     }
 
     void toggle_holder(int id)
@@ -426,8 +428,8 @@ private:
             }
         }
 
-        std::array<EvaluationState, 25> pad_state{};
-        std::array<bool, 25> pad_used{};
+        std::vector<EvaluationState> pad_state(m_pads.size(), EvaluationState::HOLDER);
+        std::vector<bool> pad_used(m_pads.size(), false);
         m_evaluation.resize(m_quadcopters.size());
 
         for (std::size_t index = 0; index < m_quadcopters.size(); ++index) {
@@ -437,6 +439,12 @@ private:
                     EvaluationState::ELIGIBLE : EvaluationState::BLOCKED);
             m_evaluation[index] = state;
             m_quadcopters[index]->set_evaluation(state);
+            const QColor color = state == EvaluationState::HOLDER ? kGreen :
+                (state == EvaluationState::ELIGIBLE ? kOrange : kRed);
+            m_pad_connections[index]->setPen(QPen(color, 2.5, Qt::DashLine));
+            m_pad_connections[index]->setLine(QLineF(
+                m_quadcopters[index]->scenePos(),
+                m_pads[m_associated_pad[index]]->center()));
 
             std::vector<Eigen::Vector2d> visible_positions;
             if (state == EvaluationState::HOLDER) {
@@ -472,7 +480,7 @@ private:
     QGraphicsScene * m_scene{nullptr};
     QLabel * m_selection_label{nullptr};
     QLabel * m_result_label{nullptr};
-    QGraphicsLineItem * m_selection_line{nullptr};
+    std::vector<QGraphicsLineItem *> m_pad_connections;
     std::vector<PadItem *> m_pads;
     std::vector<QuadcopterItem *> m_quadcopters;
     std::vector<int> m_associated_pad;

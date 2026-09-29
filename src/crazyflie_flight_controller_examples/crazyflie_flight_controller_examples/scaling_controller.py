@@ -18,6 +18,9 @@ class ScalingController(Node):
         super().__init__("crazyflie_scaling_controller")
         self.count = self.declare_parameter("count", 20).value
         self.area = self.declare_parameter("area", 5.0).value
+        self.aspect_ratio = self.declare_parameter("aspect_ratio", 4.0).value
+        if any(not math.isfinite(value) or value <= 0 for value in (self.area, self.aspect_ratio)):
+            raise ValueError("area and aspect_ratio must be positive and finite")
         self.speed = self.declare_parameter("speed", 0.6).value
         self.seed = self.declare_parameter("seed", 42).value
         self.random = random.Random(self.seed)
@@ -114,9 +117,18 @@ class ScalingController(Node):
             heading = self.headings[cf_id] + self.random.gauss(0.0, 0.35)
             if position is not None:
                 x, y, _ = position
-                distance = math.hypot(x, y)
-                if distance > self.area:
-                    heading = math.atan2(-y, -x) + self.random.uniform(-0.35, 0.35)
+                radius_y = self.area / self.aspect_ratio
+                # Look ahead so turns happen before the edge of the narrow strip.
+                dx, dy = math.cos(heading), math.sin(heading)
+                next_x = x + self.speed * dx
+                next_y = y + self.speed * dy
+                if math.hypot(next_x / self.area, next_y / radius_y) > 0.85:
+                    # Reflect outward motion about the ellipse normal; allow recovery inward.
+                    nx, ny = next_x / self.area**2, next_y / radius_y**2
+                    outward = dx * nx + dy * ny
+                    if outward > 0.0:
+                        scale = 2.0 * outward / (nx * nx + ny * ny)
+                        heading = math.atan2(dy - scale * ny, dx - scale * nx)
             self.headings[cf_id] = heading
 
             message = SendTarget()

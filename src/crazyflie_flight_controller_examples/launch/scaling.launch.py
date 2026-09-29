@@ -13,7 +13,11 @@ from launch_ros.parameter_descriptions import ParameterValue
 def launch_scaling_example(context):
     count = int(LaunchConfiguration("count").perform(context))
     spacing = float(LaunchConfiguration("spacing").perform(context))
-    columns = max(1, math.ceil(math.sqrt(count)))
+    area = float(LaunchConfiguration("area").perform(context))
+    aspect_ratio = float(LaunchConfiguration("aspect_ratio").perform(context))
+    if count < 1 or any(not math.isfinite(value) or value <= 0 for value in (spacing, area, aspect_ratio)):
+        raise ValueError("count, spacing, area and aspect_ratio must be positive and finite")
+    columns = min(count, max(1, math.ceil(math.sqrt(count * aspect_ratio))))
     rows = max(1, math.ceil(count / columns))
 
     flies = []
@@ -63,6 +67,14 @@ def launch_scaling_example(context):
                     "id": cf_id,
                     "initial_site": "",
                     "battery_voltage_charged": 4.1,
+                    "clipping_box": [
+                        max(area, (columns - 1) * spacing / 2) + 1.0,
+                        max(area / aspect_ratio, (rows - 1) * spacing / 2) + 1.0,
+                        4.5,
+                        -max(area, (columns - 1) * spacing / 2) - 1.0,
+                        -max(area / aspect_ratio, (rows - 1) * spacing / 2) - 1.0,
+                        0.2,
+                    ],
                 }
             ],
         )
@@ -94,6 +106,7 @@ def launch_scaling_example(context):
                 "count": count,
                 "seed": ParameterValue(LaunchConfiguration("seed"), value_type=int),
                 "area": ParameterValue(LaunchConfiguration("area"), value_type=float),
+                "aspect_ratio": aspect_ratio,
                 "speed": ParameterValue(LaunchConfiguration("speed"), value_type=float),
             }
         ],
@@ -115,7 +128,8 @@ def generate_launch_description():
             DeclareLaunchArgument("count", default_value="20"),
             DeclareLaunchArgument("spacing", default_value="0.35"),
             DeclareLaunchArgument("seed", default_value="42"),
-            DeclareLaunchArgument("area", default_value="5.0"),
+            DeclareLaunchArgument("area", default_value="5.0", description="Ellipse horizontal radius in metres"),
+            DeclareLaunchArgument("aspect_ratio", default_value="4.0", description="Roaming width / height; 4 gives a horizontal strip"),
             DeclareLaunchArgument("speed", default_value="0.6"),
             DeclareLaunchArgument("visualize", default_value="true"),
             OpaqueFunction(function=launch_scaling_example),
