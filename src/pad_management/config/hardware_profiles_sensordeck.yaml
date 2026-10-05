@@ -10,7 +10,7 @@ profiles:
     blocks:
       environment:
         topic: sensors/sensordeck/environment
-        frequency: 10
+        frequency: 1
         variables:
           - sensordeck.lux
           - sensordeck.voltage
@@ -18,7 +18,7 @@ profiles:
           - sensordeck.humidity
       vl53l5cx_a:
         topic: sensors/sensordeck/vl53l5cx/a
-        frequency: 10
+        frequency: 1
         variables:
           - vl53l5cx.frame
           - vl53l5cx.a0
@@ -29,7 +29,7 @@ profiles:
           - vl53l5cx.a5
       vl53l5cx_b:
         topic: sensors/sensordeck/vl53l5cx/b
-        frequency: 10
+        frequency: 1
         variables:
           - vl53l5cx.frame
           - vl53l5cx.b0
