@@ -1,4 +1,4 @@
-"""Reproduce the comparison; latest batch is provisionally labeled SITL."""
+"""Reproduce the simulation, provisional SITL, and hardware comparison."""
 import os
 os.environ['MPLCONFIGDIR']='/tmp/pad-analysis-mpl'
 import argparse
@@ -20,7 +20,14 @@ for file in sorted(ROOT.glob('*.jsonl')):
     rows=[json.loads(l) for l in file.open()]; meta=rows[0]
     if not rows[-1].get('success') or len(meta['sequence'])!=19:
         excluded.append(file.name); continue
-    group='sim-simtime' if meta.get('use_sim_time') else ('SITL (provisional)' if '20261005T000' in file.name and file.name.split('T')[-1] >= '000613' else 'sim')
+    if meta.get('backend') == 'hardware':
+        group = 'hardware'
+    elif meta.get('use_sim_time'):
+        group = 'sim-simtime'
+    elif '20261005T000' in file.name and file.name.split('T')[-1] >= '000613':
+        group = 'SITL (provisional)'
+    else:
+        group = 'sim'
     names=[s['name'] for s in meta['sequence']]
     commands=[r for r in rows if r['kind']=='command' and r['phase'] in names]
     t0=commands[0]['ros_time_ns']
@@ -55,28 +62,32 @@ for name,values in [('runs',runs),('phases',phases)]:
     fields=[k for k in values[0] if not k.startswith('_')]
     with (OUT/f'{name}.csv').open('w') as f:
         w=csv.DictWriter(f,fields,extrasaction='ignore');w.writeheader();w.writerows(values)
-colors={'sim':'#2463aa','sim-simtime':'#dd8500','SITL (provisional)':'#15855b'}
+colors={'sim':'#2463aa','sim-simtime':'#dd8500','SITL (provisional)':'#15855b','hardware':'#b23a48'}
 fig,axes=plt.subplots(3,1,figsize=(13,9),sharex=True)
+labelled=set()
 for run in runs:
     t=run['_t'];p=run['_xyz'];b=run['_bounds'];grid=np.arange(0,min(b[-1],68),.1)
     # Symmetric 0.4-second secant smooths differencing noise; plotting only.
     vel=np.array([(np.interp(grid+.2,t,p[:,a])-np.interp(grid-.2,t,p[:,a]))/.4 for a in range(3)])
     for a,ax in enumerate(axes):
-        ax.plot(grid,vel[a],color=colors[run['group']],alpha=.65,lw=1,label=run['group'] if run['id']==0 else None)
+        ax.plot(grid,vel[a],color=colors[run['group']],alpha=.65,lw=1,label=run['group'] if run['group'] not in labelled else None)
+    labelled.add(run['group'])
 ref=next(r for r in runs if r['group']=='sim')
 for a,ax in enumerate(axes):
     ax.step(ref['_bounds'],[s['velocity'][a] for s in ref['_meta']['sequence']]+[0],where='post',color='black',ls='--',lw=1,label='Command')
     ax.set_ylabel(f'v{"xyz"[a]} (m/s)');ax.grid(alpha=.2);ax.legend(loc='upper right',ncol=4)
 axes[-1].set_xlabel('Seconds from first command (ROS time; simulated seconds for sim-simtime)')
-fig.suptitle('Velocity response — 3 aircraft per mode; derived from world position\n0.4 s centered difference, individual runs overlaid; latest batch provisionally SITL')
+fig.suptitle('Velocity response — 3 aircraft per mode; derived from world position\n0.4 s centered difference, individual runs overlaid')
 fig.tight_layout();fig.savefig(OUT/'velocity_comparison.png',dpi=160);plt.close(fig)
 fig,axes=plt.subplots(1,2,figsize=(13,5))
+labelled=set()
 for run in runs:
     for ax,phase in zip(axes,['down','down_with_settle']):
         i=[s['name'] for s in run['_meta']['sequence']].index(phase);start=run['_bounds'][i]
         g=np.arange(-1,5,.05)+start;t=run['_t'];z=run['_xyz'][:,2]
         v=(np.interp(g+.2,t,z)-np.interp(g-.2,t,z))/.4
-        ax.plot(g-start,v,color=colors[run['group']],alpha=.7,label=run['group'] if run['id']==0 else None)
+        ax.plot(g-start,v,color=colors[run['group']],alpha=.7,label=run['group'] if run['group'] not in labelled else None)
+    labelled.add(run['group'])
 for ax,title in zip(axes,['Up → down immediately','Settled → down']):
     ax.axvline(0,color='gray');ax.axhline(-.15,color='black',ls='--');ax.set(title=title,xlabel='Seconds from down command',ylabel='Estimated vz (m/s)');ax.grid(alpha=.2);ax.legend()
 fig.tight_layout();fig.savefig(OUT/'vertical_reversals.png',dpi=160)

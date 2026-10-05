@@ -110,4 +110,4 @@ been integrated. Both launch and runner reject simulation-time mode for those ba
 
 ## Recorded backend comparison
 
-The [analysis report](analysis/report.md), plots, per-run and per-phase CSV metrics, JSON summary, reproduction script, and nine input recordings are in `analysis/`. Regenerate them with `python3 analysis/analyze.py` from this package directory (NumPy and Matplotlib required). The report explains the provisional SITL labels.
+The [analysis report](analysis/report.md), plots, per-run and per-phase CSV metrics, JSON summary, reproduction script, and twelve input recordings are in `analysis/`. The dataset includes three hardware runs. Regenerate the outputs with `python3 analysis/analyze.py` from this package directory (NumPy and Matplotlib required). The report explains the provisional SITL labels.
