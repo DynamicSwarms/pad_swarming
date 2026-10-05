@@ -59,3 +59,18 @@ flies:
 - id: 19
   initial_position: [-0.4, -0.6, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 20
+  initial_position: [-0.4, -0.8, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 21
+  initial_position: [-0.4, -1.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 22  
+  initial_position: [-0.4, -1.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 23
+  initial_position: [-0.4, -1.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 24
+  initial_position: [-0.4, -1.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
