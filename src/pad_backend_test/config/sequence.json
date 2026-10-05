@@ -1,0 +1,21 @@
+[
+  {"name": "initial_hover", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "forward", "duration": 5.0, "velocity": [0.15, 0, 0, 0]},
+  {"name": "settle_after_forward", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "right", "duration": 5.0, "velocity": [0, -0.15, 0, 0]},
+  {"name": "settle_after_right", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "forward_right", "duration": 5.0, "velocity": [0.106066, -0.106066, 0, 0]},
+  {"name": "settle_after_forward_right", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "backward", "duration": 5.0, "velocity": [-0.15, 0, 0, 0]},
+  {"name": "forward_immediate", "duration": 5.0, "velocity": [0.15, 0, 0, 0]},
+  {"name": "settle_after_reversal", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "up", "duration": 5.0, "velocity": [0, 0, 0.15, 0]},
+  {"name": "down", "duration": 5.0, "velocity": [0, 0, -0.15, 0]},
+  {"name": "settle_after_down", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "up_with_settle", "duration": 5.0, "velocity": [0, 0, 0.15, 0]},
+  {"name": "settle_after_up_with_settle", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "down_with_settle", "duration": 5.0, "velocity": [0, 0, -0.15, 0]},
+  {"name": "settle_after_down_with_settle", "duration": 2.0, "velocity": [0, 0, 0, 0]},
+  {"name": "up_forward", "duration": 5.0, "velocity": [0.106066, 0, 0.106066, 0]},
+  {"name": "final_settle", "duration": 2.0, "velocity": [0, 0, 0, 0]}
+]
