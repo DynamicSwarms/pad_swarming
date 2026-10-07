@@ -1,0 +1,32 @@
+[
+  {
+    "group": "Sim",
+    "file": "simulation-cf0-20261007T071331.757326Z.jsonl",
+    "sequence_seconds": 68.14430413
+  },
+  {
+    "group": "Sim",
+    "file": "simulation-cf1-20261007T071159.423975Z.jsonl",
+    "sequence_seconds": 68.165061832
+  },
+  {
+    "group": "Sim",
+    "file": "simulation-cf2-20261007T070930.932456Z.jsonl",
+    "sequence_seconds": 68.20387442
+  },
+  {
+    "group": "Simx3",
+    "file": "simulation-cf0-20261007T071518.640594Z.jsonl",
+    "sequence_seconds": 68.0
+  },
+  {
+    "group": "Simx3",
+    "file": "simulation-cf1-20261007T071549.662677Z.jsonl",
+    "sequence_seconds": 68.0
+  },
+  {
+    "group": "Simx3",
+    "file": "simulation-cf2-20261007T071621.081840Z.jsonl",
+    "sequence_seconds": 68.0
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "group": "Old sim",
+    "file": "simulation-cf0-20261004T235829.246533Z.jsonl",
+    "sequence_seconds": 68.164792621
+  },
+  {
+    "group": "Old sim",
+    "file": "simulation-cf1-20261004T235957.625153Z.jsonl",
+    "sequence_seconds": 68.124150006
+  },
+  {
+    "group": "Old sim",
+    "file": "simulation-cf2-20261005T000128.412332Z.jsonl",
+    "sequence_seconds": 68.164922075
+  },
+  {
+    "group": "New sim",
+    "file": "simulation-cf0-20261007T070125.638801Z.jsonl",
+    "sequence_seconds": 68.183515618
+  },
+  {
+    "group": "New sim",
+    "file": "simulation-cf1-20261007T070255.837693Z.jsonl",
+    "sequence_seconds": 68.22434425
+  },
+  {
+    "group": "New sim",
+    "file": "simulation-cf2-20261007T070425.929269Z.jsonl",
+    "sequence_seconds": 68.183536283
+  }
+]
