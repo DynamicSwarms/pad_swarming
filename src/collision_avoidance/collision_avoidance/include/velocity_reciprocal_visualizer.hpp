@@ -16,6 +16,9 @@ class VelocityReciprocalVisualizer
 {
 public:
   explicit VelocityReciprocalVisualizer(rclcpp::Node & node);
+  VelocityReciprocalVisualizer(
+    std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> topics,
+    rclcpp::Clock::SharedPtr clock);
 
   void publish(
     const std::unordered_map<uint8_t, ObjectInfo> & objects,

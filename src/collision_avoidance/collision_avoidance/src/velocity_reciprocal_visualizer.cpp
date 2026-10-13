@@ -24,9 +24,16 @@ constexpr const char * kMarkerNamespaces[] = {
 }
 
 VelocityReciprocalVisualizer::VelocityReciprocalVisualizer(rclcpp::Node & node)
-: publisher_(node.create_publisher<visualization_msgs::msg::MarkerArray>(
-    "visualization_marker_array", 10)),
-  clock_(node.get_clock())
+: VelocityReciprocalVisualizer(node.get_node_topics_interface(), node.get_clock())
+{
+}
+
+VelocityReciprocalVisualizer::VelocityReciprocalVisualizer(
+  std::shared_ptr<rclcpp::node_interfaces::NodeTopicsInterface> topics,
+  rclcpp::Clock::SharedPtr clock)
+: publisher_(rclcpp::create_publisher<visualization_msgs::msg::MarkerArray>(
+    topics, "visualization_marker_array", rclcpp::QoS(10))),
+  clock_(clock)
 {
 }
 

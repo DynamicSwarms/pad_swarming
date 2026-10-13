@@ -70,7 +70,7 @@ def launch_scaling_example(context):
     ]
     avoidance = Node(
         package="collision_avoidance",
-        executable="velocity_reciprocal_collision_avoidance",
+        executable="collision_avoidance_blackboard",
         parameters=[
             {
                 "publish_visualization": ParameterValue(
@@ -78,11 +78,6 @@ def launch_scaling_example(context):
                 )
             }
         ],
-        output="screen",
-    )
-    legacy_avoidance = Node(
-        package="collision_avoidance",
-        executable="collision_avoidance_node",
         output="screen",
     )
     walker = Node(
@@ -102,7 +97,6 @@ def launch_scaling_example(context):
     return [
         gateway,
         avoidance,
-        legacy_avoidance,
         TimerAction(period=0.5, actions=[spawner]),
         *controllers,
         TimerAction(period=2.0, actions=[walker]),

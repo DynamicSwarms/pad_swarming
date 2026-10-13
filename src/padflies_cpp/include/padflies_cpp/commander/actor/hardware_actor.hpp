@@ -43,7 +43,8 @@ struct VelocityTarget
     bool collision_avoidance;
 };
 
-class CollisionAvoidanceClient;
+class BlackboardCollisionAvoidance;
+namespace collision_avoidance_interfaces { class ICollisionAvoidance; }
 
 class HardwareActor
 {
@@ -56,6 +57,8 @@ public:
         std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
         std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,
+        std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_parameters_interface,
+        std::shared_ptr<collision_avoidance_interfaces::ICollisionAvoidance> collision_calculator,
         const std::string & cf_prefix,
         std::shared_ptr<PadflieTF> padflie_tf
     );
@@ -151,7 +154,7 @@ private: // Internal state for ll_commander_callback
     YawController m_yaw_controller;
     PositionController m_position_controller;
     VelocityController m_velocity_controller;
-    std::unique_ptr<CollisionAvoidanceClient> m_collision_avoidance_client;
+    std::unique_ptr<BlackboardCollisionAvoidance> m_collision_avoidance_client;
 
     std::shared_ptr<HardwareParameterController> m_hardware_parameter_controller;
 

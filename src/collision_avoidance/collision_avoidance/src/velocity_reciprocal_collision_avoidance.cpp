@@ -22,57 +22,6 @@ using std::placeholders::_2;
 
 
 
-Eigen::Vector2d calculate_orca_velocity(
-  const ObjectInfo &self,
-  const std::vector<ObjectInfo> &neighbors,
-  double time_horizon,
-  double time_step,
-  double neighbor_distance,
-  bool &constrained)
-{
-  std::vector<OrcaLine> lines;
-  lines.reserve(neighbors.size());
-
-  const double neighbor_distance_squared =
-    neighbor_distance * neighbor_distance;
-
-  for (const ObjectInfo &other : neighbors) {
-    const Eigen::Vector2d offset = other.position - self.position;
-
-    if (offset.squaredNorm() > neighbor_distance_squared) {
-      continue;
-    }
-
-    lines.push_back(
-      make_orca_line(self, other, time_horizon, time_step));
-  }
-
-  Eigen::Vector2d result = self.preferred_velocity;
-
-  const std::size_t failed_line =
-    linear_program_2(
-      lines,
-      std::max(0.0, self.max_speed),
-      self.preferred_velocity,
-      false,
-      result);
-
-  if (failed_line < lines.size()) {
-    linear_program_3(
-      lines,
-      failed_line,
-      std::max(0.0, self.max_speed),
-      result);
-  }
-
-  constrained =
-    (result - self.preferred_velocity).squaredNorm() > 1.0e-8;
-
-  return result;
-}
-
-
-
 class CollisionAvoidanceNode : public rclcpp::Node {
 public: 
   CollisionAvoidanceNode() 

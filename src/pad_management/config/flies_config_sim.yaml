@@ -65,7 +65,7 @@ flies:
 - id: 21
   initial_position: [-0.4, -1.0, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
-- id: 22  
+- id: 22
   initial_position: [-0.4, -1.2, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
 - id: 23
@@ -73,4 +73,79 @@ flies:
   initial_orientation: [0.0, 0.0, 0.0, 1.0]
 - id: 24
   initial_position: [-0.4, -1.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 25
+  initial_position: [-0.6, -0.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 26
+  initial_position: [-0.6, -0.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 27
+  initial_position: [-0.6, -0.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 28
+  initial_position: [-0.6, -0.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 29
+  initial_position: [-0.6, -0.8, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 30
+  initial_position: [-0.6, -1.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 31
+  initial_position: [-0.6, -1.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 32
+  initial_position: [-0.6, -1.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 33
+  initial_position: [-0.6, -1.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 34
+  initial_position: [-0.8, -0.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 35
+  initial_position: [-0.8, -0.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 36
+  initial_position: [-0.8, -0.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 37
+  initial_position: [-0.8, -0.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 38
+  initial_position: [-0.8, -0.8, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 39
+  initial_position: [-0.8, -1.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 40
+  initial_position: [-0.8, -1.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 41
+  initial_position: [-0.8, -1.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 42
+  initial_position: [-0.8, -1.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 43
+  initial_position: [-1.0, -0.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 44
+  initial_position: [-1.0, -0.2, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 45
+  initial_position: [-1.0, -0.4, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 46
+  initial_position: [-1.0, -0.6, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 47
+  initial_position: [-1.0, -0.8, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 48
+  initial_position: [-1.0, -1.0, 0.0]
+  initial_orientation: [0.0, 0.0, 0.0, 1.0]
+- id: 49
+  initial_position: [-1.0, -1.2, 0.0]
   initial_orientation: [0.0, 0.0, 0.0, 1.0]

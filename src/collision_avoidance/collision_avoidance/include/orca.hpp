@@ -39,3 +39,8 @@ OrcaLine make_orca_line(
   const ObjectInfo & other,
   double time_horizon,
   double time_step);
+
+Eigen::Vector2d calculate_orca_velocity(
+  const ObjectInfo & self, const std::vector<ObjectInfo> & neighbors,
+  double time_horizon, double time_step, double neighbor_distance,
+  bool & constrained);

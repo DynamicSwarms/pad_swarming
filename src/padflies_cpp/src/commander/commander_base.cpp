@@ -17,7 +17,14 @@ PadflieCommanderBase::PadflieCommanderBase(
 , m_param_callback_handle(m_node_interfaces.parameters_interface->add_on_set_parameters_callback(std::bind(&PadflieCommanderBase::m_set_parameters_callback, this, std::placeholders::_1)))
 , m_node_clock_interface(m_node_interfaces.clock_interface)
 , m_logger(m_node_interfaces.logging_interface->get_logger())
+, m_collision_avoidance_loader("collision_avoidance_interfaces", "collision_avoidance_interfaces::ICollisionAvoidance")
 { 
+    const auto plugin_name = m_node_interfaces.parameters_interface->declare_parameter(
+        "collision_avoidance_plugin", rclcpp::ParameterValue(std::string("collision_avoidance::Orca")),
+        rcl_interfaces::msg::ParameterDescriptor().set__read_only(true)).get<std::string>();
+    RCLCPP_INFO(m_logger, "Loading collision avoidance plugin: %s", plugin_name.c_str());
+    m_collision_calculator = m_collision_avoidance_loader.createSharedInstance(
+        plugin_name, m_node_interfaces.parameters_interface);
     m_hardware_parameter_controller = std::make_shared<HardwareParameterController>(
         m_node_interfaces.base_interface,
         m_node_interfaces.graph_interface,
@@ -78,6 +85,8 @@ PadflieCommanderBase::on_activate()
             m_node_interfaces.timers_interface,
             m_node_interfaces.clock_interface,
             m_node_interfaces.logging_interface,
+            m_node_interfaces.parameters_interface,
+            m_collision_calculator,
             m_cf_prefix,
             m_padflie_tf);
 

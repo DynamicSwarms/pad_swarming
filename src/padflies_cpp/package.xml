@@ -19,11 +19,13 @@
   <depend>rclcpp_components</depend>
   <depend>pad_management_interfaces</depend>
   <depend>collision_avoidance_interfaces</depend>
+  <exec_depend>collision_avoidance</exec_depend>
   <depend>std_srvs</depend>
   <depend>std_msgs</depend>
   <depend>rclcpp_action</depend>
   <depend>crazyflie_interfaces</depend>
   <depend>yaml-cpp</depend>
+  <depend>pluginlib</depend>
 
 
 

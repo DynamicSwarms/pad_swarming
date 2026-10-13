@@ -1,6 +1,8 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
+#include "pluginlib/class_loader.hpp"
+#include "collision_avoidance_interfaces/i_collision_avoidance.hpp"
 
 
 #include "padflies_cpp/commander/actor/hardware_state_controller.hpp"
@@ -144,6 +146,9 @@ class PadflieCommanderBase{
         std::shared_ptr<rclcpp::TimerBase> m_padflie_info_timer;
         std::shared_ptr<rclcpp::Publisher<padflies_interfaces::msg::PadflieInfo>> m_padflie_info_pub;   
     protected:
+        // Destroy instances before their loader, including actors retaining the instance.
+        pluginlib::ClassLoader<collision_avoidance_interfaces::ICollisionAvoidance> m_collision_avoidance_loader;
+        std::shared_ptr<collision_avoidance_interfaces::ICollisionAvoidance> m_collision_calculator;
         std::shared_ptr<HardwareActor> m_hardware_actor;
         std::shared_ptr<HardwareParameterController> m_hardware_parameter_controller;
         std::shared_ptr<HardwareProfileController> m_hardware_profile_controller;

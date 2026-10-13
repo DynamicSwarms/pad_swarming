@@ -40,6 +40,7 @@ target_compile_features(padflie PUBLIC c_std_99 cxx_std_17)  # Require C99 and C
 
 set(PADFLIE_DEPS
   src/commander/actor/collision_avoidance_client.cpp
+  src/commander/actor/blackboard_collision_avoidance.cpp
   src/commander/actor/hardware_actor.cpp
   src/commander/actor/hardware_profile_controller.cpp
   src/commander/actor/hardware_parameter_controller.cpp
@@ -73,6 +74,7 @@ target_include_directories(padflie_deps PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
 )
 target_link_libraries(padflie_deps 
+  collision_avoidance_interfaces::calculation_interface
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   crazyflie_interfaces::crazyflie_interfaces

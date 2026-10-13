@@ -349,13 +349,9 @@ def generate_launch_description():
         ],
     )
 
-    collision_avoidance = Node(
-        package="collision_avoidance", executable="collision_avoidance_node"
-    )
-
     velocity_reciprocal_collision_avoidance = Node(
         package="collision_avoidance",
-        executable="velocity_reciprocal_collision_avoidance",
+        executable="collision_avoidance_blackboard",
     )
 
     pad_circle = Node(
@@ -373,7 +369,6 @@ def generate_launch_description():
             hardware_elements,
             simulation_elements,
             pad_broadcaster,
-            collision_avoidance,
             velocity_reciprocal_collision_avoidance,
             pad_circle,
             OpaqueFunction(function=generate_padflies),

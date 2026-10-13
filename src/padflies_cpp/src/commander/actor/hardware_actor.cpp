@@ -1,5 +1,5 @@
 #include "padflies_cpp/commander/actor/hardware_actor.hpp"
-#include "padflies_cpp/commander/actor/collision_avoidance_client.hpp"
+#include "padflies_cpp/commander/actor/blackboard_collision_avoidance.hpp"
 
 static std::unordered_map<std::string, rclcpp::CallbackGroup::SharedPtr> m_callback_groups;
 // https://github.com/ros2/rclcpp/pull/2683/commits/86d831375e8a7acdc55272866e04f4c214002414
@@ -13,6 +13,8 @@ HardwareActor::HardwareActor(
     std::shared_ptr<rclcpp::node_interfaces::NodeTimersInterface> node_timers_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeClockInterface> node_clock_interface,
     std::shared_ptr<rclcpp::node_interfaces::NodeLoggingInterface> node_logging_interface,    
+    std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface> node_parameters_interface,
+    std::shared_ptr<collision_avoidance_interfaces::ICollisionAvoidance> collision_calculator,
     const std::string & cf_prefix, 
     std::shared_ptr<PadflieTF> padflie_tf
 )
@@ -25,12 +27,10 @@ HardwareActor::HardwareActor(
 , m_position_controller(m_dt, 5.0, 2.5, { 3.5, 3.5, 4.500, -6.0, -2.5, 0.2 }) // Default clipping box
 , m_velocity_controller(0.8, { 3.5, 3.5, 4.500, -6.0, -2.5, 0.2 })
 , m_collision_avoidance_client(
-    std::make_unique<CollisionAvoidanceClient>(
+    std::make_unique<BlackboardCollisionAvoidance>(
         std::stoi(cf_prefix.substr(2)), // Extract ID from cf_prefix (cfID)
-        node_base_interface, 
-        node_graph_interface, 
-        node_services_interface,
-        node_logging_interface->get_logger()))
+        node_base_interface, node_topics_interface,
+        node_parameters_interface, node_clock_interface, collision_calculator))
 , m_hl_commander(
     node_base_interface,
     node_graph_interface,
@@ -300,14 +300,8 @@ void HardwareActor::m_do_cmd_position_update(Eigen::Vector3d & position)
     }
 
     bool collision = false;
-    if (collision_avoidance)
-    {
-        // TODO(architecture): Remove this compatibility mirror once both command modes
-        // publish a shared collision-object state consumed by both avoidance algorithms.
-        m_collision_avoidance_client->mirror_target_to_velocity_avoidance(
-            position, target_position, collision);
-        //m_collision_avoidance_client->get_collision_avoidance_target(position, target_position, collision);
-    }
+    m_collision_avoidance_client->get_collision_avoidance_target(
+        position, target_position, collision, collision_avoidance);
 
     m_position_controller.safe_command_position(position, target_position, collision);
     double current_yaw = m_fixed_yaw_target;
@@ -339,11 +333,9 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
     }
 
     bool collision = false;
-    if (m_target_velocity.collision_avoidance)
-    {
-        m_collision_avoidance_client->get_collision_avoidance_velocity(
-            position, safe_velocity, collision);
-    }
+    m_collision_avoidance_client->get_collision_avoidance_velocity(
+        position, safe_velocity, collision, 0.15, 0.8,
+        m_target_velocity.collision_avoidance);
 
     m_velocity_controller.safe_command_velocity(position, safe_velocity);
 
