@@ -71,6 +71,13 @@ HardwareActor::HardwareActor(
 
 HardwareActor::~HardwareActor()
 {
+    stop();
+}
+
+void HardwareActor::stop()
+{
+    m_state = ActorState::DEACTIVATED;
+    m_send_target_timer->cancel();
 }
 
 std::string
@@ -179,8 +186,7 @@ HardwareActor::land(
         return false;
     m_transition_to_high_level_commander();
 
-    m_hl_commander.land(height, duration, yaw_rad);
-    return true;
+    return m_hl_commander.land(height, duration, yaw_rad);
 }
 
 bool
@@ -363,6 +369,7 @@ void HardwareActor::m_do_cmd_velocity_update(Eigen::Vector3d & position)
 void 
 HardwareActor::fail_safe(std::string reason)
 {
+    m_transition_to_high_level_commander();
     m_state = ActorState::ERROR_STATE;
     m_hl_commander.land(
         -0.5,       // target height

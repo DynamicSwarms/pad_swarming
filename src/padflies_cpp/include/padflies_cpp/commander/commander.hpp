@@ -21,6 +21,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 
 #include <map>
+#include <atomic>
 #include <mutex>
 
 class PadflieCommander : public PadflieCommanderBase
@@ -33,7 +34,7 @@ class PadflieCommander : public PadflieCommanderBase
         );
         ~PadflieCommander() override;
 
-        bool is_healthy() const override;
+        padflies_cpp::HealthStatus check_health() override;
         bool get_home_state() const override;
 
     private:
@@ -44,7 +45,7 @@ class PadflieCommander : public PadflieCommanderBase
         void m_activate_commander() override;
         void m_on_commander_activated() override;
 
-        void m_deactivate_commander(bool force) override;
+        void m_deactivate_commander(padflies_cpp::DeactivationMode mode) override;
         void m_on_commander_deactivated() override;
         void m_cleanup_commander() override;
 
@@ -121,7 +122,9 @@ class PadflieCommander : public PadflieCommanderBase
         std::unique_ptr<padflies_cpp::commander::RoutineFlightGoalExecutor> m_goal_executor;
         std::unique_ptr<padflies_cpp::commander::FlightGoalManager> m_goal_manager;
 
-        CommanderState m_state = CommanderState::UNCONFIGURED;
+        void m_set_state(CommanderState state);
+        padflies_cpp::CommanderWatchdog m_watchdog;
+        std::atomic<CommanderState> m_state = CommanderState::UNCONFIGURED;
 
         std::shared_ptr<rclcpp_action::Server<padflies_interfaces::action::Deploy>>
             m_deploy_action_server;

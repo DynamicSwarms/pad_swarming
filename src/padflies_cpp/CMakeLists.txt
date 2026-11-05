@@ -50,6 +50,7 @@ set(PADFLIE_DEPS
   src/commander/actor/position_controller.cpp
   src/commander/actor/velocity_controller.cpp
   src/commander/actor/yaw_controller.cpp
+  src/commander/commander_watchdog.cpp
   src/commander/commander.cpp
   src/commander/commander_base.cpp
   src/commander/padflie_tf.cpp
@@ -140,6 +141,11 @@ install(DIRECTORY include/
 ament_export_include_directories(include)
 
 if(BUILD_TESTING)
+  enable_testing()
+  add_executable(watchdog_test test/watchdog_test.cpp)
+  target_include_directories(watchdog_test PRIVATE include)
+  target_link_libraries(watchdog_test padflie_deps)
+  add_test(NAME watchdog_test COMMAND watchdog_test)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files

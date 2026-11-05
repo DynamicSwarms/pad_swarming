@@ -45,10 +45,13 @@ public:
     m_commander_health_check_timer = this->create_wall_timer(
       std::chrono::milliseconds(200),
       [this]() {
-        if (!m_padflie_commander->is_healthy()) 
+        const auto health = m_padflie_commander->check_health();
+        if (!health.healthy() &&
+            this->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
         {
-          RCLCPP_ERROR(this->get_logger(), "Padflie Commander is not healthy, deactivating");
-          m_force_deactivate = true;
+          RCLCPP_ERROR(this->get_logger(), "Padflie watchdog: %s",
+            padflies_cpp::fault_name(health.fault));
+          m_deactivation_mode = health.deactivation_mode;
           this->deactivate();
         }
       });
@@ -78,7 +81,7 @@ public:
       RCLCPP_DEBUG(this->get_logger(), "Crazyflie is shutting down, deactivating commander");
       if (this->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
       {
-        m_force_deactivate = true; // Force deactivation
+        m_deactivation_mode = padflies_cpp::DeactivationMode::STOP;
         this->deactivate();
       }
       if (this->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE)
@@ -141,7 +144,7 @@ public:
     
     if (success)
     {
-      m_force_deactivate = false;
+      m_deactivation_mode = padflies_cpp::DeactivationMode::RETURN;
       m_is_configured = true;
       return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     } else {
@@ -164,7 +167,7 @@ public:
     
     if (success) 
     {
-      m_force_deactivate = false;
+      m_deactivation_mode = padflies_cpp::DeactivationMode::RETURN;
       return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
     } else return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
   }
@@ -174,14 +177,14 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "Deactivating Padflie with prefix: %s", m_prefix.c_str());
     try {
-      m_padflie_commander->on_deactivate(m_force_deactivate);
+      m_padflie_commander->on_deactivate(m_deactivation_mode);
     } catch (const CommanderException & e) {
       RCLCPP_ERROR(this->get_logger(), "Failed to deactivate PadflieCommander: %s", e.what());
       //return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
    
    
-    m_force_deactivate = false; // Reset the force deactivate flag
+    m_deactivation_mode = padflies_cpp::DeactivationMode::RETURN; // Reset the requested deactivation mode
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -229,7 +232,7 @@ private:
 
   bool m_is_configured = false;
 
-  bool m_force_deactivate = false; // Used to force deactivation when the Crazyflie is shutting down
+  padflies_cpp::DeactivationMode m_deactivation_mode = padflies_cpp::DeactivationMode::RETURN;
 };
 
 int main(int argc, char ** argv)

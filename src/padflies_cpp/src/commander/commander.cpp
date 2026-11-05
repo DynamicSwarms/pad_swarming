@@ -1,4 +1,5 @@
 #include "padflies_cpp/commander/commander.hpp"
+#include "padflies_cpp/commander/deactivation_policy.hpp"
 
 #include <chrono>
 #include <vector>
@@ -19,6 +20,7 @@ PadflieCommander::PadflieCommander(
 , m_routine_factory(std::make_shared<RoutineFactory>(
     node_interfaces_bundle,
     m_logger))
+, m_watchdog(node_interfaces_bundle.parameters_interface)
 {
     using namespace padflies_cpp::commander;
     m_goal_executor = std::make_unique<RoutineFlightGoalExecutor>(
@@ -47,12 +49,18 @@ PadflieCommander::~PadflieCommander()
 }
 
 
-bool 
-PadflieCommander::is_healthy() const  
+padflies_cpp::HealthStatus PadflieCommander::check_health()
 {
-    bool isnt_flying = m_state == CommanderState::FLYING && !m_hw_state_controller->is_flying();
-    bool cant_flying = m_state == CommanderState::FLYING && !m_hw_state_controller->canfly();
-    return !isnt_flying && !cant_flying; 
+    auto health = m_watchdog.check(m_hw_state_controller->snapshot(), m_node_clock_interface->get_clock()->now());
+    health.deactivation_mode = padflies_cpp::deactivation_mode_for(health.fault, m_state.load());
+    return health;
+}
+
+void PadflieCommander::m_set_state(CommanderState state)
+{
+    m_state = state;
+    m_watchdog.set_state(state, m_hw_state_controller->snapshot().sequence,
+        m_node_clock_interface->get_clock()->now());
 }
 
 bool 
@@ -69,7 +77,7 @@ PadflieCommander::m_configure_commander()
 
 void PadflieCommander::m_on_commander_configured() 
 {
-    m_state = CommanderState::CONFIGURED;
+    m_set_state(CommanderState::CONFIGURED);
 }
 
 void
@@ -83,16 +91,20 @@ void PadflieCommander::m_on_commander_activated()
 {
     m_routine_factory->set_padflie_shared_ptrs(
         m_hardware_actor, m_hw_state_controller, m_padflie_tf);
-    m_state = m_hw_state_controller->is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING;
+    m_set_state(m_hw_state_controller->is_charged() ? CommanderState::CHARGED : CommanderState::CHARGING);
 }
 
 void 
 PadflieCommander::m_deactivate_commander(
-    bool force) 
+    padflies_cpp::DeactivationMode mode)
 {
     m_accepting_goals = false;
-    if (force) {
+    if (mode != padflies_cpp::DeactivationMode::RETURN) {
+        // Halt routine writes before sending the final hardware command.
         m_goal_manager->cancel_all_goals("Commander was force-deactivated");
+        if (mode == padflies_cpp::DeactivationMode::FAIL_SAFE) {
+            m_hardware_actor->fail_safe("Commander requested fail-safe deactivation");
+        }
     } else {
         auto completion = std::make_shared<padflies_cpp::commander::BlockingGoalCompletion>();
         m_goal_manager->request_goal(
@@ -114,21 +126,21 @@ PadflieCommander::m_deactivate_commander(
 void PadflieCommander::m_on_commander_deactivated() 
 {
     m_routine_factory->reset_padflie_shared_ptrs();
-    m_state = CommanderState::CONFIGURED;
+    m_set_state(CommanderState::CONFIGURED);
 }
 
 void PadflieCommander::m_cleanup_commander()
 {
     m_remove_availability_interface();
     m_site_selector->reset();
-    m_state = CommanderState::UNCONFIGURED;
+    m_set_state(CommanderState::UNCONFIGURED);
 }
 
 void 
 PadflieCommander::m_on_charged_callback() 
 {
     if (m_state == CommanderState::CHARGING)
-        m_state = CommanderState::CHARGED;
+        m_set_state(CommanderState::CHARGED);
 }
 
 void PadflieCommander::m_on_state_callback()
@@ -256,7 +268,7 @@ void PadflieCommander::m_on_goal_started(
     const bool deploying =
         goal_kind == FlightGoalKind::DEPLOY ||
         goal_kind == FlightGoalKind::DEPLOY_TO;
-    m_state = deploying ? CommanderState::TAKEOFF : CommanderState::LANDING;
+    m_set_state(deploying ? CommanderState::TAKEOFF : CommanderState::LANDING);
 }
 
 void PadflieCommander::m_on_goal_finished(
@@ -269,12 +281,12 @@ void PadflieCommander::m_on_goal_finished(
         goal_kind == FlightGoalKind::DEPLOY_TO;
 
     if (result.outcome == GoalOutcome::SUCCESS) {
-        m_state = deployed ? CommanderState::FLYING : CommanderState::CHARGING;
+        m_set_state(deployed ? CommanderState::FLYING : CommanderState::CHARGING);
     } else if (m_hw_state_controller->is_flying()) {
-        m_state = CommanderState::FLYING;
+        m_set_state(CommanderState::FLYING);
     } else {
-        m_state = m_hw_state_controller->is_charged() ?
-            CommanderState::CHARGED : CommanderState::CHARGING;
+        m_set_state(m_hw_state_controller->is_charged() ?
+            CommanderState::CHARGED : CommanderState::CHARGING);
     }
 
     m_goal_manager->active_routine_finished(std::move(result));
@@ -287,6 +299,7 @@ PadflieCommander::m_handle_takeoff_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {
     (void)req;
+    m_watchdog.control_received(m_node_clock_interface->get_clock()->now());
     using namespace padflies_cpp::commander;
     m_goal_manager->request_goal(
         Deploy{},
@@ -301,6 +314,7 @@ PadflieCommander::m_handle_land_command(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> req) 
 {   
     (void)req;
+    m_watchdog.control_received(m_node_clock_interface->get_clock()->now());
     using namespace padflies_cpp::commander;
     m_goal_manager->request_goal(
         Return{},
@@ -329,6 +343,7 @@ void PadflieCommander::m_handle_deploy_action_accepted(
         goal_handle)
 {
     using namespace padflies_cpp::commander;
+    m_watchdog.control_received(m_node_clock_interface->get_clock()->now());
     const auto goal_id = goal_handle->get_goal_id();
     auto completion = std::make_shared<ActionGoalCompletion<padflies_interfaces::action::Deploy>>(
         goal_handle,
@@ -368,6 +383,7 @@ void PadflieCommander::m_handle_return_action_accepted(
         goal_handle)
 {
     using namespace padflies_cpp::commander;
+    m_watchdog.control_received(m_node_clock_interface->get_clock()->now());
     const auto goal_id = goal_handle->get_goal_id();
     auto completion = std::make_shared<ActionGoalCompletion<padflies_interfaces::action::Return>>(
         goal_handle,
@@ -422,6 +438,7 @@ void
 PadflieCommander::m_handle_send_target_command(
     const padflies_interfaces::msg::SendTarget::SharedPtr msg) 
 {
+    m_watchdog.control_received(m_node_clock_interface->get_clock()->now());
     if (m_state == CommanderState::FLYING) {
         if (msg->mode_position) 
         {

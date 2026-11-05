@@ -101,14 +101,15 @@ PadflieCommanderBase::on_activate()
 }
 
 void 
-PadflieCommanderBase::on_deactivate(bool force)
+PadflieCommanderBase::on_deactivate(padflies_cpp::DeactivationMode mode)
 { 
     if (m_base_state != CommanderBaseState::ACTIVATED) throw CommanderException("PadflieCommanderBase is not activated, invalid transition!");
 
     m_remove_control_interface(); // First block all incomming commands
 
     try {
-        m_deactivate_commander(force);
+        m_deactivate_commander(mode);
+        m_hardware_actor->stop();
     } catch (...) {
         m_hardware_profile_controller->deactivate();
         throw;

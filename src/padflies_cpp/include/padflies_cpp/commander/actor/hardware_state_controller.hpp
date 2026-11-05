@@ -1,6 +1,8 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
+#include <mutex>
+#include "padflies_cpp/commander/actor/hardware_state_snapshot.hpp"
 #include "padflies_cpp/node_interfaces_bundle.hpp"
 
 #include "crazyflie_interfaces/msg/log_data_generic.hpp"
@@ -32,6 +34,7 @@ class HardwareStateController
         bool is_tumbled() const;
 
         void reset_state();
+        padflies_cpp::HardwareStateSnapshot snapshot() const;
 
     private:
         void m_on_state_data(
@@ -43,6 +46,9 @@ class HardwareStateController
         double m_get_battery_voltage_critical() const;
 
     private: 
+        rclcpp::Clock::SharedPtr m_clock;
+        mutable std::mutex m_state_mutex;
+        padflies_cpp::HardwareStateSnapshot m_snapshot;
         double m_battery_voltage = 0.0;
         double m_battery_charge_current = 0.0;
         int m_battery_charge_state = 0;

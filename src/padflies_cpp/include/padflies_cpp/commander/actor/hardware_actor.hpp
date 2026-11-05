@@ -1,6 +1,7 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
+#include <atomic>
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
 #include "padflies_cpp/commander/actor/hardware_parameter_controller.hpp"
@@ -88,6 +89,8 @@ public:
 
     void reset_kalman_to(Eigen::Affine3d & pose);
 
+    // Stop host command output without issuing a flight maneuver.
+    void stop();
     void fail_safe(std::string reason);
    
 public:
@@ -131,7 +134,7 @@ private:
     }
 
 private: 
-    ActorState m_state;
+    std::atomic<ActorState> m_state;
     ActorMode m_mode;
     double m_dt;
 

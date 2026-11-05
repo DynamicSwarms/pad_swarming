@@ -1,6 +1,7 @@
 #pragma once
 
 #include "rclcpp/rclcpp.hpp"
+#include "padflies_cpp/commander/commander_watchdog.hpp"
 #include "pluginlib/class_loader.hpp"
 #include "collision_avoidance_interfaces/i_collision_avoidance.hpp"
 
@@ -37,11 +38,11 @@ class PadflieCommanderBase{
 
         void on_configure();
         void on_activate();
-        void on_deactivate(bool force);
+        void on_deactivate(padflies_cpp::DeactivationMode mode);
         void on_cleanup();
 
 
-        virtual bool is_healthy() const = 0;
+        virtual padflies_cpp::HealthStatus check_health() = 0;
     
     private: 
         /**
@@ -80,7 +81,7 @@ class PadflieCommanderBase{
          * -> no more commands are beeing sent to padflie. 
          * The hardware_actor and hardware_state controller are still available.
          */
-        virtual void m_deactivate_commander(bool force) {(void)force;};
+        virtual void m_deactivate_commander(padflies_cpp::DeactivationMode mode) {(void)mode;};
         /*
          * Gets called when base commander finished deactivation. 
          * hardware_actor is no longer available
