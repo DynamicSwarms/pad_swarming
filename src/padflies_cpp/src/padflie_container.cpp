@@ -45,6 +45,8 @@ public:
       declare_parameter<std::vector<int64_t>>("padflie_ids", std::vector<int64_t>{})),
     m_initial_site(declare_parameter<std::string>("initial_site", "megapad")),
     m_battery_voltage_charged(declare_parameter<double>("battery_voltage_charged", 4.1)),
+    m_battery_compensation(declare_parameter<bool>("battery_compensation", false)),
+    m_battery_drop_max(declare_parameter<double>("battery_drop_max", 0.6)),
     m_hardware_profiles(
       declare_parameter<std::string>("hardware_profiles", ""))
   {
@@ -147,6 +149,8 @@ private:
       "-p", "id:=" + std::to_string(id),
       "-p", "initial_site:=" + m_initial_site,
       "-p", "battery_voltage_charged:=" + std::to_string(m_battery_voltage_charged),
+      "-p", std::string("battery_compensation:=") + (m_battery_compensation ? "true" : "false"),
+      "-p", "battery_drop_max:=" + std::to_string(m_battery_drop_max),
       "-p", "hardware_profiles:=" + m_hardware_profiles};
     return rclcpp::NodeOptions().arguments(arguments);
   }
@@ -209,6 +213,8 @@ private:
   std::vector<int64_t> m_padflie_ids;
   std::string m_initial_site;
   double m_battery_voltage_charged;
+  bool m_battery_compensation;
+  double m_battery_drop_max;
   std::string m_hardware_profiles;
   std::unique_ptr<class_loader::ClassLoader> m_loader;
   std::shared_ptr<rclcpp_components::NodeFactory> m_factory;

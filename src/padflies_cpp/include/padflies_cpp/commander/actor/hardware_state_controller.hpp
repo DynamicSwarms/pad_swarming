@@ -26,6 +26,10 @@ class HardwareStateController
         bool is_empty() const;
         bool is_critical() const;
         double get_battery_voltage() const;
+        // Estimated SoC in percent [0, 100]; NaN before telemetry or while
+        // compensated flight calibration is unavailable. Ground readings may
+        // include charging influence. With compensation disabled, uses raw voltage.
+        double get_soc() const;
         bool yaw_valid() const;
         double get_yaw() const;
 
@@ -41,6 +45,7 @@ class HardwareStateController
             const crazyflie_interfaces::msg::LogDataGeneric::SharedPtr msg
         );
 
+        double m_comparison_voltage() const;
         double m_get_battery_voltage_charged() const;
         double m_get_battery_voltage_empty() const;
         double m_get_battery_voltage_critical() const;
@@ -49,6 +54,14 @@ class HardwareStateController
         rclcpp::Clock::SharedPtr m_clock;
         mutable std::mutex m_state_mutex;
         padflies_cpp::HardwareStateSnapshot m_snapshot;
+        bool m_compensated = false;
+        double m_max_drop = 0.6;
+        double m_ground_voltage = 0.0;
+        bool m_ground_voltage_valid = false;
+        unsigned m_flying_samples = 0;
+        double m_second_flying_voltage = 0.0;
+        double m_drop = 0.0;
+        bool m_drop_valid = false;
         double m_battery_voltage = 0.0;
         double m_battery_charge_current = 0.0;
         int m_battery_charge_state = 0;
