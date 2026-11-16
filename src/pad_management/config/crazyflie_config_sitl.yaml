@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+    default_firmware_params:
+      stabilizer:
+        estimator: 2
+        controller: 1
+        # Mellinger dont work with velocity control
+        # 1: PID, 2: Mellinger, 3: INDI, 4: Brescianini, 5: Lee
+      locSrv:
+        extPosStdDev: 0.001

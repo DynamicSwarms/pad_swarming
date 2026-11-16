@@ -1,0 +1,636 @@
+<mxfile host="Electron" agent="Codex" pages="3">
+  <diagram id="classes" name="01 Class diagram">
+    <mxGraphModel dx="3613" dy="2136" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="c0" />
+        <mxCell id="c1" parent="c0" />
+        <mxCell id="ct" parent="c1" style="text;html=1;fontSize=24;fontStyle=1;align=left;" value="Commander class diagram" vertex="1">
+          <mxGeometry height="40" width="700" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="commander" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="PadflieCommander" vertex="1">
+          <mxGeometry height="268" width="280" x="-590" y="-128" as="geometry" />
+        </mxCell>
+        <mxCell id="b5kF2B7FoK6AGcSlyDxD-4" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_goal_manager: FlightGoalManager" vertex="1">
+          <mxGeometry height="26" width="280" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="b5kF2B7FoK6AGcSlyDxD-6" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_routine_factory: RoutineFactory" vertex="1">
+          <mxGeometry height="26" width="280" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="b5kF2B7FoK6AGcSlyDxD-5" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_goal_executor: RoutineFlightGoalExecutor" vertex="1">
+          <mxGeometry height="26" width="280" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="b5kF2B7FoK6AGcSlyDxD-7" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_site_selector: SiteSelector" vertex="1">
+          <mxGeometry height="26" width="280" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="b5kF2B7FoK6AGcSlyDxD-8" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_hw_state_controller: HardwareStateController" vertex="1">
+          <mxGeometry height="26" width="280" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="commander_sep" parent="commander" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="280" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="commander_method_1" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ activate() / deactivate()" vertex="1">
+          <mxGeometry height="26" width="280" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="commander_method_2" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ handle_goal_services()" vertex="1">
+          <mxGeometry height="26" width="280" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="commander_method_3" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- on_goal_started()" vertex="1">
+          <mxGeometry height="26" width="280" y="216" as="geometry" />
+        </mxCell>
+        <mxCell id="commander_method_4" parent="commander" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- on_goal_finished()" vertex="1">
+          <mxGeometry height="26" width="280" y="242" as="geometry" />
+        </mxCell>
+        <mxCell id="manager" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="FlightGoalManager" vertex="1">
+          <mxGeometry height="216" width="330" x="-200" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_field_1" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_active_goal: optional" vertex="1">
+          <mxGeometry height="26" width="330" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_field_2" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_next_goal: optional" vertex="1">
+          <mxGeometry height="26" width="330" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_field_3" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_interruption_in_progress: bool" vertex="1">
+          <mxGeometry height="26" width="330" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_sep" parent="manager" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="330" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_method_1" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ request_goal()" vertex="1">
+          <mxGeometry height="26" width="330" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_method_2" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ active_routine_finished()" vertex="1">
+          <mxGeometry height="26" width="330" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_method_3" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ cancel_all_goals()" vertex="1">
+          <mxGeometry height="26" width="330" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="manager_method_4" parent="manager" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- request_interruption_and_set_next_goal()" vertex="1">
+          <mxGeometry height="26" width="330" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="iexecutor" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="«interface»&amp;nbsp;&lt;div&gt;IFlightGoalExecutor&lt;/div&gt;" vertex="1">
+          <mxGeometry height="126" width="350" x="800" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="iexecutor_sep" parent="iexecutor" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="350" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="iexecutor_method_1" parent="iexecutor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ start_routine_for_goal()" vertex="1">
+          <mxGeometry height="26" width="350" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="iexecutor_method_2" parent="iexecutor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ interrupt_active_routine_if_possible()" vertex="1">
+          <mxGeometry height="26" width="350" y="74" as="geometry" />
+        </mxCell>
+        <mxCell id="iexecutor_method_3" parent="iexecutor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ stop_active_routine_without_callback()" vertex="1">
+          <mxGeometry height="26" width="350" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="factory" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="RoutineFactory" vertex="1">
+          <mxGeometry height="216" width="300" x="610" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_field_1" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_takeoff_plugin_loader" vertex="1">
+          <mxGeometry height="26" width="300" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_field_2" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_landing_plugin_loader" vertex="1">
+          <mxGeometry height="26" width="300" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_field_3" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_hardware_actor: HardwareActor" vertex="1">
+          <mxGeometry height="26" width="300" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_field_4" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_padflie_tf: PadflieTF" vertex="1">
+          <mxGeometry height="26" width="300" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_sep" parent="factory" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_method_1" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ create_takeoff_routine()" vertex="1">
+          <mxGeometry height="26" width="300" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_method_2" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ create_land_routine()" vertex="1">
+          <mxGeometry height="26" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="factory_method_3" parent="factory" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- register Interruptible" vertex="1">
+          <mxGeometry height="26" width="300" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="goal" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="«variant»&amp;nbsp;&lt;div&gt;FlightGoal&lt;/div&gt;" vertex="1">
+          <mxGeometry height="204" width="270" x="-370" y="822" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_field_1" parent="goal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Deploy" vertex="1">
+          <mxGeometry height="26" width="270" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_field_2" parent="goal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="DeployTo { target }" vertex="1">
+          <mxGeometry height="26" width="270" y="66" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_field_3" parent="goal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="Return" vertex="1">
+          <mxGeometry height="26" width="270" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_field_4" parent="goal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="ReturnTo { site }" vertex="1">
+          <mxGeometry height="26" width="270" y="118" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_sep" parent="goal" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="270" y="144" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_method_1" parent="goal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="GoalPolicy" vertex="1">
+          <mxGeometry height="26" width="270" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="goal_method_2" parent="goal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="REPLACEABLE | LOCKED" vertex="1">
+          <mxGeometry height="26" width="270" y="178" as="geometry" />
+        </mxCell>
+        <mxCell id="request" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="FlightGoalRequest" vertex="1">
+          <mxGeometry height="190" width="300" x="-185" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="request_field_1" parent="request" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_id: uint64" vertex="1">
+          <mxGeometry height="26" width="300" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="request_field_2" parent="request" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_goal: FlightGoal" vertex="1">
+          <mxGeometry height="26" width="300" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="request_field_3" parent="request" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_completion: IGoalCompletion" vertex="1">
+          <mxGeometry height="26" width="300" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="request_field_4" parent="request" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_policy: GoalPolicy" vertex="1">
+          <mxGeometry height="26" width="300" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="request_sep" parent="request" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="request_method_1" parent="request" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ complete_with_result()" vertex="1">
+          <mxGeometry height="26" width="300" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="request_method_2" parent="request" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ can_be_replaced(): bool" vertex="1">
+          <mxGeometry height="26" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="executor" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="RoutineFlightGoalExecutor" vertex="1">
+          <mxGeometry height="216" width="360" x="795" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_field_1" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_active_routine: Routine" vertex="1">
+          <mxGeometry height="26" width="360" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_field_2" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_hardware_is_flying: HardwareIsFlying" vertex="1">
+          <mxGeometry height="26" width="360" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_field_3" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_site_after_success: string" vertex="1">
+          <mxGeometry height="26" width="360" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_sep" parent="executor" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="360" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_method_1" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ start_routine_for_goal()" vertex="1">
+          <mxGeometry height="26" width="360" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_method_2" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ interrupt_active_routine_if_possible()" vertex="1">
+          <mxGeometry height="26" width="360" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_method_3" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- create_deploy_routine()" vertex="1">
+          <mxGeometry height="26" width="360" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="executor_method_4" parent="executor" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- create_return_routine()" vertex="1">
+          <mxGeometry height="26" width="360" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="«interface»&lt;div&gt;&amp;nbsp;IBehaviorPlugin&lt;/div&gt;" vertex="1">
+          <mxGeometry height="152" width="300" x="610" y="1070" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin_field_1" parent="plugin" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="ITakeoffPlugin" vertex="1">
+          <mxGeometry height="26" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin_field_2" parent="plugin" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="ILandingPlugin" vertex="1">
+          <mxGeometry height="26" width="300" y="66" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin_sep" parent="plugin" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin_method_1" parent="plugin" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ getTree(factory, actor, tf, site): BT::Tree" vertex="1">
+          <mxGeometry height="26" width="300" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin_method_2" parent="plugin" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ getResultClassifier()" vertex="1">
+          <mxGeometry height="26" width="300" y="126" as="geometry" />
+        </mxCell>
+        <mxCell id="completion" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="«interface»&lt;div&gt;&amp;nbsp;IGoalCompletion&lt;/div&gt;" vertex="1">
+          <mxGeometry height="152" width="290" x="40" y="822" as="geometry" />
+        </mxCell>
+        <mxCell id="completion_field_1" parent="completion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="ServiceGoalCompletion" vertex="1">
+          <mxGeometry height="26" width="290" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="completion_field_2" parent="completion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="TriggerGoalCompletion" vertex="1">
+          <mxGeometry height="26" width="290" y="66" as="geometry" />
+        </mxCell>
+        <mxCell id="completion_field_3" parent="completion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="BlockingGoalCompletion" vertex="1">
+          <mxGeometry height="26" width="290" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="completion_sep" parent="completion" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="290" y="118" as="geometry" />
+        </mxCell>
+        <mxCell id="completion_method_1" parent="completion" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ complete(GoalResult)" vertex="1">
+          <mxGeometry height="26" width="290" y="126" as="geometry" />
+        </mxCell>
+        <mxCell id="routine" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="Routine" vertex="1">
+          <mxGeometry height="242" width="350" x="1050" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_field_1" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_behavior_tree: BT::Tree" vertex="1">
+          <mxGeometry height="26" width="350" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_field_2" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_interruption: RoutineInterruptionState" vertex="1">
+          <mxGeometry height="26" width="350" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_field_3" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_timer: TimerBase" vertex="1">
+          <mxGeometry height="26" width="350" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_field_4" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_on_finished_callback" vertex="1">
+          <mxGeometry height="26" width="350" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_sep" parent="routine" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="350" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_method_1" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ start()" vertex="1">
+          <mxGeometry height="26" width="350" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_method_2" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ halt()" vertex="1">
+          <mxGeometry height="26" width="350" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_method_3" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ request_interruption_if_possible(): bool" vertex="1">
+          <mxGeometry height="26" width="350" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="routine_method_4" parent="routine" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- timer_callback()" vertex="1">
+          <mxGeometry height="26" width="350" y="216" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt" parent="c1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="RoutineInterruptionState" vertex="1">
+          <mxGeometry height="190" width="340" x="1630" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_field_1" parent="interrupt" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_interruption_allowed: bool" vertex="1">
+          <mxGeometry height="26" width="340" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_field_2" parent="interrupt" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="- m_interruption_requested: bool" vertex="1">
+          <mxGeometry height="26" width="340" y="52" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_sep" parent="interrupt" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;strokeColor=inherit;" value="" vertex="1">
+          <mxGeometry height="8" width="340" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_method_1" parent="interrupt" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ allow_interruption()" vertex="1">
+          <mxGeometry height="26" width="340" y="86" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_method_2" parent="interrupt" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ prevent_interruption()" vertex="1">
+          <mxGeometry height="26" width="340" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_method_3" parent="interrupt" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ request_interruption_if_allowed(): bool" vertex="1">
+          <mxGeometry height="26" width="340" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="interrupt_method_4" parent="interrupt" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ take_interruption_request(): bool" vertex="1">
+          <mxGeometry height="26" width="340" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="ce1" edge="1" parent="c1" source="commander" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=diamondThin;endFill=1;" target="manager" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce2" edge="1" parent="c1" source="manager" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=diamondThin;endFill=1;" target="request" value="active / next">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce3" edge="1" parent="c1" source="request_method_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;exitX=0.283;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="goal" value="contains">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce4" edge="1" parent="c1" source="request_method_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;exitX=0.764;exitY=0.979;exitDx=0;exitDy=0;exitPerimeter=0;" target="completion" value="completion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce5" edge="1" parent="c1" source="manager" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;" target="iexecutor" value="uses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce6" edge="1" parent="c1" source="executor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;" target="iexecutor" value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce7" edge="1" parent="c1" source="executor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=diamondThin;endFill=1;" target="routine" value="owns active">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce8" edge="1" parent="c1" source="executor" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;exitX=0.157;exitY=1.017;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="factory" value="creates">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="851.5" y="710" />
+              <mxPoint x="760" y="710" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ce9" edge="1" parent="c1" source="factory" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;" target="plugin" value="loads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ce10" edge="1" parent="c1" source="routine" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=diamondThin;endFill=0;" target="interrupt" value="shares">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="sequence" name="02 Sequence diagram">
+    <mxGraphModel dx="1600" dy="1050" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="s0" />
+        <mxCell id="s1" parent="s0" />
+        <mxCell id="st" value="Goal execution and interruption sequence" style="text;html=1;fontSize=24;fontStyle=1;align=left;" vertex="1" parent="s1">
+          <mxGeometry x="40" y="20" width="800" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="su" value="Caller / lifecycle" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="50" y="80" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sc" value="PadflieCommander" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="290" y="80" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sm" value="FlightGoalManager" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="540" y="80" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="se" value="RoutineExecutor" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="790" y="80" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sr" value="Routine / BT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="1040" y="80" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sh" value="Hardware / pad service" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="s1">
+          <mxGeometry x="1290" y="80" width="210" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sl1" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=default;" edge="1" parent="s1" source="su">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="1040" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sl2" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=default;" edge="1" parent="s1" source="sc">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="380" y="1040" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sl3" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=default;" edge="1" parent="s1" source="sm">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="1040" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sl4" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=default;" edge="1" parent="s1" source="se">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="880" y="1040" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sl5" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=default;" edge="1" parent="s1" source="sr">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1130" y="1040" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sl6" style="edgeStyle=none;html=1;endArrow=none;dashed=1;strokeColor=default;" edge="1" parent="s1" source="sh">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1395" y="1040" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sn1" value="Normal execution" style="text;html=1;fontSize=16;fontStyle=1;fillColor=none;" vertex="1" parent="s1">
+          <mxGeometry x="40" y="155" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sa1" value="request Deploy" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="205" as="sourcePoint" />
+            <mxPoint x="380" y="205" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa2" value="request_goal(Deploy, completion)" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="380" y="250" as="sourcePoint" />
+            <mxPoint x="630" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa3" value="start_routine_for_goal" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="295" as="sourcePoint" />
+            <mxPoint x="880" y="295" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa4" value="create + start" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="880" y="340" as="sourcePoint" />
+            <mxPoint x="1130" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa5" value="tick / reserve / command" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1130" y="385" as="sourcePoint" />
+            <mxPoint x="1395" y="385" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa6" value="RoutineResult" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;dashed=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1130" y="430" as="sourcePoint" />
+            <mxPoint x="880" y="430" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa7" value="active_routine_finished" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;dashed=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="880" y="475" as="sourcePoint" />
+            <mxPoint x="630" y="475" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sa8" value="GoalResult exactly once" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;dashed=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="520" as="sourcePoint" />
+            <mxPoint x="135" y="520" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sn2" value="Replacement or lifecycle deactivation" style="text;html=1;fontSize=16;fontStyle=1;fillColor=none;" vertex="1" parent="s1">
+          <mxGeometry x="40" y="565" width="350" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="sb1" value="request locked Return" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="135" y="620" as="sourcePoint" />
+            <mxPoint x="630" y="620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb2" value="request_interruption_if_possible" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="665" as="sourcePoint" />
+            <mxPoint x="1130" y="665" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="salt" value="Interruptible region?&#xa;&#xa;YES: latch request and return accepted&#xa;NO: Return stays pending; active routine continues" style="shape=note;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontSize=13;" vertex="1" parent="s1">
+          <mxGeometry x="760" y="700" width="360" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="sb3" value="next timer tick: haltTree()" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1130" y="840" as="sourcePoint" />
+            <mxPoint x="1395" y="840" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb4" value="cancel reservation / stop running nodes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;dashed=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1395" y="880" as="sourcePoint" />
+            <mxPoint x="1130" y="880" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb5" value="INTERRUPTED" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;dashed=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1130" y="920" as="sourcePoint" />
+            <mxPoint x="630" y="920" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb6" value="start pending Return" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="965" as="sourcePoint" />
+            <mxPoint x="880" y="965" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sb7" value="hardware grounded? immediate SUCCESS : create landing routine" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=open;dashed=1;" edge="1" parent="s1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="880" y="1010" as="sourcePoint" />
+            <mxPoint x="380" y="1010" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="states" name="03 State diagrams">
+    <mxGraphModel dx="1600" dy="1150" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1150" math="0" shadow="0">
+      <root>
+        <mxCell id="x0" />
+        <mxCell id="x1" parent="x0" />
+        <mxCell id="xt" value="Lifecycle, goal, routine, and hardware states" style="text;html=1;fontSize=24;fontStyle=1;align=left;" vertex="1" parent="x1">
+          <mxGeometry x="40" y="20" width="900" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lg" value="Commander lifecycle" style="swimlane;html=1;rounded=1;startSize=34;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="x1">
+          <mxGeometry x="40" y="80" width="740" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="lc" value="CONFIGURED&#xa;no HardwareActor" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="lg">
+          <mxGeometry x="45" y="100" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="la" value="ACTIVATED&#xa;HardwareActor alive&#xa;goal services available" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="lg">
+          <mxGeometry x="285" y="90" width="190" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ld" value="DEACTIVATING&#xa;services removed&#xa;locked Return pending/running" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="lg">
+          <mxGeometry x="540" y="90" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="le1" value="activate / create actor" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="lg" source="lc" target="la">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le2" value="deactivate" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="lg" source="la" target="ld">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="le3" value="Return complete / destroy actor" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="lg" source="ld" target="lc">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="630" y="250" />
+              <mxPoint x="130" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="le4" value="force: cancel goals, halt routine" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;" edge="1" parent="lg" source="la" target="lc">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="300" />
+              <mxPoint x="130" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gg" value="FlightGoalManager" style="swimlane;html=1;rounded=1;startSize=34;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="x1">
+          <mxGeometry x="820" y="80" width="740" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="gi" value="IDLE&#xa;no active goal" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="gg">
+          <mxGeometry x="35" y="105" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ga" value="ACTIVE&#xa;routine running" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="gg">
+          <mxGeometry x="245" y="105" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="gp" value="ACTIVE + PENDING&#xa;replacement stored" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="gg">
+          <mxGeometry x="455" y="95" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ge1" value="request" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="gg" source="gi" target="ga">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge2" value="replacement request" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="gg" source="ga" target="gp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ge3" value="active completes → start pending" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="gg" source="gp" target="ga">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="545" y="250" />
+              <mxPoint x="320" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ge4" value="complete" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="gg" source="ga" target="gi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320" y="285" />
+              <mxPoint x="110" y="285" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rg" value="Routine and interruption" style="swimlane;html=1;rounded=1;startSize=34;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="x1">
+          <mxGeometry x="40" y="470" width="1520" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="rc" value="CREATED&#xa;default locked" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="rg">
+          <mxGeometry x="35" y="105" width="165" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="rr" value="RUNNING LOCKED" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="rg">
+          <mxGeometry x="285" y="105" width="180" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="ri" value="RUNNING INTERRUPTIBLE&#xa;inside decorator" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="rg">
+          <mxGeometry x="560" y="90" width="220" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="rq" value="INTERRUPTION REQUESTED&#xa;latched until next tick" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="rg">
+          <mxGeometry x="890" y="90" width="230" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="rd" value="FINISHED&#xa;SUCCESS / FAILURE / INTERRUPTED" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="rg">
+          <mxGeometry x="1250" y="100" width="230" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="re1" value="start" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rg" source="rc" target="rr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re2" value="enter &lt;Interruptible&gt;" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rg" source="rr" target="ri">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re3" value="child completes / halt" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rg" source="ri" target="rr">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="670" y="235" />
+              <mxPoint x="375" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="re4" value="request accepted" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rg" source="ri" target="rq">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re5" value="next tick: haltTree()" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rg" source="rq" target="rd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re6" value="tree completes" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="rg" source="rr" target="rd">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="375" y="255" />
+              <mxPoint x="1365" y="255" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rn" value="While locked: interruption is not latched; the replacement remains pending in FlightGoalManager." style="shape=note;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontSize=13;" vertex="1" parent="rg">
+          <mxGeometry x="820" y="215" width="310" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="hg" value="Physical hardware state (authoritative)" style="swimlane;html=1;rounded=1;startSize=34;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="x1">
+          <mxGeometry x="40" y="810" width="1520" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="hgr" value="GROUNDED" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="hg">
+          <mxGeometry x="80" y="105" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="hto" value="TAKING OFF" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="hg">
+          <mxGeometry x="390" y="105" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="hf" value="FLYING" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="hg">
+          <mxGeometry x="700" y="105" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="hl" value="LANDING" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontStyle=1;" vertex="1" parent="hg">
+          <mxGeometry x="1010" y="105" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="he1" value="Deploy routine" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="hg" source="hgr" target="hto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="he2" value="hardware reports flying" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="hg" source="hto" target="hf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="he3" value="Return routine" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="hg" source="hf" target="hl">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="he4" value="hardware reports grounded" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" edge="1" parent="hg" source="hl" target="hgr">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1095" y="235" />
+              <mxPoint x="165" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hn" value="Already satisfied: Return + grounded or Deploy + flying → immediate SUCCESS, no routine." style="shape=note;whiteSpace=wrap;html=1;fillColor=none;strokeColor=default;fontColor=default;fontSize=13;" vertex="1" parent="hg">
+          <mxGeometry x="1240" y="100" width="245" height="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

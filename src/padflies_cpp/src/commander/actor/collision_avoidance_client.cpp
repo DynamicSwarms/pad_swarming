@@ -1,0 +1,164 @@
+#include "padflies_cpp/commander/actor/collision_avoidance_client.hpp"
+
+static std::unordered_map<uint8_t, rclcpp::CallbackGroup::SharedPtr> m_callback_groups;
+// https://github.com/ros2/rclcpp/pull/2683/commits/86d831375e8a7acdc55272866e04f4c214002414
+// As soon as we switch to jazzy or newer we can make this a member variable, currently it would segfault on deconstruction
+
+CollisionAvoidanceClient::CollisionAvoidanceClient(
+    uint8_t cf_id,
+    std::shared_ptr<rclcpp::node_interfaces::NodeBaseInterface> node_base_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeGraphInterface> node_graph_interface,
+    std::shared_ptr<rclcpp::node_interfaces::NodeServicesInterface> node_services_interface,
+    rclcpp::Logger logger)
+: m_cf_id(cf_id)
+, m_logger(logger.get_child("CollisionAvoidanceClient"))
+{
+    if (m_callback_groups.find(cf_id) == m_callback_groups.end())
+        m_callback_groups[cf_id] = node_base_interface->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
+    
+    m_client = rclcpp::create_client<collision_avoidance_interfaces::srv::CollisionAvoidance>(
+        node_base_interface,
+        node_graph_interface,
+        node_services_interface,
+        "collision_avoidance",
+        rclcpp::ServicesQoS().keep_last(10),
+        m_callback_groups[cf_id]);
+
+    m_velocity_client = rclcpp::create_client<
+        collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance>(
+        node_base_interface,
+        node_graph_interface,
+        node_services_interface,
+        "velocity_reciprocal_collision_avoidance",
+        rclcpp::ServicesQoS().keep_last(10),
+        m_callback_groups[cf_id]);
+}
+
+CollisionAvoidanceClient::~CollisionAvoidanceClient()
+{
+    m_client.reset();
+    m_velocity_client.reset();
+    // m_callback_group.reset(); // See note above about m_callback_group
+    RCLCPP_DEBUG(m_logger, "CollisionAvoidanceClient destructor called");
+}
+
+void CollisionAvoidanceClient::get_collision_avoidance_velocity(
+    const Eigen::Vector3d & position,
+    Eigen::Vector3d & velocity,
+    bool & collision,
+    double radius,
+    double max_speed)
+{
+    if (!m_velocity_client) return;
+
+    using VelocityService =
+        collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance;
+    auto request = std::make_shared<VelocityService::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+    request->velocity.x = velocity.x();
+    request->velocity.y = velocity.y();
+    request->velocity.z = velocity.z();
+    request->radius = radius;
+    request->max_speed = max_speed;
+
+    auto result = m_velocity_client->async_send_request(request);
+    auto status = result.wait_for(std::chrono::milliseconds(100));
+    if (status == std::future_status::ready)
+    {
+        auto response = result.get();
+        velocity.x() = response->velocity.x;
+        velocity.y() = response->velocity.y;
+        velocity.z() = response->velocity.z;
+        collision = response->collision;
+    }
+}
+
+void CollisionAvoidanceClient::get_collision_avoidance_target(
+    const Eigen::Vector3d & position,
+    Eigen::Vector3d & target,
+    bool & collision)
+{
+    if (!m_client) return;
+
+    auto request = std::make_shared<collision_avoidance_interfaces::srv::CollisionAvoidance::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+
+    request->target.x = target.x();
+    request->target.y = target.y();
+    request->target.z = target.z();
+
+    auto result = m_client->async_send_request(request);
+    auto status = result.wait_for(std::chrono::milliseconds(100));
+    if (status == std::future_status::ready)
+    {
+        auto response = result.get();
+        target.x() = response->target.x;
+        target.y() = response->target.y;
+        target.z() = response->target.z;
+        collision = response->collision;
+    }
+}
+
+void CollisionAvoidanceClient::mirror_target_to_velocity_avoidance(
+    const Eigen::Vector3d & position,
+    Eigen::Vector3d & target,
+    bool & collision)
+{
+    if (!m_velocity_client) return;
+
+    using VelocityService =
+        collision_avoidance_interfaces::srv::VelocityReciprocalsCollisionAvoidance;
+    auto request = std::make_shared<VelocityService::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+
+    Eigen::Vector2d velocity = (target - position).head<2>();
+    constexpr double max_speed = 0.8;
+    if (velocity.norm() > max_speed) {
+        velocity = velocity.normalized() * max_speed;
+    }
+    request->velocity.x = velocity.x();
+    request->velocity.y = velocity.y();
+    request->velocity.z = target.z() - position.z();
+    request->radius = 0.15;
+    request->max_speed = max_speed;
+
+    auto result = m_velocity_client->async_send_request(request);
+    const auto status = result.wait_for(std::chrono::milliseconds(100));
+    if (status == std::future_status::ready) {
+        const auto response = result.get();
+        target.x() = position.x() + response->velocity.x;
+        target.y() = position.y() + response->velocity.y;
+        collision = response->collision;
+    }
+}
+
+void CollisionAvoidanceClient::mirror_velocity_to_target_avoidance(
+    const Eigen::Vector3d & position,
+    const Eigen::Vector3d & velocity)
+{
+    if (!m_client) return;
+
+    using TargetService = collision_avoidance_interfaces::srv::CollisionAvoidance;
+    auto request = std::make_shared<TargetService::Request>();
+    request->id = m_cf_id;
+    request->position.x = position.x();
+    request->position.y = position.y();
+    request->position.z = position.z();
+    request->target.x = position.x() + velocity.x();
+    request->target.y = position.y() + velocity.y();
+    request->target.z = position.z() + velocity.z();
+
+    m_client->async_send_request(
+        request,
+        [](rclcpp::Client<TargetService>::SharedFuture) {});
+}

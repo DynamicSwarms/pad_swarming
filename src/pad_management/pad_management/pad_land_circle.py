@@ -91,10 +91,9 @@ class PadLandCircle(Node):
     def clear_dict(self):
         decay_duration = Duration(seconds=0, nanoseconds=0.3 * 1e9)
         now = self.get_clock().now()
-        decay_time = now - decay_duration
-
-        for name in list(self.agents.keys()):
-            if self.agents[name].last_time < decay_time:
+        
+        for name, agent in list(self.agents.items()):
+            if now < agent.last_time or now - agent.last_time > decay_duration:
                 del self.agents[name]
 
     def calculate_behaviour(

@@ -1,0 +1,5 @@
+<library path="collision_avoidance_plugins">
+  <class type="collision_avoidance::Orca" base_class_type="collision_avoidance_interfaces::ICollisionAvoidance">
+    <description>Local 2D ORCA velocity calculation for actors using collision-state blackboard snapshots.</description>
+  </class>
+</library>

@@ -1,12 +1,13 @@
 from launch_ros.actions import Node
 from launch import LaunchDescription
 from launch.actions import (
+    GroupAction,
     OpaqueFunction,
     DeclareLaunchArgument,
     IncludeLaunchDescription,
 )
-from launch.conditions import LaunchConfigurationNotEquals, LaunchConfigurationEquals
-from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import EqualsSubstitution, IfElseSubstitution, LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from ament_index_python.packages import get_package_share_directory
@@ -15,85 +16,145 @@ import os
 import yaml
 
 
-def generate_padflies(flies_hardware_yaml: str, flies_webots_yaml: str, backend: str):
-    yamls = {}
-    if not backend == "hardware":
-        yamls["webots"] = flies_webots_yaml
-    if not backend == "webots":
-        yamls["hardware"] = flies_hardware_yaml
-
-    for cf_type in yamls.keys():
-        with open(yamls[cf_type], "r") as file:
-            flies = yaml.safe_load(file)["flies"]
-
-            for flie in flies:
-                id = flie["id"]
-                channel = flie["channel"] if cf_type == "hardware" else 0
-                pad_id = flie["pad"]
-                if cf_type == "webots" or id < 0xF0:
-                    yield Node(
-                        package="padflies_cpp",
-                        executable="padflie",
-                        name=f"padflie{id}",
-                        parameters=[
-                            {
-                                "id": id,
-                                "channel": channel,
-                                "pad_id": pad_id,
-                                "type": cf_type,
-                            }
-                        ],
-                    )
-
-
-def generate_launch_description():
-    webots_gateway_dir = get_package_share_directory("crazyflie_webots_gateway")
-    hardware_gateway_dir = get_package_share_directory("crazyflie_hardware_gateway")
-    webots_connector_dir = get_package_share_directory("webots_connector")
-    pad_management_dir = get_package_share_directory("pad_management")
-
-    pads_hardware_yaml = (
-        get_package_share_directory("pad_management")
-        + "/config/pads_config_hardware.yaml"
+def generate_padflies(context):
+    backend = LaunchConfiguration("backend").perform(context)
+    sitl = LaunchConfiguration("sitl").perform(context).lower() == "true"
+    use_components = (
+        LaunchConfiguration("padflies_as_components").perform(context).lower() == "true"
     )
-    flies_hardware_yaml = (
-        get_package_share_directory("pad_management")
-        + "/config/flies_config_hardware.yaml"
+    hardware_profiles = LaunchConfiguration(
+        "hardware_profiles"
+    ).perform(context)
+
+    if backend == "hardware" and sitl:
+        yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sitl.yaml"
+    elif backend == "simulation":
+        yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_sim.yaml"
+    elif backend == "hardware":
+        yaml_file = get_package_share_directory("pad_management") + "/config/flies_config_vicon.yaml"
+
+    with open(yaml_file, "r") as file:
+        flies = yaml.safe_load(file)["flies"]
+
+    def padflie_parameters(id):
+        return [
+            {
+                "id": id,
+                "initial_site": "megapad",
+                "battery_voltage_charged": 4.1,
+                "hardware_profiles": hardware_profiles,
+            }
+        ]
+
+    if use_components:
+        yield Node(
+            package="padflies_cpp",
+            executable="container",
+            name="padflie_container",
+            parameters=[
+                {
+                    "padflie_ids": [flie["id"] for flie in flies],
+                    "initial_site": "megapad",
+                    "battery_voltage_charged": 4.1,
+                    "hardware_profiles": hardware_profiles,
+                }
+            ],
+            output="screen",
+        )
+    else:
+        for flie in flies:
+            id = flie["id"]
+            yield Node(
+                package="padflies_cpp",
+                executable="padflie",
+                name=f"padflie{id}",
+                parameters=padflie_parameters(id),
+            )
+
+    yield Node(
+        package="pad_management_cpp",
+        executable="pad_right_provider",
+        parameters=[
+            {"pad_resource_manager_plugin": "megapad::MegaPadResourceManagerV2"}
+        ]
     )
 
-    tracker_config = os.path.join(
-        get_package_share_directory("pad_management"), "config", "tracker_config.yaml"
+
+def simulation_group():
+    simulation_gateway = Node(
+        package="crazyflie_simulation_gateway",
+        executable="gateway",
+        output="screen",
+        sigterm_timeout="10.0",
+        #parameters=[{"use_sim_time": True}],
+    )
+    crazyflies = Node(
+        package="crazyflie_simulation_examples",
+        executable="crazyflie_spawner",
+        output="screen",
+        parameters=[
+            {
+                "yaml_path": get_package_share_directory("pad_management")
+                + "/config/flies_config_sim.yaml"
+            }
+        ],
     )
 
-    backend_arg = DeclareLaunchArgument(
-        "backend",
-        default_value="webots",
-        description="Select used backend, choose 'webots', 'hardware' or 'both'.",
+    charging_base = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--x", "0.0",
+            "--y", "0.0",
+            "--z", "0.0",
+            "--yaw", "3.14159",
+            "--pitch", "0",
+            "--roll", "0",
+            "--frame-id", "world",
+            "--child-frame-id", "ChargingBase20",
+        ],
     )
 
-    start_hardware = LaunchConfigurationNotEquals("backend", "webots")
-    start_webots = LaunchConfigurationNotEquals("backend", "hardware")
-    # This doesnt look too clean. In Jazzy we can use Substitions with Equals and Or
-
-    webots_gateway = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [webots_gateway_dir, "/launch/gateway.launch.py"]
-        ),
-        condition=start_webots,
-        launch_arguments={}.items(),
+    pad_circle = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+           arguments=[
+            "--x", "0",
+            "--y", "0",
+            "--z", "1.0",
+            "--yaw", "0",
+            "--pitch", "0",
+            "--roll", "0",
+            "--frame-id", "world",
+            "--child-frame-id", "pad_circle",
+        ],
     )
+
+    return [simulation_gateway, crazyflies, pad_circle, charging_base]
+
+def hardware_group():
 
     hardware_gateway = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            [hardware_gateway_dir, "/launch/crazyflie_hardware_gateway.launch.py"]
+            [get_package_share_directory("crazyflie_hardware_bringup"),
+             "/launch/hardware.launch.py"]
         ),
-        condition=start_hardware,
         launch_arguments={
-            "crazyflie_configuration_yaml": get_package_share_directory(
-                "pad_management"
-            )
-            + "/config/crazyflie_config_vicon.yaml",  # Default params
-            "radio_channels": "50, 100",  # Could read from hardware config??
+            "crazyflie_types_yaml": get_package_share_directory("pad_management")
+            + "/config/crazyflie_types.yaml",
+            "crazyflie_configuration_yaml": IfElseSubstitution(
+                condition=LaunchConfiguration("sitl"),
+                if_value=get_package_share_directory("pad_management")
+                + "/config/crazyflie_config_sitl.yaml",
+                else_value=get_package_share_directory("pad_management")
+                + "/config/crazyflie_config_vicon.yaml",
+            ),
+            "radio_channels": IfElseSubstitution(
+                condition=LaunchConfiguration("sitl"),
+                if_value="80",
+                else_value="50, 100",
+            ),
+            "sitl_udp_radio": LaunchConfiguration("sitl"),
         }.items(),
     )
 
@@ -105,13 +166,17 @@ def generate_launch_description():
         parameters=[
             {
                 "type": "vicon",
-                "hostname": "172.20.37.251",
+                "hostname": "172.20.37.201",
                 "add_labeled_markers_to_pointcloud": True,
                 "topic_name": "pointCloud2",
                 "latency_threshold": 0.045,  # 45ms
             }
         ],
-        condition=start_hardware,
+    )
+
+
+    tracker_config = os.path.join(
+        get_package_share_directory("pad_management"), "config", "tracker_config.yaml"
     )
 
     object_tracker = Node(
@@ -119,89 +184,178 @@ def generate_launch_description():
         executable="tracker",
         name="tracker",
         parameters=[tracker_config],  # also uses pointCloud2
-        condition=start_hardware,
-    )
-
-    position_visualization = Node(
-        package="crazyflies",
-        executable="position_visualization",
-        name="position_visualization",
-    )
-
-    ## Custom stuff
-
-    # Webots connector
-    flies_webots_yaml = os.path.join(pad_management_dir, "config", "webots_config.yaml")
-
-    connector = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [webots_connector_dir, "/launch/webots_connector.launch.py"]
-        ),
-        launch_arguments={
-            "pointcloud_topic_name": "sim_cloud",
-            "webots_config_yaml": flies_webots_yaml,
-        }.items(),
-        condition=start_webots,
-    )
-
-    pointcloud_combiner = Node(
-        package="pad_management",
-        executable="pointcloud_combiner",
-        parameters=[
-            {
-                "input_names": ["sim_cloud", "pointCloud2"],
-                "output_name": "combined_cloud",
-            }
-        ],
-    )
-
-    # webots pads get broadcasted by the connector itself
-    pad_broadcaster = Node(
-        package="pad_management",
-        executable="pad_broadcaster",
-        parameters=[
-            {"pad_yaml": pads_hardware_yaml, "pad_size": 0.2, "base": "ChargingBase20"}
-        ],
-        condition=start_hardware,
     )
 
     point_finder = Node(
         package="pad_management",
         executable="point_finder",
-        parameters=[{"point_cloud_topic_name": "combined_cloud"}],
+        parameters=[{"point_cloud_topic_name": "pointCloud2"}],
+    )
+
+    flies_hardware_yaml = (
+        get_package_share_directory("pad_management")
+        + "/config/flies_config_vicon.yaml"
     )
 
     creator = Node(
         package="pad_management",
         executable="pad_creator",
-        parameters=[{"padflie_yamls": [flies_hardware_yaml, flies_webots_yaml]}],
-    )
-
-    collision_avoidance = Node(
-        package="collision_avoidance", executable="collision_avoidance_node"
-    )
-
-    traffic_controller = Node(
-        package="pad_management", executable="pad_traffic_controller"
-    )
-
-    # For webots we need ChargingBase in tf
-    pad_circle_tf_webots = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments="0 0 1.0 0 0 0 world pad_circle".split(" "),
-        condition=LaunchConfigurationNotEquals("backend", "hardware"),
-    )
-
-    pad_circle_tf = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments="0.5 0.8 1.0 0 0 0 ChargingBase20 pad_circle".split(" "),
-        condition=LaunchConfigurationEquals("backend", "hardware"),
+        parameters=[{"padflie_yamls": [flies_hardware_yaml]}],
     )
 
     pad_circle = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+           arguments=[
+            "--x", "0.5",
+            "--y", "0.8",
+            "--z", "1.0",
+            "--yaw", "0",
+            "--pitch", "0",
+            "--roll", "0",
+            "--frame-id", "ChargingBase20",
+            "--child-frame-id", "pad_circle",
+        ],
+    )
+
+    vicon_elements = GroupAction(
+        actions=[motion_caputre, object_tracker, point_finder, creator, pad_circle],
+        condition=UnlessCondition(LaunchConfiguration("sitl")),
+    )
+
+    sitl_creator = Node(
         package="pad_management",
+        executable="sitl_creator",
+        name="sitl_creator",
+        parameters=[
+            {
+                "setup_yaml": get_package_share_directory("pad_management")
+                + "/config/flies_config_sitl.yaml"
+            }
+        ],
+    )
+
+    sitl_charging_base = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--x", "0.0", "--y", "0.0", "--z", "0.0",
+            "--yaw", "3.14159", "--pitch", "0.0", "--roll", "0.0",
+            "--frame-id", "world", "--child-frame-id", "ChargingBase20",
+        ],
+    )
+
+    sitl_pad_circle = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--x", "0.5", "--y", "0.8", "--z", "1.0",
+            "--yaw", "0.0", "--pitch", "0.0", "--roll", "0.0",
+            "--frame-id", "ChargingBase20", "--child-frame-id", "pad_circle",
+        ],
+    )
+
+    sitl_container = Node(
+        package="crazyflie_sitl",
+        executable="container",
+        name="crazyflie_sitl_container",
+        parameters=[
+            {
+                "crazyflie_configuration": get_package_share_directory(
+                    "pad_management"
+                )
+                + "/config/crazyflie_sitl_container.yaml"
+            }
+        ],
+        output="screen",
+    )
+
+    sitl_elements = GroupAction(
+        actions=[
+            sitl_container,
+            sitl_creator,
+            sitl_charging_base,
+            sitl_pad_circle,
+        ],
+        condition=IfCondition(LaunchConfiguration("sitl")),
+    )
+
+    return [hardware_gateway, vicon_elements, sitl_elements]
+
+def generate_launch_description():
+    backend_arg = DeclareLaunchArgument(
+        "backend",
+        default_value="simulation",
+        description="Select used backend: 'simulation' or 'hardware'.",
+    )
+    sitl_arg = DeclareLaunchArgument(
+        "sitl",
+        default_value="false",
+        description="Use SITL through the hardware UDP-radio backend.",
+    )
+    padflies_as_components_arg = DeclareLaunchArgument(
+        "padflies_as_components",
+        default_value="false",
+        description="Run Padflies as components with one executor per Padflie.",
+    )
+    hardware_profiles_arg = DeclareLaunchArgument(
+        "hardware_profiles",
+        default_value=get_package_share_directory("pad_management")
+        + "/config/hardware_profiles_sensordeck.yaml",
+        description="YAML profile used to detect capabilities and configure firmware I/O.",
+    )
+    
+    
+
+    hardware_elements = GroupAction(
+        actions=hardware_group(),
+        condition=IfCondition(EqualsSubstitution(LaunchConfiguration("backend"), "hardware"))
+    )
+    simulation_elements = GroupAction(
+        actions=simulation_group(),
+        condition=IfCondition(EqualsSubstitution(LaunchConfiguration("backend"), "simulation"))
+    )
+      
+    # Broadcast Pads
+
+    pads_hardware_yaml = (
+        get_package_share_directory("pad_management")
+        + "/config/pads_config_vicon.yaml"
+    )
+
+    pads_simulation_yaml = (
+        get_package_share_directory("pad_management")
+        + "/config/pads_config_sim.yaml"
+    )
+    pads_sitl_yaml = (
+        get_package_share_directory("pad_management")
+        + "/config/pads_config_sitl.yaml"
+    )
+    pad_broadcaster = Node(
+        package="pad_management",
+        executable="pad_broadcaster",
+        parameters=[
+            {"pad_yaml": IfElseSubstitution(
+                condition=EqualsSubstitution(LaunchConfiguration("backend"), "hardware"),
+                if_value=IfElseSubstitution(
+                    condition=LaunchConfiguration("sitl"),
+                    if_value=pads_sitl_yaml,
+                    else_value=pads_hardware_yaml,
+                ),
+                else_value=pads_simulation_yaml,
+            ),
+             "pad_size": 0.2,
+             "base": "ChargingBase20"}
+        ],
+    )
+
+    velocity_reciprocal_collision_avoidance = Node(
+        package="collision_avoidance",
+        executable="collision_avoidance_blackboard",
+    )
+
+    pad_circle = Node(
+        package="megapad",
         executable="pad_land_circle",
         parameters=[{"radius": 1.45, "tf_frame": "pad_circle"}],
     )
@@ -209,27 +363,14 @@ def generate_launch_description():
     return LaunchDescription(
         [
             backend_arg,
-            webots_gateway,
-            hardware_gateway,
-            motion_caputre,
-            object_tracker,
-            position_visualization,
-            connector,
-            pointcloud_combiner,
+            sitl_arg,
+            padflies_as_components_arg,
+            hardware_profiles_arg,
+            hardware_elements,
+            simulation_elements,
             pad_broadcaster,
-            creator,
-            point_finder,
-            collision_avoidance,
-            traffic_controller,
+            velocity_reciprocal_collision_avoidance,
             pad_circle,
-            pad_circle_tf_webots,
-            pad_circle_tf,
-            OpaqueFunction(
-                function=lambda ctxt: generate_padflies(
-                    flies_hardware_yaml,
-                    flies_webots_yaml,
-                    LaunchConfiguration("backend").perform(ctxt),
-                )
-            ),
+            OpaqueFunction(function=generate_padflies),
         ]
     )

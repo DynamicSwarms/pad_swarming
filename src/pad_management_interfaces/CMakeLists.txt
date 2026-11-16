@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(pad_management_interfaces)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -18,6 +18,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PadRightRelease.srv"
   "srv/PadIdleTarget.srv"
   "srv/PadPositionReset.srv"
+  "action/PadRightControl.action"
+  "action/PadExecute.action"
+  "msg/SiteInfo.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

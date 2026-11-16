@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="LandBehavior">
+    <Sequence>
+      <LandInit status="{status}"/>
+      <Interruptable>
+        <ReactiveSequence>
+          <SendFeedback pad_client="{client}"
+                        status="{status}"/>
+          <TimeoutROS timeout_ms="40000">
+            <Parallel failure_count="1"
+                      success_count="1">
+              <ApproachIDLE pad_client="{client}"
+                            status="{status}"/>
+              <GetPadRight pad_client="{client}"
+                           action="LAND"/>
+            </Parallel>
+          </TimeoutROS>
+        </ReactiveSequence>
+      </Interruptable>
+      <TryFinally>
+        <ReactiveSequence>
+          <HasPadRight pad_client="{client}"/>
+          <SendFeedback pad_client="{client}"
+                        status="{status}"/>
+          <TimeoutROS timeout_ms="30000">
+            <AsyncSequence>
+              <ApproachCLOSE pad_client="{client}"
+                             status="{status}"/>
+              <Land pad_client="{client}"
+                    status="{status}"/>
+            </AsyncSequence>
+          </TimeoutROS>
+        </ReactiveSequence>
+        <ReleasePadRight pad_client="{client}"
+                         status="{status}"/>
+      </TryFinally>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="TakeoffBehavior">
+    <Sequence>
+      <TakeoffInit status="{status}"/>
+      <Interruptable>
+        <ReactiveSequence>
+          <SendFeedback pad_client="{client}"
+                        status="{status}"/>
+          <TimeoutROS timeout_ms="20000">
+            <GetPadRight pad_client="{client}"
+                         action="TAKEOFF"/>
+          </TimeoutROS>
+        </ReactiveSequence>
+      </Interruptable>
+      <TryFinally>
+        <ReactiveSequence>
+          <HasPadRight pad_client="{client}"/>
+          <SendFeedback pad_client="{client}"
+                        status="{status}"/>
+          <TimeoutROS timeout_ms="8000">
+            <Takeoff pad_client="{client}"
+                     status="{status}"/>
+          </TimeoutROS>
+        </ReactiveSequence>
+        <ReleasePadRight pad_client="{client}"
+                         status="{status}"/>
+      </TryFinally>
+    </Sequence>
+  </BehaviorTree>
+
+  <BehaviorTree ID="_">
+    <Repeat num_cycles="100">
+      <Delay delay_msec="100">
+        <ApproachIDLE pad_client="{client}"
+                      status=""/>
+      </Delay>
+    </Repeat>
+  </BehaviorTree>
+
+  <!-- Description of Node Models (used by Groot) -->
+  <TreeNodesModel>
+    <Action ID="ApproachCLOSE"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Action ID="ApproachIDLE"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Action ID="GetPadRight"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <input_port name="action"
+                  default="TAKEOFF"
+                  type="std::string">either TAKEOFF or LAND</input_port>
+    </Action>
+    <Condition ID="HasPadRight"
+               editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+    </Condition>
+    <Decorator ID="Interruptable"
+               editable="true"/>
+    <Action ID="Land"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Action ID="LandInit"
+            editable="true">
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Action ID="ReleasePadRight"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <input_port name="status"
+                  type="unsigned int"/>
+    </Action>
+    <Action ID="SendFeedback"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <input_port name="status"
+                  type="unsigned int"/>
+    </Action>
+    <Action ID="Takeoff"
+            editable="true">
+      <input_port name="pad_client"
+                  type="std::shared_ptr&lt;PadClient&gt;"/>
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Action ID="TakeoffInit"
+            editable="true">
+      <output_port name="status"
+                   type="unsigned int"/>
+    </Action>
+    <Decorator ID="TimeoutROS"
+               editable="true">
+      <input_port name="timeout_ms"
+                  type="int"/>
+    </Decorator>
+    <Control ID="TryFinally"
+             editable="true"/>
+  </TreeNodesModel>
+
+</root>

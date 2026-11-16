@@ -1,0 +1,30 @@
+# Goal - sent by Pad
+string pad_name
+uint8 action 
+---
+# Result -sent by CF
+uint8 result
+string reason
+
+uint8 RESULT_UNKNOWN = 0
+uint8 RESULT_ON_PAD = 1
+uint8 RESULT_NOT_ON_PAD = 2
+uint8 RESULT_FAILURE = 3
+---
+# Feedback - sent by CF
+uint8 status
+geometry_msgs/PoseStamped current_pose
+float32 battery_percentage # battery percentage of the requesting CF
+
+uint8 STATUS_WAITING = 0
+
+uint8 STATUS_LANDING_INIT = 1
+uint8 STATUS_LANDING_APPROACH_IDLE = 2
+uint8 STATUS_LANDING_APPROACH_CLOSE = 3
+uint8 STATUS_LANDING = 4
+uint8 STATUS_LANDED = 5
+
+uint8 STATUS_TAKEOFF_INIT = 6
+uint8 STATUS_TAKEOFF_IN_PAD = 7
+uint8 STATUS_TAKEOFF_LEFT_PAD = 8
+uint8 STATUS_TAKEOFF_CLEARED_PAD = 9

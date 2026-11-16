@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>megapad</name>
+  <version>0.0.0</version>
+  <description>Mega pad resource manager plugin.</description>
+  <maintainer email="vinzenz@malke.info">winni</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>eigen3_cmake_module</depend>
+  <depend>geometry_msgs</depend>
+  <depend>pad_management_cpp</depend>
+  <depend>pad_management_interfaces</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>tf2_msgs</depend>
+  <depend>tf2_ros</depend>
+  <build_depend>qt6-base-dev</build_depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>action_msgs</test_depend>
+  <test_depend>launch</test_depend>
+  <test_depend>launch_ros</test_depend>
+  <test_depend>launch_testing</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>pad_management_interfaces</test_depend>
+  <test_depend>rclpy</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
