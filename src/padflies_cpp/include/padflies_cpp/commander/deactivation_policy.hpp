@@ -8,10 +8,8 @@ inline DeactivationMode deactivation_mode_for(HealthFault fault, CommanderState 
 {
     if (fault == HealthFault::CONTROL_COMMANDS_STOPPED)
         return DeactivationMode::RETURN;
-    if (fault == HealthFault::HARDWARE_STATE_UPDATES_STOPPED &&
-        (state == CommanderState::TAKEOFF || state == CommanderState::FLYING ||
-         state == CommanderState::LANDING))
-        return DeactivationMode::FAIL_SAFE;
+    if (fault == HealthFault::HARDWARE_STATE_UPDATES_STOPPED)
+        return DeactivationMode::RETURN;
     return DeactivationMode::STOP;
 }
 }  // namespace padflies_cpp
